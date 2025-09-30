@@ -15,7 +15,7 @@ import {
     updateProfile,
     sendPasswordResetEmail
 } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 
 const GoogleIcon = () => (
     <svg viewBox="0 0 24 24" fill="currentColor">
@@ -67,9 +67,8 @@ export default function CustomerAuthPage() {
         }, 2800);
     }
     
-    const handleAuthSuccess = async (user: any) => {
-        if (isSignUp) {
-            // If it's a new sign-up, create a document in the 'customers' collection
+    const handleAuthSuccess = async (user: any, isNewUser: boolean) => {
+        if (isNewUser) {
             await setDoc(doc(firestore, "customers", user.uid), {
                 email: user.email,
                 displayName: user.displayName || name,
@@ -126,42 +125,64 @@ export default function CustomerAuthPage() {
         if (!validate()) return;
 
         setLoading(true);
-        try {
-            if (isSignUp) {
+        if (isSignUp) {
+            // --- Sign Up Flow ---
+            try {
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                 await updateProfile(userCredential.user, { displayName: name });
-                await handleAuthSuccess(userCredential.user);
-            } else {
-                if(!password) {
-                     setErrors({ password: 'Password is required for sign in.' });
-                     setLoading(false);
-                     return;
+                await handleAuthSuccess(userCredential.user, true);
+            } catch (error: any) {
+                let errorMessage = "An unknown error occurred.";
+                if (error.code === 'auth/email-already-in-use') {
+                    errorMessage = 'This email is already registered. Please sign in.';
+                } else if (error.code === 'auth/weak-password') {
+                    errorMessage = 'The password is too weak.';
+                } else {
+                    errorMessage = 'Sign up failed. Please try again.';
                 }
+                setErrors({ form: errorMessage });
+            } finally {
+                setLoading(false);
+            }
+        } else {
+            // --- Sign In Flow ---
+            if(!password) {
+                setErrors({ password: 'Password is required for sign in.' });
+                setLoading(false);
+                return;
+            }
+            try {
                 const userCredential = await signInWithEmailAndPassword(auth, email, password);
-                await handleAuthSuccess(userCredential.user);
-            }
-        } catch (error: any) {
-            let errorMessage = "An unknown error occurred.";
-            if (error.code) {
-                switch (error.code) {
-                    case 'auth/email-already-in-use':
-                        errorMessage = 'This email is already registered. Please sign in.';
-                        break;
-                    case 'auth/user-not-found':
-                    case 'auth/wrong-password':
-                    case 'auth/invalid-credential':
-                        errorMessage = 'Invalid email or password.';
-                        break;
-                    case 'auth/weak-password':
-                        errorMessage = 'The password is too weak.';
-                        break;
-                    default:
-                        errorMessage = 'Authentication failed. Please try again.';
+                const user = userCredential.user;
+
+                // Role check in Firestore
+                const userDocRef = doc(firestore, 'customers', user.uid);
+                const userDoc = await getDoc(userDocRef);
+
+                if (userDoc.exists() && userDoc.data().role === 'customer') {
+                    await handleAuthSuccess(user, false);
+                } else {
+                    // Not a customer or doc doesn't exist
+                    await auth.signOut();
+                    setErrors({ form: 'Invalid credentials or not a customer account.' });
                 }
+            } catch (error: any) {
+                let errorMessage = "Invalid email or password.";
+                 if (error.code) {
+                    switch (error.code) {
+                        case 'auth/user-not-found':
+                        case 'auth/wrong-password':
+                        case 'auth/invalid-credential':
+                            errorMessage = 'Invalid email or password.';
+                            break;
+                        default:
+                            errorMessage = 'Authentication failed. Please try again.';
+                    }
+                }
+                setErrors({ form: errorMessage });
+            } finally {
+                setLoading(false);
             }
-            setErrors({ form: errorMessage });
-        } finally {
-            setLoading(false);
         }
     };
     
@@ -170,23 +191,22 @@ export default function CustomerAuthPage() {
         setErrors({});
         let provider;
         switch(providerName) {
-            case 'google':
-                provider = new GoogleAuthProvider();
-                break;
-            case 'github':
-                provider = new GithubAuthProvider();
-                break;
-            case 'twitter':
-                provider = new TwitterAuthProvider();
-                break;
+            case 'google': provider = new GoogleAuthProvider(); break;
+            case 'github': provider = new GithubAuthProvider(); break;
+            case 'twitter': provider = new TwitterAuthProvider(); break;
         }
 
         try {
             const result = await signInWithPopup(auth, provider);
-            // Since social sign-in can be used for both login and signup, we treat it as a signup flow
-            // to ensure a document is created if it doesn't exist.
-            setIsSignUp(true);
-            await handleAuthSuccess(result.user);
+            const user = result.user;
+
+            // Check if user exists in 'customers' collection
+            const userDocRef = doc(firestore, "customers", user.uid);
+            const userDoc = await getDoc(userDocRef);
+            
+            const isNewUser = !userDoc.exists();
+            await handleAuthSuccess(user, isNewUser);
+
         } catch (error: any) {
              let errorMessage = "Social login failed. Please try again.";
              if (error.code === 'auth/account-exists-with-different-credential') {
@@ -352,3 +372,5 @@ export default function CustomerAuthPage() {
         </div>
     );
 }
+
+    
