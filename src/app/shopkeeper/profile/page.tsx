@@ -61,7 +61,7 @@ export default function ShopkeeperProfilePage() {
         if (docSnap.exists()) {
           const profile = { uid: currentUser.uid, ...docSnap.data() } as UserProfile;
           setUserProfile(profile);
-          setName(profile.displayName);
+          setName(profile.displayName || '');
           setMobile(profile.mobileNumber || '');
           setPhotoPreview(profile.photoURL || null);
           setIsPinEnabled(profile.pinEnabled || false);
