@@ -154,19 +154,6 @@ export default function OwnerAuthPage() {
                                     {errors.password && <span className="error-message show">{errors.password}</span>}
                                 </div>
 
-                                <div className="form-options">
-                                    <div className="remember-wrapper">
-                                        <input type="checkbox" id="remember" name="remember"/>
-                                        <label htmlFor="remember" className="checkbox-label">
-                                            <div className="neu-checkbox">
-                                                <Check size={16} strokeWidth={3}/>
-                                            </div>
-                                            Remember me
-                                        </label>
-                                    </div>
-                                    {/* Forgot password link is intentionally removed for security */}
-                                </div>
-
                                 <button type="submit" className={`neu-button ${loading ? 'loading' : ''}`} disabled={loading}>
                                     <span className="btn-text">Sign In</span>
                                     <div className="btn-loader">
