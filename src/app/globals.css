@@ -558,6 +558,7 @@ body {
     justify-content: space-around;
     align-items: center;
     z-index: 100;
+    padding: 0 10px;
 }
 
 .admin-nav-item {
@@ -572,6 +573,7 @@ body {
     padding: 8px 12px;
     border-radius: 15px;
     text-align: center;
+    transition: all 0.3s ease;
 }
 
 .admin-nav-item span {
@@ -584,6 +586,7 @@ body {
     color: #00c896;
     background: #e0e5ec;
     box-shadow: inset 4px 4px 8px #bec3cf, inset -4px -4px 8px #ffffff;
+    transform: translateY(-2px);
 }
 
 /* Message Sidebar */
