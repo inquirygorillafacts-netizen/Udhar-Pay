@@ -15,6 +15,7 @@ export default function AuthRoleSelectionPage() {
     const [pinError, setPinError] = useState('');
     const [isOwnerUnlocked, setIsOwnerUnlocked] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [isLockVisible, setIsLockVisible] = useState(true);
 
     const handleRoleSelect = (role: 'customer' | 'shopkeeper' | 'owner') => {
         router.push(`/auth/${role}`);
@@ -30,7 +31,6 @@ export default function AuthRoleSelectionPage() {
         setPinError('');
 
         try {
-            // Document ID is hardcoded as 'owner_pin'. Change if needed.
             const pinDocRef = doc(firestore, 'lock', 'owner_pin');
             const pinDoc = await getDoc(pinDocRef);
 
@@ -41,7 +41,14 @@ export default function AuthRoleSelectionPage() {
                     setIsModalOpen(false);
                     setPin('');
                 } else {
-                    setPinError('Incorrect PIN. Please try again.');
+                    setPinError('माफ कीजिए आप गलत मार्ग पर आ गए है |');
+                    // Hide lock for 30 seconds on wrong attempt
+                    setIsModalOpen(false);
+                    setIsLockVisible(false);
+                    setTimeout(() => {
+                        setIsLockVisible(true);
+                        setPinError('');
+                    }, 30000);
                 }
             } else {
                 setPinError('PIN configuration not found. Contact admin.');
@@ -51,6 +58,7 @@ export default function AuthRoleSelectionPage() {
             setPinError('An error occurred. Please try again.');
         } finally {
             setLoading(false);
+            setPin('');
         }
     };
 
@@ -102,7 +110,7 @@ export default function AuthRoleSelectionPage() {
                 </div>
             </div>
             
-            {!isOwnerUnlocked && (
+            {!isOwnerUnlocked && isLockVisible && (
                 <button className="neu-button lock-btn" onClick={openModal} aria-label="Owner Access">
                     <Lock />
                 </button>
