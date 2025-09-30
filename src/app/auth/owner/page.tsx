@@ -50,40 +50,41 @@ export default function OwnerAuthPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setErrors({});
         if (!validate()) return;
-
+    
         setLoading(true);
+        setErrors({});
+    
         try {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
-
-            // Role check
-            const ownerDocRef = doc(firestore, 'owners', user.uid);
-            const ownerDoc = await getDoc(ownerDocRef);
-
-            if (ownerDoc.exists() && ownerDoc.data().role === 'owner') {
-                // User is an owner, proceed with login
+    
+            // Role check in Firestore
+            const userDocRef = doc(firestore, 'owners', user.uid);
+            const userDoc = await getDoc(userDocRef);
+    
+            if (userDoc.exists() && userDoc.data().role === 'owner') {
+                // User is authenticated and is an owner
                 handleFormTransition();
             } else {
-                // Not an owner, or document doesn't exist. Deny access.
-                await auth.signOut(); // Sign out the user immediately
+                // User is authenticated but not an owner, or doc doesn't exist
+                await auth.signOut(); // Sign out the user
                 setErrors({ form: 'Invalid email or password. Access denied.' });
             }
         } catch (error: any) {
-            let errorMessage = "An unknown error occurred.";
-            if (error.code) {
-                switch (error.code) {
-                    case 'auth/user-not-found':
-                    case 'auth/wrong-password':
-                    case 'auth/invalid-credential':
-                        errorMessage = 'Invalid email or password. Access denied.';
-                        break;
-                    default:
-                        errorMessage = 'Authentication failed. Please try again.';
-                }
-            }
-            setErrors({ form: errorMessage });
+             let errorMessage = "Authentication failed. Please try again.";
+             if (error.code) {
+                 switch (error.code) {
+                     case 'auth/user-not-found':
+                     case 'auth/wrong-password':
+                     case 'auth/invalid-credential':
+                         errorMessage = 'Invalid email or password. Access denied.';
+                         break;
+                     default:
+                         errorMessage = 'Authentication failed. Please try again.';
+                 }
+             }
+             setErrors({ form: errorMessage });
         } finally {
             setLoading(false);
         }
