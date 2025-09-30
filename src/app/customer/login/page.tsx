@@ -128,7 +128,6 @@ export default function CustomerAuthPage() {
             try {
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                 await updateProfile(userCredential.user, { displayName: name });
-                // Create customer document in Firestore
                 await setDoc(doc(firestore, "customers", userCredential.user.uid), {
                     email: userCredential.user.email,
                     displayName: name,
@@ -160,14 +159,12 @@ export default function CustomerAuthPage() {
                 const userCredential = await signInWithEmailAndPassword(auth, email, password);
                 const user = userCredential.user;
 
-                // Role check in Firestore
                 const userDocRef = doc(firestore, 'customers', user.uid);
                 const userDoc = await getDoc(userDocRef);
 
                 if (userDoc.exists() && userDoc.data().role === 'customer') {
                     await handleAuthSuccess(user, false);
                 } else {
-                    // Not a customer or doc doesn't exist
                     await auth.signOut();
                     setErrors({ form: 'Access denied. You are not a customer. Please sign up if you are new.' });
                 }
@@ -205,7 +202,6 @@ export default function CustomerAuthPage() {
             const result = await signInWithPopup(auth, provider);
             const user = result.user;
 
-            // Check if user exists in 'customers' collection
             const userDocRef = doc(firestore, "customers", user.uid);
             const userDoc = await getDoc(userDocRef);
             

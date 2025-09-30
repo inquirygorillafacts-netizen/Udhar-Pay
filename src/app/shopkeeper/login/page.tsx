@@ -128,7 +128,6 @@ export default function ShopkeeperAuthPage() {
             try {
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                 await updateProfile(userCredential.user, { displayName: shopName });
-                // Create shopkeeper document in Firestore
                 await setDoc(doc(firestore, "shopkeepers", userCredential.user.uid), {
                     email: userCredential.user.email,
                     displayName: shopName,
@@ -160,7 +159,6 @@ export default function ShopkeeperAuthPage() {
                 const userCredential = await signInWithEmailAndPassword(auth, email, password);
                 const user = userCredential.user;
 
-                // Role check in Firestore
                 const userDocRef = doc(firestore, 'shopkeepers', user.uid);
                 const userDoc = await getDoc(userDocRef);
 

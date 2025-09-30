@@ -57,16 +57,14 @@ export default function AuthRoleSelectionPage() {
                     const lockoutUntil = Date.now() + lockoutDuration;
                     localStorage.setItem('lockoutUntil', String(lockoutUntil));
                     
-                    // Show error, then hide modal and button
                     setTimeout(() => {
                         setIsModalOpen(false);
                         setIsLockVisible(false);
-                        // Set timeout to show the button again after cooldown
                         setTimeout(() => {
                             setIsLockVisible(true);
                             localStorage.removeItem('lockoutUntil');
                         }, lockoutDuration);
-                    }, 2000); // Wait 2 seconds before closing modal
+                    }, 2000); 
                 }
             } else {
                 setPinError('PIN configuration not found. Contact admin.');
