@@ -60,21 +60,27 @@ export default function OwnerAuthPage() {
             const user = userCredential.user;
     
             // Role check in Firestore
-            const userDocRef = doc(firestore, 'owners', user.uid);
-            const userDoc = await getDoc(userDocRef);
-    
-            if (userDoc.exists() && userDoc.data().role === 'owner') {
-                // User is authenticated and is an owner
-                handleFormTransition();
-            } else {
-                // User is authenticated but not an owner, or doc doesn't exist
-                await auth.signOut(); // Sign out the user
-                setErrors({ form: 'Access denied. You do not have owner privileges.' });
+            try {
+                const userDocRef = doc(firestore, 'owners', user.uid);
+                const userDoc = await getDoc(userDocRef);
+        
+                if (userDoc.exists() && userDoc.data().role === 'owner') {
+                    // User is authenticated and is an owner
+                    handleFormTransition();
+                } else {
+                    // User is authenticated but not an owner, or doc doesn't exist
+                    await auth.signOut(); // Sign out the user
+                    setErrors({ form: 'Access denied. You do not have owner privileges.' });
+                }
+            } catch (firestoreError) {
+                console.error("Firestore role check failed:", firestoreError);
+                await auth.signOut();
+                setErrors({ form: 'Could not verify user role. Please try again.' });
             }
-        } catch (error: any) {
+        } catch (authError: any) {
              let errorMessage = "Authentication failed. Please try again.";
-             if (error.code) {
-                 switch (error.code) {
+             if (authError.code) {
+                 switch (authError.code) {
                      case 'auth/user-not-found':
                      case 'auth/wrong-password':
                      case 'auth/invalid-credential':
