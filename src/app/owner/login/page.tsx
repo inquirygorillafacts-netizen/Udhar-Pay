@@ -48,46 +48,43 @@ export default function OwnerAuthPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setErrors({});
         if (!validate()) return;
     
         setLoading(true);
-        setErrors({});
     
         try {
+            // Step 1: Authenticate with email and password
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
     
-            // Role check in Firestore
             try {
+                // Step 2: Check for role in Firestore
                 const userDocRef = doc(firestore, 'owners', user.uid);
                 const userDoc = await getDoc(userDocRef);
         
                 if (userDoc.exists() && userDoc.data().role === 'owner') {
-                    // User is authenticated and is an owner
+                    // Success: User is authenticated and is an owner
                     handleFormTransition();
                 } else {
-                    // User is authenticated but not an owner, or doc doesn't exist
-                    await auth.signOut(); // Sign out the user
+                    // Role check failed: User is authenticated but not an owner, or doc doesn't exist
+                    await auth.signOut(); // Sign out the user for security
                     setErrors({ form: 'Access denied. You do not have owner privileges.' });
                 }
             } catch (firestoreError) {
+                // Firestore check failed, sign out and show an error
                 console.error("Firestore role check failed:", firestoreError);
                 await auth.signOut();
                 setErrors({ form: 'Could not verify user role. Please try again.' });
             }
         } catch (authError: any) {
-             let errorMessage = "Authentication failed. Please try again.";
-             if (authError.code) {
-                 switch (authError.code) {
-                     case 'auth/user-not-found':
-                     case 'auth/wrong-password':
-                     case 'auth/invalid-credential':
-                         errorMessage = 'Invalid email or password. Access denied.';
-                         break;
-                     default:
-                         // Keep the generic message for other auth errors
-                         errorMessage = 'Authentication failed. Please try again.';
-                 }
+             // Authentication with Firebase failed
+             let errorMessage;
+             if (authError.code === 'auth/invalid-credential' || authError.code === 'auth/user-not-found' || authError.code === 'auth/wrong-password') {
+                 errorMessage = 'Invalid email or password. Access denied.';
+             } else {
+                 errorMessage = 'Authentication failed. Please try again.';
+                 console.error("Authentication error:", authError);
              }
              setErrors({ form: errorMessage });
         } finally {
