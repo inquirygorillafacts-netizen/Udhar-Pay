@@ -67,10 +67,20 @@ export default function CustomerAuthPage() {
     }
     
     const handleAuthSuccess = async (user: any, isNewUser: boolean) => {
+        const ownerDocRef = doc(firestore, 'owners', user.uid);
+        const ownerDoc = await getDoc(ownerDocRef);
+
+        if (ownerDoc.exists()) {
+            await auth.signOut();
+            setErrors({ form: 'This email is reserved for an owner. Please use a different email.' });
+            setLoading(false);
+            return;
+        }
+
         if (isNewUser) {
             await setDoc(doc(firestore, "customers", user.uid), {
                 email: user.email,
-                displayName: user.displayName || name,
+                displayName: user.displayName || name || '',
                 photoURL: user.photoURL || '',
                 createdAt: new Date(),
                 role: 'customer'
@@ -129,12 +139,6 @@ export default function CustomerAuthPage() {
             try {
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                 await updateProfile(userCredential.user, { displayName: name });
-                await setDoc(doc(firestore, "customers", userCredential.user.uid), {
-                    email: userCredential.user.email,
-                    displayName: name,
-                    createdAt: new Date(),
-                    role: 'customer'
-                });
                 await handleAuthSuccess(userCredential.user, true);
             } catch (error: any) {
                 let errorMessage = "An unknown error occurred.";
@@ -166,8 +170,15 @@ export default function CustomerAuthPage() {
                 if (userDoc.exists() && userDoc.data().role === 'customer') {
                     await handleAuthSuccess(user, false);
                 } else {
-                    await auth.signOut();
-                    setErrors({ form: 'Access denied. You are not a customer. Please sign up if you are new.' });
+                    const ownerDocRef = doc(firestore, 'owners', user.uid);
+                    const ownerDoc = await getDoc(ownerDocRef);
+                    if(ownerDoc.exists()) {
+                         await auth.signOut();
+                         setErrors({ form: 'This email is for an Owner. Please login from the Owner portal.' });
+                    } else {
+                         await auth.signOut();
+                         setErrors({ form: 'Access denied. You are not a customer. Please sign up if you are new.' });
+                    }
                 }
             } catch (error: any) {
                 let errorMessage = "Invalid email or password.";
