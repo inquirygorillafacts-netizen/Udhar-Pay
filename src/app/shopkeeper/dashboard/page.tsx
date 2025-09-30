@@ -6,48 +6,28 @@ import { useEffect, useState } from 'react';
 
 export default function ShopkeeperDashboardPage() {
   const { auth } = useFirebase();
-  const router = useRouter();
   const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      if (user) {
-        // User is signed in.
-        setUser(user);
-        setLoading(false);
-      } else {
-        // User is signed out, redirect to login page.
-        router.replace('/shopkeeper/login');
-      }
-    });
-
-    // Cleanup subscription on unmount
-    return () => unsubscribe();
-  }, [auth, router]);
-  
-  const handleSignOut = async () => {
-    await auth.signOut();
-    localStorage.removeItem('activeRole');
-    router.push('/auth');
-  };
-
-  if (loading) {
-    return (
-      <div className="loading-container">
-        <div className="neu-spinner"></div>
-      </div>
-    );
-  }
+    if (auth.currentUser) {
+        setUser(auth.currentUser);
+    }
+  }, [auth]);
 
   return (
     <div className="dashboard-container">
-      <h1>Welcome, Shopkeeper</h1>
-      <p>Your dashboard is ready.</p>
-      <p>Email: {user?.email}</p>
-      <button className="neu-button sign-out-btn" onClick={handleSignOut}>
-        Sign Out
-      </button>
+      <div className="login-card" style={{marginTop: '2rem'}}>
+        <div className="login-header">
+           <h2 style={{ fontSize: '1.75rem' }}>Welcome, Shopkeeper!</h2>
+           <p>This is your dashboard. You can manage your activities here.</p>
+        </div>
+       
+        <div style={{textAlign: 'center', wordBreak: 'break-all'}}>
+            <p><strong>Email:</strong> {user?.email}</p>
+            <p><strong>UID:</strong> {user?.uid}</p>
+        </div>
+
+      </div>
     </div>
   );
 }

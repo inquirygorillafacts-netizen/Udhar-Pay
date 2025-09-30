@@ -1,14 +1,55 @@
-import React from 'react';
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import { LayoutDashboard, User } from 'lucide-react';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import { useFirebase } from '@/firebase/client-provider';
 
 export default function ShopkeeperLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+  const { auth } = useFirebase();
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        setLoading(false);
+      } else {
+        router.replace('/login/shopkeeper');
+      }
+    });
+
+    return () => unsubscribe();
+  }, [auth, router]);
+
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="neu-spinner"></div>
+      </div>
+    );
+  }
+
   return (
-    <div>
-      {/* Shopkeeper-specific layout components can go here, e.g., a shop menu */}
+    <div style={{ paddingBottom: '80px' }}>
       <main>{children}</main>
+
+      <nav className="admin-bottom-nav">
+        <Link href="/shopkeeper/dashboard" className={`admin-nav-item ${pathname === '/shopkeeper/dashboard' ? 'active' : ''}`}>
+          <LayoutDashboard size={24} />
+          <span>Dashboard</span>
+        </Link>
+        <Link href="/shopkeeper/profile" className={`admin-nav-item ${pathname === '/shopkeeper/profile' ? 'active' : ''}`}>
+          <User size={24} />
+          <span>Profile</span>
+        </Link>
+      </nav>
     </div>
   );
 }
