@@ -247,10 +247,10 @@ export default function CustomerProfilePage() {
 
                 <div className="setting-section">
                     <h3 className="setting-title">Support</h3>
-                    <button className="neu-button" style={{margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'not-allowed', opacity: 0.7}}>
+                    <Link href="/customer/helpline" className="neu-button" style={{margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
                         <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}><Phone size={20} /><span>Helpline</span></div>
                         <span>&rarr;</span>
-                    </button>
+                    </Link>
                 </div>
                 
                 <div className="setting-section">
