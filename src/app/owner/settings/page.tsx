@@ -3,8 +3,8 @@
 import { useFirebase } from '@/firebase/client-provider';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { LogOut, Lock, ShieldOff, KeyRound } from 'lucide-react';
+import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
+import { LogOut, Lock, ShieldOff, KeyRound, User, Store, CheckCircle } from 'lucide-react';
 
 interface UserProfile {
   uid: string;
@@ -21,6 +21,10 @@ export default function OwnerSettingsPage() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   
+  // Role management states
+  const [roles, setRoles] = useState({ customer: false, shopkeeper: false });
+  const [isCheckingRoles, setIsCheckingRoles] = useState(true);
+  
   // Settings fields
   const [isPinEnabled, setIsPinEnabled] = useState(false);
   const [showPinModal, setShowPinModal] = useState(false);
@@ -32,18 +36,29 @@ export default function OwnerSettingsPage() {
   const [isChangingPin, setIsChangingPin] = useState(false);
   
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((currentUser) => {
+    const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
         const userRef = doc(firestore, 'owners', currentUser.uid);
-        getDoc(userRef).then((docSnap) => {
-          if (docSnap.exists()) {
-            const profile = { uid: currentUser.uid, ...docSnap.data() } as UserProfile;
-            setUserProfile(profile);
-            setIsPinEnabled(profile.pinEnabled || false);
-          }
-          setLoading(false);
+        const docSnap = await getDoc(userRef);
+
+        if (docSnap.exists()) {
+          const profile = { uid: currentUser.uid, ...docSnap.data() } as UserProfile;
+          setUserProfile(profile);
+          setIsPinEnabled(profile.pinEnabled || false);
+        }
+        setLoading(false);
+
+        // Check roles
+        setIsCheckingRoles(true);
+        const customerDoc = await getDoc(doc(firestore, 'customers', currentUser.uid));
+        const shopkeeperDoc = await getDoc(doc(firestore, 'shopkeepers', currentUser.uid));
+        setRoles({
+          customer: customerDoc.exists(),
+          shopkeeper: shopkeeperDoc.exists()
         });
+        setIsCheckingRoles(false);
+
       } else {
         router.replace('/login/owner');
       }
@@ -51,6 +66,27 @@ export default function OwnerSettingsPage() {
 
     return () => unsubscribe();
   }, [auth, firestore, router]);
+
+  const handleRoleSwitch = async (newRole: 'customer' | 'shopkeeper') => {
+      if (!user) return;
+
+      const userDocRef = doc(firestore, `${newRole}s`, user.uid);
+      const userDoc = await getDoc(userDocRef);
+
+      if (!userDoc.exists()) {
+          // If user is not enrolled in the new role, create a document for them.
+          await setDoc(userDocRef, {
+              email: user.email,
+              displayName: user.displayName,
+              photoURL: user.photoURL || '',
+              createdAt: new Date(),
+              role: newRole
+          });
+      }
+      
+      localStorage.setItem('activeRole', newRole);
+      router.push(`/${newRole}/dashboard`);
+  };
 
   const handlePinToggle = () => {
     if (isPinEnabled) {
@@ -146,13 +182,15 @@ export default function OwnerSettingsPage() {
     );
   }
 
+  const activeRole = typeof window !== 'undefined' ? localStorage.getItem('activeRole') : 'owner';
+
   return (
     <>
     <div className="login-container" style={{paddingTop: '40px', paddingBottom: '80px', minHeight: 'auto'}}>
       <div className="login-card" style={{ maxWidth: '500px' }}>
         <div className="login-header">
           <h2>Owner Settings</h2>
-          <p>Manage application security and your account.</p>
+          <p>Manage application security and roles.</p>
         </div>
         
         <div className="setting-section">
@@ -163,7 +201,29 @@ export default function OwnerSettingsPage() {
             </div>
         </div>
 
-        <div className="setting-section">
+        <div className="setting-section" style={{marginTop: '40px'}}>
+              <h3 className="setting-title" style={{textAlign: 'center'}}>Switch to other Role</h3>
+               {isCheckingRoles ? <div className="neu-spinner" style={{margin: '20px auto'}}></div> : (
+                  <div style={{display: 'flex', gap: '20px', justifyContent: 'center'}}>
+                      {/* Customer Role Card */}
+                      <div className={`neu-button`} style={{flex: 1, flexDirection: 'column', height: 'auto', padding: '20px', margin: 0, border: roles.customer ? '2px solid #00c896' : '2px solid transparent'}}>
+                          <User size={30} style={{marginBottom: '10px'}}/>
+                          <h4 style={{fontSize: '1rem', fontWeight: 600}}>Customer</h4>
+                          {!roles.customer && <p style={{fontSize: '0.7rem', color: '#9499b7', marginTop: '5px'}}>Not Enrolled</p>}
+                          <button onClick={() => handleRoleSwitch('customer')} className="neu-button" style={{fontSize: '0.8rem', padding: '8px 12px', width: '100%', marginTop: '15px', marginBottom: 0}}>{roles.customer ? 'Switch' : 'Enroll & Switch'}</button>
+                      </div>
+                      {/* Shopkeeper Role Card */}
+                       <div className={`neu-button`} style={{flex: 1, flexDirection: 'column', height: 'auto', padding: '20px', margin: 0, border: roles.shopkeeper ? '2px solid #00c896' : '2px solid transparent'}}>
+                          <Store size={30} style={{marginBottom: '10px'}}/>
+                          <h4 style={{fontSize: '1rem', fontWeight: 600}}>Shopkeeper</h4>
+                           {!roles.shopkeeper && <p style={{fontSize: '0.7rem', color: '#9499b7', marginTop: '5px'}}>Not Enrolled</p>}
+                           <button onClick={() => handleRoleSwitch('shopkeeper')} className="neu-button" style={{fontSize: '0.8rem', padding: '8px 12px', width: '100%', marginTop: '15px', marginBottom: 0}}>{roles.shopkeeper ? 'Switch' : 'Enroll & Switch'}</button>
+                      </div>
+                  </div>
+              )}
+          </div>
+
+        <div className="setting-section" style={{marginTop: '40px'}}>
           <h3 className="setting-title">Account</h3>
           <button className="neu-button sign-out-btn" onClick={handleSignOut} style={{width: '100%', margin: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'}}><LogOut size={20}/><span>Sign Out</span></button>
         </div>

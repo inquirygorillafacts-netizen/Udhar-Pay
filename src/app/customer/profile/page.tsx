@@ -3,9 +3,9 @@
 import { useFirebase } from '@/firebase/client-provider';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
-import { Camera, User, Phone, LogOut, Settings, Lock, ShieldOff, KeyRound } from 'lucide-react';
+import { Camera, User, Phone, LogOut, Settings, Lock, ShieldOff, KeyRound, Store, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 
 interface UserProfile {
@@ -26,6 +26,10 @@ export default function CustomerProfilePage() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Role management states
+  const [roles, setRoles] = useState({ customer: false, shopkeeper: false });
+  const [isCheckingRoles, setIsCheckingRoles] = useState(true);
 
   // Profile fields
   const [name, setName] = useState('');
@@ -48,21 +52,32 @@ export default function CustomerProfilePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((currentUser) => {
+    const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
         const userRef = doc(firestore, 'customers', currentUser.uid);
-        getDoc(userRef).then((docSnap) => {
-          if (docSnap.exists()) {
-            const profile = { uid: currentUser.uid, ...docSnap.data() } as UserProfile;
-            setUserProfile(profile);
-            setName(profile.displayName);
-            setMobile(profile.mobileNumber || '');
-            setPhotoPreview(profile.photoURL || null);
-            setIsPinEnabled(profile.pinEnabled || false);
-          }
-          setLoading(false);
+        const docSnap = await getDoc(userRef);
+
+        if (docSnap.exists()) {
+          const profile = { uid: currentUser.uid, ...docSnap.data() } as UserProfile;
+          setUserProfile(profile);
+          setName(profile.displayName);
+          setMobile(profile.mobileNumber || '');
+          setPhotoPreview(profile.photoURL || null);
+          setIsPinEnabled(profile.pinEnabled || false);
+        }
+        setLoading(false);
+
+        // Check roles
+        setIsCheckingRoles(true);
+        const customerDoc = await getDoc(doc(firestore, 'customers', currentUser.uid));
+        const shopkeeperDoc = await getDoc(doc(firestore, 'shopkeepers', currentUser.uid));
+        setRoles({
+          customer: customerDoc.exists(),
+          shopkeeper: shopkeeperDoc.exists()
         });
+        setIsCheckingRoles(false);
+
       } else {
         router.replace('/login/customer');
       }
@@ -70,6 +85,27 @@ export default function CustomerProfilePage() {
 
     return () => unsubscribe();
   }, [auth, firestore, router]);
+  
+  const handleRoleSwitch = async (newRole: 'customer' | 'shopkeeper') => {
+      if (!user) return;
+
+      const userDocRef = doc(firestore, `${newRole}s`, user.uid);
+      const userDoc = await getDoc(userDocRef);
+
+      if (!userDoc.exists()) {
+          // If user is not enrolled in the new role, create a document for them.
+          await setDoc(userDocRef, {
+              email: user.email,
+              displayName: user.displayName,
+              photoURL: user.photoURL || '',
+              createdAt: new Date(),
+              role: newRole
+          });
+      }
+      
+      localStorage.setItem('activeRole', newRole);
+      router.push(`/${newRole}/dashboard`);
+  };
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -87,7 +123,6 @@ export default function CustomerProfilePage() {
     try {
         const userRef = doc(firestore, 'customers', user.uid);
         // NOTE: Image uploading to a backend is not implemented yet.
-        // For now, we only update name and mobile.
         
         await updateProfile(user, { displayName: name });
         await updateDoc(userRef, { displayName: name, mobileNumber: mobile });
@@ -199,6 +234,9 @@ export default function CustomerProfilePage() {
     );
   }
 
+  const activeRole = typeof window !== 'undefined' ? localStorage.getItem('activeRole') : 'customer';
+
+
   return (
     <>
     <div className="login-container" style={{paddingTop: '40px', paddingBottom: '80px', minHeight: 'auto'}}>
@@ -230,6 +268,33 @@ export default function CustomerProfilePage() {
             <div className="btn-loader"><div className="neu-spinner"></div></div>
           </button>
         </form>
+
+         <div className="setting-section" style={{marginTop: '40px'}}>
+              <h3 className="setting-title" style={{textAlign: 'center'}}>Manage Roles</h3>
+               {isCheckingRoles ? <div className="neu-spinner" style={{margin: '20px auto'}}></div> : (
+                  <div style={{display: 'flex', gap: '20px', justifyContent: 'center'}}>
+                      {/* Customer Role Card */}
+                      <div className={`neu-button ${activeRole === 'customer' ? 'active' : ''}`} style={{flex: 1, flexDirection: 'column', height: 'auto', padding: '20px', margin: 0, border: roles.customer ? '2px solid #00c896' : '2px solid transparent'}}>
+                          <User size={30} style={{marginBottom: '10px'}}/>
+                          <h4 style={{fontSize: '1rem', fontWeight: 600}}>Customer</h4>
+                          {roles.customer && activeRole === 'customer' && <CheckCircle size={20} style={{color: 'white', marginTop: '10px'}} />}
+                          {activeRole !== 'customer' && (
+                            <button onClick={() => handleRoleSwitch('customer')} className="neu-button" style={{fontSize: '0.8rem', padding: '8px 12px', width: '100%', marginTop: '15px', marginBottom: 0}}>Activate</button>
+                          )}
+                      </div>
+                      {/* Shopkeeper Role Card */}
+                       <div className={`neu-button ${activeRole === 'shopkeeper' ? 'active' : ''}`} style={{flex: 1, flexDirection: 'column', height: 'auto', padding: '20px', margin: 0, border: roles.shopkeeper ? '2px solid #00c896' : '2px solid transparent'}}>
+                          <Store size={30} style={{marginBottom: '10px'}}/>
+                          <h4 style={{fontSize: '1rem', fontWeight: 600}}>Shopkeeper</h4>
+                          {roles.shopkeeper && activeRole === 'shopkeeper' && <CheckCircle size={20} style={{color: 'white', marginTop: '10px'}} />}
+                           {!roles.shopkeeper && <p style={{fontSize: '0.7rem', color: '#9499b7', marginTop: '5px'}}>Not Enrolled</p>}
+                          {activeRole !== 'shopkeeper' && (
+                            <button onClick={() => handleRoleSwitch('shopkeeper')} className="neu-button" style={{fontSize: '0.8rem', padding: '8px 12px', width: '100%', marginTop: '15px', marginBottom: 0}}>{roles.shopkeeper ? 'Switch' : 'Enroll & Switch'}</button>
+                          )}
+                      </div>
+                  </div>
+              )}
+          </div>
 
         <div style={{marginTop: '30px'}}>
             <button className="neu-button sign-out-btn" onClick={handleSignOut} style={{width: '100%', margin: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'}}><LogOut size={20}/><span>Sign Out</span></button>
