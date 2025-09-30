@@ -3,24 +3,19 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Lock document can only be read by authenticated users, and not written to.
-    match /lock/owner_pin {
-      allow read: if request.auth != null;
-      allow write: if false; // PIN should be set manually in Console
+    // Allow reading the owner PIN for the lock screen, even if not authenticated.
+    match /lock/{docId} {
+      allow read: if true;
+      allow write: if false; // Nobody can write to this from the client
     }
 
-    // Customers can only read and write their own documents.
+    // Secure user collections
     match /customers/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
-
-    // Shopkeepers can only read and write their own documents.
     match /shopkeepers/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
-
-    // Owners can only read and write their own documents.
     match /owners/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
