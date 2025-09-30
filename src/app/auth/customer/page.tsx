@@ -75,17 +75,27 @@ export default function CustomerAuthPage() {
         }
 
         setLoading(true);
+        // Simulate API call
         await new Promise(resolve => setTimeout(resolve, 2000));
         setLoading(false);
-        setShowSuccess(true);
+        
+        // On successful login
+        const formElements = document.querySelectorAll('.login-form, .divider, .social-login, .signup-link');
+        formElements.forEach(el => el.classList.add('form-hiding'));
+        
+        setTimeout(() => {
+            setShowSuccess(true);
+        }, 300);
         
         setTimeout(() => {
              console.log('Redirecting to dashboard...');
-        }, 2500);
+             // router.push('/customer/dashboard');
+        }, 2800);
     };
-
+    
+    // Ambient light effect on mouse move
     useEffect(() => {
-        const card = cardRef.current;
+        const card = document.querySelector('.login-card') as HTMLDivElement;
         if (!card) return;
 
         const handleMouseMove = (e: MouseEvent) => {
@@ -116,7 +126,7 @@ export default function CustomerAuthPage() {
         };
 
         document.addEventListener('mousemove', handleMouseMove);
-        card.addEventListener('mouseleave', handleMouseLeave)
+        card.addEventListener('mouseleave', handleMouseLeave);
 
         return () => {
             document.removeEventListener('mousemove', handleMouseMove);
@@ -143,26 +153,26 @@ export default function CustomerAuthPage() {
                                 <p>Please sign in to continue</p>
                             </div>
                             
-                            <form className="login-form" id="loginForm" noValidate onSubmit={handleSubmit}>
+                            <form className="login-form" noValidate onSubmit={handleSubmit}>
                                 <div className={`form-group ${errors.email ? 'error' : ''}`}>
-                                    <div className="input-group neu-input">
+                                    <div className="neu-input">
                                         <input type="email" id="email" name="email" required autoComplete="email" placeholder=" " value={email} onChange={e => setEmail(e.target.value)} onBlur={validateEmail} />
                                         <label htmlFor="email">Email address</label>
                                         <div className="input-icon"><Mail /></div>
                                     </div>
-                                    <span className={`error-message ${errors.email ? 'show' : ''}`}>{errors.email}</span>
+                                    {errors.email && <span className="error-message show">{errors.email}</span>}
                                 </div>
 
                                 <div className={`form-group ${errors.password ? 'error' : ''}`}>
-                                    <div className="input-group neu-input password-group">
+                                    <div className="neu-input password-group">
                                         <input type={showPassword ? 'text' : 'password'} id="password" name="password" required autoComplete="current-password" placeholder=" " value={password} onChange={e => setPassword(e.target.value)} onBlur={validatePassword}/>
                                         <label htmlFor="password">Password</label>
                                         <div className="input-icon"><Lock /></div>
-                                        <button type="button" className={`password-toggle neu-toggle ${showPassword ? 'show-password' : ''}`} id="passwordToggle" aria-label="Toggle password visibility" onClick={handlePasswordToggle}>
+                                        <button type="button" className="neu-toggle" aria-label="Toggle password visibility" onClick={handlePasswordToggle}>
                                            {showPassword ? <EyeOff /> : <Eye />}
                                         </button>
                                     </div>
-                                    <span className={`error-message ${errors.password ? 'show' : ''}`}>{errors.password}</span>
+                                    {errors.password && <span className="error-message show">{errors.password}</span>}
                                 </div>
 
                                 <div className="form-options">
@@ -178,7 +188,7 @@ export default function CustomerAuthPage() {
                                     <a href="#" className="forgot-link">Forgot password?</a>
                                 </div>
 
-                                <button type="submit" className={`neu-button login-btn ${loading ? 'loading' : ''}`} disabled={loading}>
+                                <button type="submit" className={`neu-button ${loading ? 'loading' : ''}`} disabled={loading}>
                                     <span className="btn-text">Sign In</span>
                                     <div className="btn-loader">
                                         <div className="neu-spinner"></div>
@@ -193,9 +203,9 @@ export default function CustomerAuthPage() {
                             </div>
 
                             <div className="social-login">
-                                <button type="button" className="social-btn neu-social"><GoogleIcon /></button>
-                                <button type="button" className="social-btn neu-social"><GithubIcon /></button>
-                                <button type="button" className="social-btn neu-social"><TwitterIcon /></button>
+                                <button type="button" className="neu-social"><GoogleIcon /></button>
+                                <button type="button" className="neu-social"><GithubIcon /></button>
+                                <button type="button" className="neu-social"><TwitterIcon /></button>
                             </div>
 
                             <div className="signup-link">
@@ -203,8 +213,8 @@ export default function CustomerAuthPage() {
                             </div>
                         </>
                     ) : (
-                        <div className={`success-message ${showSuccess ? 'show' : ''}`}>
-                            <div className="success-icon neu-icon">
+                        <div className="success-message show">
+                            <div className="neu-icon">
                                <Check size={32} strokeWidth={3} />
                             </div>
                             <h3>Success!</h3>
