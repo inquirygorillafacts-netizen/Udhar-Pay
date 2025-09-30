@@ -29,11 +29,7 @@ export default function AuthRoleSelectionPage() {
     }, []);
 
     const handleRoleSelect = (role: 'customer' | 'shopkeeper' | 'owner') => {
-        if (role === 'owner') {
-             router.push(`/login/owner`);
-        } else {
-             router.push(`/login/${role}`);
-        }
+        router.push(`/login/${role}`);
     };
 
     const handlePinSubmit = async (e: React.FormEvent) => {
@@ -56,11 +52,13 @@ export default function AuthRoleSelectionPage() {
                     setIsModalOpen(false);
                     setPin('');
                 } else {
-                    setPinError('माफ कीजिए आप गलत मार्ग पर आ गए है |');
+                    setPinError('Incorrect PIN. Access denied.');
+                    // Lock out for 30 seconds
                     const lockoutDuration = 30000;
                     const lockoutUntil = Date.now() + lockoutDuration;
                     localStorage.setItem('lockoutUntil', String(lockoutUntil));
                     
+                    // Hide modal and lock icon, then show lock icon after timeout
                     setTimeout(() => {
                         setIsModalOpen(false);
                         setIsLockVisible(false);
@@ -68,7 +66,7 @@ export default function AuthRoleSelectionPage() {
                             setIsLockVisible(true);
                             localStorage.removeItem('lockoutUntil');
                         }, lockoutDuration);
-                    }, 2000); 
+                    }, 2000); // Show error for 2 seconds
                 }
             } else {
                 setPinError('PIN configuration not found. Contact admin.');
@@ -89,21 +87,6 @@ export default function AuthRoleSelectionPage() {
         setPinError('');
         setPin('');
     };
-
-    useEffect(() => {
-        const handleEsc = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') {
-                closeModal();
-            }
-        };
-        window.addEventListener('keydown', handleEsc);
-
-        return () => {
-            window.removeEventListener('keydown', handleEsc);
-        };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
 
     return (
         <main className="role-selection-container">
