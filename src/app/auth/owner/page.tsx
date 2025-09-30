@@ -6,9 +6,11 @@ import './owner.css';
 import { Mail, Lock, Eye, EyeOff, Check, Shield } from 'lucide-react';
 import { useFirebase } from '@/firebase/client-provider';
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+
 
 export default function OwnerAuthPage() {
-    const { auth } = useFirebase();
+    const { auth, firestore } = useFirebase();
     const router = useRouter();
 
     const [showPassword, setShowPassword] = useState(false);
@@ -53,8 +55,21 @@ export default function OwnerAuthPage() {
 
         setLoading(true);
         try {
-            await signInWithEmailAndPassword(auth, email, password);
-            handleFormTransition();
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            const user = userCredential.user;
+
+            // Role check
+            const ownerDocRef = doc(firestore, 'owners', user.uid);
+            const ownerDoc = await getDoc(ownerDocRef);
+
+            if (ownerDoc.exists() && ownerDoc.data().role === 'owner') {
+                // User is an owner, proceed with login
+                handleFormTransition();
+            } else {
+                // Not an owner, or document doesn't exist. Deny access.
+                await auth.signOut(); // Sign out the user immediately
+                setErrors({ form: 'Invalid email or password. Access denied.' });
+            }
         } catch (error: any) {
             let errorMessage = "An unknown error occurred.";
             if (error.code) {
