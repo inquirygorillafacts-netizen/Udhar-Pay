@@ -70,12 +70,17 @@ export default function CustomerProfilePage() {
 
         // Check roles
         setIsCheckingRoles(true);
-        const customerDoc = await getDoc(doc(firestore, 'customers', currentUser.uid));
-        const shopkeeperDoc = await getDoc(doc(firestore, 'shopkeepers', currentUser.uid));
-        setRoles({
-          customer: customerDoc.exists(),
-          shopkeeper: shopkeeperDoc.exists()
-        });
+        const ownerDoc = await getDoc(doc(firestore, 'owners', currentUser.uid));
+        if (ownerDoc.exists()) {
+            setRoles({ customer: false, shopkeeper: false }); // Owners can't be other roles
+        } else {
+            const customerDoc = await getDoc(doc(firestore, 'customers', currentUser.uid));
+            const shopkeeperDoc = await getDoc(doc(firestore, 'shopkeepers', currentUser.uid));
+            setRoles({
+              customer: customerDoc.exists(),
+              shopkeeper: shopkeeperDoc.exists()
+            });
+        }
         setIsCheckingRoles(false);
 
       } else {
@@ -94,6 +99,7 @@ export default function CustomerProfilePage() {
 
       if (!userDoc.exists()) {
           // If user is not enrolled in the new role, create a document for them.
+          // We can copy some basic info from the current user object.
           await setDoc(userDocRef, {
               email: user.email,
               displayName: user.displayName,
@@ -105,6 +111,7 @@ export default function CustomerProfilePage() {
       
       localStorage.setItem('activeRole', newRole);
       router.push(`/${newRole}/dashboard`);
+      router.refresh(); // Refresh to load the new role's data
   };
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -261,8 +268,8 @@ export default function CustomerProfilePage() {
         </div>
 
         <form className="login-form" noValidate onSubmit={handleSaveChanges}>
-          <div className="form-group"><div className="neu-input"><input type="text" id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder=" " required /><label htmlFor="name">Full Name</label><div className="input-icon"><User /></div></div></div>
-          <div className="form-group"><div className="neu-input"><input type="tel" id="mobile" value={mobile} onChange={(e) => setMobile(e.target.value)} placeholder=" " /><label htmlFor="mobile">Mobile Number</label><div className="input-icon"><Phone /></div></div></div>
+          <div className="form-group"><div className="neu-input"><input type="text" id="name" value={name || ''} onChange={(e) => setName(e.target.value)} placeholder=" " required /><label htmlFor="name">Full Name</label><div className="input-icon"><User /></div></div></div>
+          <div className="form-group"><div className="neu-input"><input type="tel" id="mobile" value={mobile || ''} onChange={(e) => setMobile(e.target.value)} placeholder=" " /><label htmlFor="mobile">Mobile Number</label><div className="input-icon"><Phone /></div></div></div>
           <button type="submit" className={`neu-button ${isSaving ? 'loading' : ''}`} disabled={isSaving}>
             <span className="btn-text">Save Profile Changes</span>
             <div className="btn-loader"><div className="neu-spinner"></div></div>
@@ -288,8 +295,11 @@ export default function CustomerProfilePage() {
                           <h4 style={{fontSize: '1rem', fontWeight: 600}}>Shopkeeper</h4>
                           {roles.shopkeeper && activeRole === 'shopkeeper' && <CheckCircle size={20} style={{color: 'white', marginTop: '10px'}} />}
                            {!roles.shopkeeper && <p style={{fontSize: '0.7rem', color: '#9499b7', marginTop: '5px'}}>Not Enrolled</p>}
-                          {activeRole !== 'shopkeeper' && (
-                            <button onClick={() => handleRoleSwitch('shopkeeper')} className="neu-button" style={{fontSize: '0.8rem', padding: '8px 12px', width: '100%', marginTop: '15px', marginBottom: 0}}>{roles.shopkeeper ? 'Switch' : 'Enroll & Switch'}</button>
+                          {roles.shopkeeper && activeRole !== 'shopkeeper' && (
+                            <button onClick={() => handleRoleSwitch('shopkeeper')} className="neu-button" style={{fontSize: '0.8rem', padding: '8px 12px', width: '100%', marginTop: '15px', marginBottom: 0}}>Switch</button>
+                          )}
+                          {!roles.shopkeeper && (
+                            <button onClick={() => handleRoleSwitch('shopkeeper')} className="neu-button" style={{fontSize: '0.8rem', padding: '8px 12px', width: '100%', marginTop: '15px', marginBottom: 0}}>Enroll & Switch</button>
                           )}
                       </div>
                   </div>
@@ -346,7 +356,7 @@ export default function CustomerProfilePage() {
               
               <div className="form-group">
                 <div className="neu-input">
-                    <input type="password" id="pin" maxLength={4} value={pin} onChange={(e) => setPin(e.target.value.replace(/\\D/g, ''))} placeholder=" " />
+                    <input type="password" id="pin" maxLength={4} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} placeholder=" " />
                     <label htmlFor="pin">{isChangingPin ? 'Old 4-digit PIN' : 'Enter 4-digit PIN'}</label>
                     <div className="input-icon"><Lock/></div>
                 </div>
@@ -354,7 +364,7 @@ export default function CustomerProfilePage() {
               
               <div className="form-group">
                 <div className="neu-input">
-                    <input type="password" id="confirmPin" maxLength={4} value={confirmPin} onChange={(e) => setConfirmPin(e.target.value.replace(/\\D/g, ''))} placeholder=" " />
+                    <input type="password" id="confirmPin" maxLength={4} value={confirmPin} onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ''))} placeholder=" " />
                     <label htmlFor="confirmPin">{isChangingPin ? 'New 4-digit PIN' : 'Confirm PIN'}</label>
                     <div className="input-icon"><KeyRound/></div>
                 </div>

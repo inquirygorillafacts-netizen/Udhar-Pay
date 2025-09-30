@@ -70,12 +70,17 @@ export default function ShopkeeperProfilePage() {
 
         // Check roles
         setIsCheckingRoles(true);
-        const customerDoc = await getDoc(doc(firestore, 'customers', currentUser.uid));
-        const shopkeeperDoc = await getDoc(doc(firestore, 'shopkeepers', currentUser.uid));
-        setRoles({
-          customer: customerDoc.exists(),
-          shopkeeper: shopkeeperDoc.exists()
-        });
+        const ownerDoc = await getDoc(doc(firestore, 'owners', currentUser.uid));
+        if (ownerDoc.exists()) {
+            setRoles({ customer: false, shopkeeper: false }); // Owners can't be other roles
+        } else {
+            const customerDoc = await getDoc(doc(firestore, 'customers', currentUser.uid));
+            const shopkeeperDoc = await getDoc(doc(firestore, 'shopkeepers', currentUser.uid));
+            setRoles({
+              customer: customerDoc.exists(),
+              shopkeeper: shopkeeperDoc.exists()
+            });
+        }
         setIsCheckingRoles(false);
 
       } else {
@@ -105,6 +110,7 @@ export default function ShopkeeperProfilePage() {
       
       localStorage.setItem('activeRole', newRole);
       router.push(`/${newRole}/dashboard`);
+      router.refresh(); // Refresh to load the new role's data
   };
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -259,8 +265,8 @@ export default function ShopkeeperProfilePage() {
         </div>
 
         <form className="login-form" noValidate onSubmit={handleSaveChanges}>
-          <div className="form-group"><div className="neu-input"><input type="text" id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder=" " required /><label htmlFor="name">Shop Name</label><div className="input-icon"><User /></div></div></div>
-          <div className="form-group"><div className="neu-input"><input type="tel" id="mobile" value={mobile} onChange={(e) => setMobile(e.target.value)} placeholder=" " /><label htmlFor="mobile">Mobile Number</label><div className="input-icon"><Phone /></div></div></div>
+          <div className="form-group"><div className="neu-input"><input type="text" id="name" value={name || ''} onChange={(e) => setName(e.target.value)} placeholder=" " required /><label htmlFor="name">Shop Name</label><div className="input-icon"><User /></div></div></div>
+          <div className="form-group"><div className="neu-input"><input type="tel" id="mobile" value={mobile || ''} onChange={(e) => setMobile(e.target.value)} placeholder=" " /><label htmlFor="mobile">Mobile Number</label><div className="input-icon"><Phone /></div></div></div>
           <button type="submit" className={`neu-button ${isSaving ? 'loading' : ''}`} disabled={isSaving}>
             <span className="btn-text">Save Profile Changes</span>
             <div className="btn-loader"><div className="neu-spinner"></div></div>
@@ -276,9 +282,12 @@ export default function ShopkeeperProfilePage() {
                           <User size={30} style={{marginBottom: '10px'}}/>
                           <h4 style={{fontSize: '1rem', fontWeight: 600}}>Customer</h4>
                           {roles.customer && activeRole === 'customer' && <CheckCircle size={20} style={{color: 'white', marginTop: '10px'}} />}
-                          {!roles.customer && <p style={{fontSize: '0.7rem', color: '#9499b7', marginTop: '5px'}}>Not Enrolled</p>}
-                          {activeRole !== 'customer' && (
-                            <button onClick={() => handleRoleSwitch('customer')} className="neu-button" style={{fontSize: '0.8rem', padding: '8px 12px', width: '100%', marginTop: '15px', marginBottom: 0}}>{roles.customer ? 'Switch' : 'Enroll & Switch'}</button>
+                           {!roles.customer && <p style={{fontSize: '0.7rem', color: '#9499b7', marginTop: '5px'}}>Not Enrolled</p>}
+                          {roles.customer && activeRole !== 'customer' && (
+                            <button onClick={() => handleRoleSwitch('customer')} className="neu-button" style={{fontSize: '0.8rem', padding: '8px 12px', width: '100%', marginTop: '15px', marginBottom: 0}}>Switch</button>
+                          )}
+                          {!roles.customer && (
+                            <button onClick={() => handleRoleSwitch('customer')} className="neu-button" style={{fontSize: '0.8rem', padding: '8px 12px', width: '100%', marginTop: '15px', marginBottom: 0}}>Enroll & Switch</button>
                           )}
                       </div>
                       {/* Shopkeeper Role Card */}
@@ -344,7 +353,7 @@ export default function ShopkeeperProfilePage() {
               
               <div className="form-group">
                 <div className="neu-input">
-                    <input type="password" id="pin" maxLength={4} value={pin} onChange={(e) => setPin(e.target.value.replace(/\\D/g, ''))} placeholder=" " />
+                    <input type="password" id="pin" maxLength={4} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} placeholder=" " />
                     <label htmlFor="pin">{isChangingPin ? 'Old 4-digit PIN' : 'Enter 4-digit PIN'}</label>
                     <div className="input-icon"><Lock/></div>
                 </div>
@@ -352,7 +361,7 @@ export default function ShopkeeperProfilePage() {
               
               <div className="form-group">
                 <div className="neu-input">
-                    <input type="password" id="confirmPin" maxLength={4} value={confirmPin} onChange={(e) => setConfirmPin(e.target.value.replace(/\\D/g, ''))} placeholder=" " />
+                    <input type="password" id="confirmPin" maxLength={4} value={confirmPin} onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ''))} placeholder=" " />
                     <label htmlFor="confirmPin">{isChangingPin ? 'New 4-digit PIN' : 'Confirm PIN'}</label>
                     <div className="input-icon"><KeyRound/></div>
                 </div>
