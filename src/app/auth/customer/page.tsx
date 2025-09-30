@@ -102,7 +102,7 @@ export default function CustomerAuthPage() {
         setErrors({});
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!email) {
-            setErrors({ email: 'Please enter your email address to reset your password.' });
+            setErrors({ email: 'Please enter your email to reset password.' });
             return;
         }
         if (!emailRegex.test(email)) {

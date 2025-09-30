@@ -1,0 +1,162 @@
+/* Role Selection Page Styles */
+.role-selection-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+    background: #e0e5ec;
+}
+
+.role-card {
+    width: 100%;
+    max-width: 450px;
+    text-align: center;
+}
+
+.role-buttons-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    margin-top: 40px;
+}
+
+.role-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    font-size: 1rem;
+    padding: 20px;
+    margin-bottom: 0;
+}
+
+.role-btn .role-icon {
+    width: 24px;
+    height: 24px;
+}
+
+.owner-btn {
+    background: #e0e5ec;
+    color: #c82333; /* A soft red for distinction */
+    box-shadow: 8px 8px 20px #bec3cf, -8px -8px 20px #ffffff;
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.owner-btn:hover {
+    border-color: #c82333;
+    box-shadow: 10px 10px 25px #bec3cf, -10px -10px 25px #ffffff;
+}
+
+.owner-btn:active {
+    box-shadow: inset 4px 4px 10px #b21e2c, inset -4px -4px 10px #e4283b;
+}
+
+
+/* Lock Button */
+.lock-btn {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+}
+
+.lock-btn svg {
+    width: 24px;
+    height: 24px;
+}
+
+/* Modal Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(224, 229, 236, 0.8);
+    backdrop-filter: blur(5px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.modal-content {
+    max-width: 420px;
+    width: 100%;
+    margin: auto;
+    animation: slideIn 0.4s ease-out;
+}
+
+@keyframes slideIn {
+    from { transform: translateY(-30px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.modal-header h2 {
+    color: #3d4468;
+    font-size: 1.75rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.close-button {
+    background: none;
+    border: none;
+    color: #9499b7;
+    cursor: pointer;
+    padding: 5px;
+    transition: color 0.3s;
+}
+.close-button:hover {
+    color: #3d4468;
+}
+
+.pin-input {
+    text-align: center;
+    letter-spacing: 0.5em;
+    font-size: 1.2rem;
+    padding-left: 24px !important;
+}
+
+.pin-input::-webkit-outer-spin-button,
+.pin-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 480px) {
+    .role-card {
+        padding: 35px 25px;
+    }
+    .lock-btn {
+        bottom: 15px;
+        right: 15px;
+        width: 55px;
+        height: 55px;
+    }
+}
