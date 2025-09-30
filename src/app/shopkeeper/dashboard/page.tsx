@@ -13,26 +13,35 @@ export default function ShopkeeperDashboardPage() {
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
       if (user) {
+        // User is signed in.
         setUser(user);
+        setLoading(false);
       } else {
-        router.push('/shopkeeper/login');
+        // User is signed out, redirect to login page.
+        router.replace('/shopkeeper/login');
       }
-      setLoading(false);
     });
 
+    // Cleanup subscription on unmount
     return () => unsubscribe();
   }, [auth, router]);
 
   if (loading) {
-    return <div className="loading-container"><div className="neu-spinner"></div></div>;
+    return (
+      <div className="loading-container">
+        <div className="neu-spinner"></div>
+      </div>
+    );
   }
 
   return (
     <div className="dashboard-container">
-        <h1>Welcome, Shopkeeper</h1>
-        <p>Your dashboard is ready.</p>
-        <p>Email: {user?.email}</p>
-        <button className="neu-button sign-out-btn" onClick={() => auth.signOut()}>Sign Out</button>
+      <h1>Welcome, Shopkeeper</h1>
+      <p>Your dashboard is ready.</p>
+      <p>Email: {user?.email}</p>
+      <button className="neu-button sign-out-btn" onClick={() => auth.signOut()}>
+        Sign Out
+      </button>
     </div>
   );
 }
