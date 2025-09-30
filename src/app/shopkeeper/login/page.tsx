@@ -44,10 +44,10 @@ export default function ShopkeeperAuthPage() {
 
     const [isSignUp, setIsSignUp] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
-    const [shopName, setShopName] = useState('');
+    const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [errors, setErrors] = useState<{ shopName?: string; email?: string; password?: string; form?: string }>({});
+    const [errors, setErrors] = useState<{ name?: string; email?: string; password?: string; form?: string }>({});
     const [loading, setLoading] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
     const cardRef = useRef<HTMLDivElement>(null);
@@ -64,12 +64,12 @@ export default function ShopkeeperAuthPage() {
              router.push('/shopkeeper/dashboard');
         }, 2800);
     }
-    
+
     const handleAuthSuccess = async (user: any, isNewUser: boolean) => {
         if (isNewUser) {
-            await setDoc(doc(firestore, "shopkeepers", user.uid), {
+             await setDoc(doc(firestore, "shopkeepers", user.uid), {
                 email: user.email,
-                displayName: user.displayName || shopName,
+                displayName: user.displayName || name,
                 photoURL: user.photoURL || '',
                 createdAt: new Date(),
                 role: 'shopkeeper'
@@ -79,11 +79,11 @@ export default function ShopkeeperAuthPage() {
     };
 
     const validate = () => {
-        const newErrors: { shopName?: string; email?: string; password?: string } = {};
+        const newErrors: { name?: string; email?: string; password?: string } = {};
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        
-        if (isSignUp && !shopName) newErrors.shopName = 'Shop name is required';
 
+        if (isSignUp && !name) newErrors.name = 'Name is required';
+        
         if (!email) newErrors.email = 'Email is required';
         else if (!emailRegex.test(email)) newErrors.email = 'Please enter a valid email';
 
@@ -124,13 +124,12 @@ export default function ShopkeeperAuthPage() {
 
         setLoading(true);
         if (isSignUp) {
-            // --- Sign Up Flow ---
             try {
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-                await updateProfile(userCredential.user, { displayName: shopName });
-                await setDoc(doc(firestore, "shopkeepers", userCredential.user.uid), {
+                await updateProfile(userCredential.user, { displayName: name });
+                 await setDoc(doc(firestore, "shopkeepers", userCredential.user.uid), {
                     email: userCredential.user.email,
-                    displayName: shopName,
+                    displayName: name,
                     createdAt: new Date(),
                     role: 'shopkeeper'
                 });
@@ -149,7 +148,6 @@ export default function ShopkeeperAuthPage() {
                 setLoading(false);
             }
         } else {
-            // --- Sign In Flow ---
             if(!password) {
                 setErrors({ password: 'Password is required for sign in.' });
                 setLoading(false);
@@ -193,21 +191,15 @@ export default function ShopkeeperAuthPage() {
         setErrors({});
         let provider;
         switch(providerName) {
-            case 'google':
-                provider = new GoogleAuthProvider();
-                break;
-            case 'github':
-                provider = new GithubAuthProvider();
-                break;
-            case 'twitter':
-                provider = new TwitterAuthProvider();
-                break;
+            case 'google': provider = new GoogleAuthProvider(); break;
+            case 'github': provider = new GithubAuthProvider(); break;
+            case 'twitter': provider = new TwitterAuthProvider(); break;
         }
 
         try {
             const result = await signInWithPopup(auth, provider);
             const user = result.user;
-            
+
             const userDocRef = doc(firestore, "shopkeepers", user.uid);
             const userDoc = await getDoc(userDocRef);
             
@@ -231,7 +223,6 @@ export default function ShopkeeperAuthPage() {
         if (!card) return;
 
         const handleMouseMove = (e: MouseEvent) => {
-            if (window.innerWidth < 768) return; // Disable effect on mobile
             const rect = card.getBoundingClientRect();
             const x = e.clientX - rect.left;
             const y = e.clientY - rect.top;
@@ -276,24 +267,24 @@ export default function ShopkeeperAuthPage() {
                             <div className="login-header">
                                 <div className="neu-icon">
                                     <div className="icon-inner">
-                                       <Store/>
+                                        <Store />
                                     </div>
                                 </div>
-                                <h2>{isSignUp ? 'Create Shopkeeper Account' : 'Shopkeeper Login'}</h2>
-                                <p>{isSignUp ? 'Get started with your new shop' : 'Please sign in to your shop'}</p>
+                                <h2>{isSignUp ? 'Become a Partner' : 'Shopkeeper Login'}</h2>
+                                <p>{isSignUp ? 'Join our network of shopkeepers' : 'Please sign in to your shop'}</p>
                             </div>
                             
                             <form className="login-form" noValidate onSubmit={handleSubmit}>
                                 {errors.form && <div className="error-message show" style={{textAlign: 'center', marginBottom: '1rem', marginLeft: 0}}>{errors.form}</div>}
                                 
                                 {isSignUp && (
-                                    <div className={`form-group ${errors.shopName ? 'error' : ''}`}>
+                                    <div className={`form-group ${errors.name ? 'error' : ''}`}>
                                         <div className="neu-input">
-                                            <input type="text" id="shopName" name="shopName" required autoComplete="organization" placeholder=" " value={shopName} onChange={e => setShopName(e.target.value)} onBlur={validate} />
-                                            <label htmlFor="shopName">Shop Name</label>
+                                            <input type="text" id="name" name="name" required autoComplete="name" placeholder=" " value={name} onChange={e => setName(e.target.value)} onBlur={validate} />
+                                            <label htmlFor="name">Shop Name / Full Name</label>
                                             <div className="input-icon"><Store /></div>
                                         </div>
-                                        {errors.shopName && <span className="error-message show">{errors.shopName}</span>}
+                                        {errors.name && <span className="error-message show">{errors.name}</span>}
                                     </div>
                                 )}
 
@@ -319,18 +310,18 @@ export default function ShopkeeperAuthPage() {
                                 </div>
 
                                 {!isSignUp && (
-                                <div className="form-options">
-                                    <div className="remember-wrapper">
-                                        <input type="checkbox" id="remember" name="remember"/>
-                                        <label htmlFor="remember" className="checkbox-label">
-                                            <div className="neu-checkbox">
-                                                <Check size={16} strokeWidth={3}/>
-                                            </div>
-                                            Remember me
-                                        </label>
+                                    <div className="form-options">
+                                        <div className="remember-wrapper">
+                                            <input type="checkbox" id="remember" name="remember"/>
+                                            <label htmlFor="remember" className="checkbox-label">
+                                                <div className="neu-checkbox">
+                                                    <Check size={16} strokeWidth={3}/>
+                                                </div>
+                                                Remember me
+                                            </label>
+                                        </div>
+                                        <a href="#" className="forgot-link" onClick={handleForgotPassword}>Forgot password?</a>
                                     </div>
-                                    <a href="#" className="forgot-link" onClick={handleForgotPassword}>Forgot password?</a>
-                                </div>
                                 )}
 
                                 <button type="submit" className={`neu-button ${loading ? 'loading' : ''}`} disabled={loading}>
@@ -355,7 +346,7 @@ export default function ShopkeeperAuthPage() {
 
                             <div className="signup-link">
                                 <p>
-                                    {isSignUp ? "Already have an account? " : "Don't have an account? "}
+                                    {isSignUp ? "Already a partner? " : "Not a partner yet? "}
                                     <a href="#" onClick={(e) => { e.preventDefault(); setIsSignUp(!isSignUp); setErrors({}); }}>
                                         {isSignUp ? 'Sign In' : 'Sign up'}
                                     </a>
@@ -368,7 +359,7 @@ export default function ShopkeeperAuthPage() {
                                <Check size={32} strokeWidth={3} />
                             </div>
                             <h3>Success!</h3>
-                            <p>Redirecting to your dashboard...</p>
+                            <p>Redirecting to your shop dashboard...</p>
                         </div>
                     )}
                 </div>
