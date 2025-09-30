@@ -26,6 +26,12 @@ export default function OwnerDashboardPage() {
     return () => unsubscribe();
   }, [auth, router]);
 
+  const handleSignOut = async () => {
+    await auth.signOut();
+    localStorage.removeItem('activeRole');
+    router.push('/auth');
+  };
+
   if (loading) {
     return (
       <div className="loading-container">
@@ -39,7 +45,7 @@ export default function OwnerDashboardPage() {
       <h1>Welcome, Owner</h1>
       <p>Your dashboard is ready.</p>
       <p>Email: {user?.email}</p>
-      <button className="neu-button sign-out-btn" onClick={() => auth.signOut()}>
+      <button className="neu-button sign-out-btn" onClick={handleSignOut}>
         Sign Out
       </button>
     </div>

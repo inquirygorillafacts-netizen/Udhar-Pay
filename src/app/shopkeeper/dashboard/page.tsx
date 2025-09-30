@@ -25,6 +25,12 @@ export default function ShopkeeperDashboardPage() {
     // Cleanup subscription on unmount
     return () => unsubscribe();
   }, [auth, router]);
+  
+  const handleSignOut = async () => {
+    await auth.signOut();
+    localStorage.removeItem('activeRole');
+    router.push('/auth');
+  };
 
   if (loading) {
     return (
@@ -39,7 +45,7 @@ export default function ShopkeeperDashboardPage() {
       <h1>Welcome, Shopkeeper</h1>
       <p>Your dashboard is ready.</p>
       <p>Email: {user?.email}</p>
-      <button className="neu-button sign-out-btn" onClick={() => auth.signOut()}>
+      <button className="neu-button sign-out-btn" onClick={handleSignOut}>
         Sign Out
       </button>
     </div>

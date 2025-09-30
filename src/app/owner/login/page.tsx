@@ -22,6 +22,7 @@ export default function OwnerAuthPage() {
     const cardRef = useRef<HTMLDivElement>(null);
 
     const handleFormTransition = () => {
+        localStorage.setItem('activeRole', 'owner');
         const formElements = document.querySelectorAll('.login-form');
         formElements.forEach(el => el.classList.add('form-hiding'));
         

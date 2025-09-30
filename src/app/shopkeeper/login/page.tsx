@@ -53,6 +53,7 @@ export default function ShopkeeperAuthPage() {
     const cardRef = useRef<HTMLDivElement>(null);
 
     const handleFormTransition = () => {
+        localStorage.setItem('activeRole', 'shopkeeper');
         const formElements = document.querySelectorAll('.login-form, .divider, .social-login, .signup-link');
         formElements.forEach(el => el.classList.add('form-hiding'));
         
