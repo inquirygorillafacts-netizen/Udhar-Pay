@@ -12,7 +12,8 @@ import {
     signInWithPopup,
     GithubAuthProvider,
     TwitterAuthProvider,
-    updateProfile
+    updateProfile,
+    sendPasswordResetEmail
 } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 
@@ -89,11 +90,34 @@ export default function ShopkeeperAuthPage() {
         if (!email) newErrors.email = 'Email is required';
         else if (!emailRegex.test(email)) newErrors.email = 'Please enter a valid email';
 
-        if (!password) newErrors.password = 'Password is required';
+        if (!password && isSignUp) newErrors.password = 'Password is required';
         else if (isSignUp && password.length < 6) newErrors.password = 'Password must be at least 6 characters';
         
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
+    };
+
+    const handleForgotPassword = async (e: React.MouseEvent) => {
+        e.preventDefault();
+        setErrors({});
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!email) {
+            setErrors({ email: 'Please enter your email address to reset your password.' });
+            return;
+        }
+        if (!emailRegex.test(email)) {
+            setErrors({ email: 'Please enter a valid email address.' });
+            return;
+        }
+        setLoading(true);
+        try {
+            await sendPasswordResetEmail(auth, email);
+            setErrors({ form: "Password reset email sent! Check your inbox." });
+        } catch (error: any) {
+            setErrors({ form: "Failed to send password reset email. Please try again." });
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -108,6 +132,11 @@ export default function ShopkeeperAuthPage() {
                 await updateProfile(userCredential.user, { displayName: shopName });
                 await handleAuthSuccess(userCredential.user);
             } else {
+                 if(!password) {
+                     setErrors({ password: 'Password is required for sign in.' });
+                     setLoading(false);
+                     return;
+                }
                 const userCredential = await signInWithEmailAndPassword(auth, email, password);
                 await handleAuthSuccess(userCredential.user);
             }
@@ -252,7 +281,7 @@ export default function ShopkeeperAuthPage() {
 
                                 <div className={`form-group ${errors.password ? 'error' : ''}`}>
                                     <div className="neu-input password-group">
-                                        <input type={showPassword ? 'text' : 'password'} id="password" name="password" required autoComplete={isSignUp ? "new-password" : "current-password"} placeholder=" " value={password} onChange={e => setPassword(e.target.value)} onBlur={validate}/>
+                                        <input type={showPassword ? 'text' : 'password'} id="password" name="password" required={isSignUp} autoComplete={isSignUp ? "new-password" : "current-password"} placeholder=" " value={password} onChange={e => setPassword(e.target.value)} onBlur={validate}/>
                                         <label htmlFor="password">Password</label>
                                         <div className="input-icon"><Lock /></div>
                                         <button type="button" className="neu-toggle" aria-label="Toggle password visibility" onClick={() => setShowPassword(!showPassword)}>
@@ -273,7 +302,7 @@ export default function ShopkeeperAuthPage() {
                                             Remember me
                                         </label>
                                     </div>
-                                    <a href="#" className="forgot-link">Forgot password?</a>
+                                    <a href="#" className="forgot-link" onClick={handleForgotPassword}>Forgot password?</a>
                                 </div>
                                 )}
 
