@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import './customer.css';
-import { Mail, Lock, Eye, EyeOff, Check } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, Check, User } from 'lucide-react';
 import { useFirebase } from '@/firebase/client-provider';
 import { 
     createUserWithEmailAndPassword, 
@@ -11,7 +11,8 @@ import {
     GoogleAuthProvider, 
     signInWithPopup,
     GithubAuthProvider,
-    TwitterAuthProvider
+    TwitterAuthProvider,
+    updateProfile
 } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 
@@ -42,9 +43,10 @@ export default function CustomerAuthPage() {
 
     const [isSignUp, setIsSignUp] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [errors, setErrors] = useState<{ email?: string; password?: string; form?: string }>({});
+    const [errors, setErrors] = useState<{ name?: string; email?: string; password?: string; form?: string }>({});
     const [loading, setLoading] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
     const cardRef = useRef<HTMLDivElement>(null);
@@ -69,7 +71,7 @@ export default function CustomerAuthPage() {
             // If it's a new sign-up, create a document in the 'customers' collection
             await setDoc(doc(firestore, "customers", user.uid), {
                 email: user.email,
-                displayName: user.displayName || '',
+                displayName: user.displayName || name,
                 photoURL: user.photoURL || '',
                 createdAt: new Date(),
                 role: 'customer'
@@ -79,13 +81,16 @@ export default function CustomerAuthPage() {
     };
 
     const validate = () => {
-        const newErrors: { email?: string; password?: string } = {};
+        const newErrors: { name?: string; email?: string; password?: string } = {};
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+        if (isSignUp && !name) newErrors.name = 'Name is required';
+        
         if (!email) newErrors.email = 'Email is required';
         else if (!emailRegex.test(email)) newErrors.email = 'Please enter a valid email';
 
         if (!password) newErrors.password = 'Password is required';
-        else if (password.length < 6) newErrors.password = 'Password must be at least 6 characters';
+        else if (isSignUp && password.length < 6) newErrors.password = 'Password must be at least 6 characters';
         
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
@@ -100,6 +105,7 @@ export default function CustomerAuthPage() {
         try {
             if (isSignUp) {
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                await updateProfile(userCredential.user, { displayName: name });
                 await handleAuthSuccess(userCredential.user);
             } else {
                 const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -225,6 +231,18 @@ export default function CustomerAuthPage() {
                             
                             <form className="login-form" noValidate onSubmit={handleSubmit}>
                                 {errors.form && <div className="error-message show" style={{textAlign: 'center', marginBottom: '1rem', marginLeft: 0}}>{errors.form}</div>}
+                                
+                                {isSignUp && (
+                                    <div className={`form-group ${errors.name ? 'error' : ''}`}>
+                                        <div className="neu-input">
+                                            <input type="text" id="name" name="name" required autoComplete="name" placeholder=" " value={name} onChange={e => setName(e.target.value)} onBlur={validate} />
+                                            <label htmlFor="name">Full Name</label>
+                                            <div className="input-icon"><User /></div>
+                                        </div>
+                                        {errors.name && <span className="error-message show">{errors.name}</span>}
+                                    </div>
+                                )}
+
                                 <div className={`form-group ${errors.email ? 'error' : ''}`}>
                                     <div className="neu-input">
                                         <input type="email" id="email" name="email" required autoComplete="email" placeholder=" " value={email} onChange={e => setEmail(e.target.value)} onBlur={validate} />
@@ -246,18 +264,21 @@ export default function CustomerAuthPage() {
                                     {errors.password && <span className="error-message show">{errors.password}</span>}
                                 </div>
 
-                                <div className="form-options">
-                                    <div className="remember-wrapper">
-                                        <input type="checkbox" id="remember" name="remember"/>
-                                        <label htmlFor="remember" className="checkbox-label">
-                                            <div className="neu-checkbox">
-                                                <Check size={16} strokeWidth={3}/>
-                                            </div>
-                                            Remember me
-                                        </label>
+                                {!isSignUp && (
+                                    <div className="form-options">
+                                        <div className="remember-wrapper">
+                                            <input type="checkbox" id="remember" name="remember"/>
+                                            <label htmlFor="remember" className="checkbox-label">
+                                                <div className="neu-checkbox">
+                                                    <Check size={16} strokeWidth={3}/>
+                                                </div>
+                                                Remember me
+                                            </label>
+                                        </div>
+                                        <a href="#" className="forgot-link">Forgot password?</a>
                                     </div>
-                                    <a href="#" className="forgot-link">Forgot password?</a>
-                                </div>
+                                )}
+
 
                                 <button type="submit" className={`neu-button ${loading ? 'loading' : ''}`} disabled={loading}>
                                     <span className="btn-text">{isSignUp ? 'Sign Up' : 'Sign In'}</span>
@@ -302,3 +323,5 @@ export default function CustomerAuthPage() {
         </div>
     );
 }
+
+    
