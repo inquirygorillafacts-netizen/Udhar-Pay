@@ -61,9 +61,7 @@ export default function ShopkeeperAuthPage() {
         }, 300);
         
         setTimeout(() => {
-             console.log('Redirecting to dashboard...');
-             // This is where you would redirect to the shopkeeper's dashboard
-             // router.push('/shopkeeper/dashboard');
+             router.push('/shopkeeper/dashboard');
         }, 2800);
     }
     

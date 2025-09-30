@@ -30,9 +30,7 @@ export default function OwnerAuthPage() {
         }, 300);
         
         setTimeout(() => {
-             console.log('Redirecting to owner dashboard...');
-             // This is where you would redirect to the owner's dashboard
-             // router.push('/owner/dashboard');
+             router.push('/owner/dashboard');
         }, 2800);
     }
     

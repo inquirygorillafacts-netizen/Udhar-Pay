@@ -61,9 +61,7 @@ export default function CustomerAuthPage() {
         }, 300);
         
         setTimeout(() => {
-             console.log('Redirecting to dashboard...');
-             // This is where you would redirect to the customer's dashboard
-             // router.push('/customer/dashboard');
+             router.push('/customer/dashboard');
         }, 2800);
     }
     
@@ -130,6 +128,13 @@ export default function CustomerAuthPage() {
             try {
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                 await updateProfile(userCredential.user, { displayName: name });
+                // Create customer document in Firestore
+                await setDoc(doc(firestore, "customers", userCredential.user.uid), {
+                    email: userCredential.user.email,
+                    displayName: name,
+                    createdAt: new Date(),
+                    role: 'customer'
+                });
                 await handleAuthSuccess(userCredential.user, true);
             } catch (error: any) {
                 let errorMessage = "An unknown error occurred.";
@@ -164,7 +169,7 @@ export default function CustomerAuthPage() {
                 } else {
                     // Not a customer or doc doesn't exist
                     await auth.signOut();
-                    setErrors({ form: 'Invalid credentials or not a customer account.' });
+                    setErrors({ form: 'Invalid credentials or not a customer account. Please sign up if you are a new customer.' });
                 }
             } catch (error: any) {
                 let errorMessage = "Invalid email or password.";
