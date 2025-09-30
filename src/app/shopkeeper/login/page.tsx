@@ -161,7 +161,7 @@ export default function ShopkeeperAuthPage() {
                     await handleAuthSuccess(user, false);
                 } else {
                     await auth.signOut();
-                    setErrors({ form: 'Invalid credentials or not a shopkeeper account.' });
+                    setErrors({ form: 'Access denied. You are not a shopkeeper.' });
                 }
             } catch (error: any) {
                 let errorMessage = "Invalid email or password.";

@@ -29,7 +29,7 @@ export default function AuthRoleSelectionPage() {
     }, []);
 
     const handleRoleSelect = (role: 'customer' | 'shopkeeper' | 'owner') => {
-        router.push(`/auth/${role}`);
+        router.push(`/${role}/login`);
     };
 
     const handlePinSubmit = async (e: React.FormEvent) => {

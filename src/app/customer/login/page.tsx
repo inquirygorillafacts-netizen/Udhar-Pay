@@ -169,7 +169,7 @@ export default function CustomerAuthPage() {
                 } else {
                     // Not a customer or doc doesn't exist
                     await auth.signOut();
-                    setErrors({ form: 'Invalid credentials or not a customer account. Please sign up if you are a new customer.' });
+                    setErrors({ form: 'Access denied. You are not a customer. Please sign up if you are new.' });
                 }
             } catch (error: any) {
                 let errorMessage = "Invalid email or password.";
@@ -377,5 +377,3 @@ export default function CustomerAuthPage() {
         </div>
     );
 }
-
-    
