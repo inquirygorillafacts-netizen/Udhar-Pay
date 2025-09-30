@@ -7,6 +7,7 @@ import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
 import { Camera, User, Phone, LogOut, Settings, Lock, ShieldOff, KeyRound, Store, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
+import { generateUniqueCustomerCode } from '@/lib/code-helpers';
 
 interface UserProfile {
   uid: string;
@@ -98,14 +99,17 @@ export default function ShopkeeperProfilePage() {
       const userDoc = await getDoc(userDocRef);
 
       if (!userDoc.exists()) {
-          // If user is not enrolled in the new role, create a document for them.
-          await setDoc(userDocRef, {
-              email: user.email,
-              displayName: user.displayName,
-              photoURL: user.photoURL || '',
-              createdAt: new Date(),
-              role: newRole
-          });
+          if (newRole === 'customer') {
+            const customerCode = await generateUniqueCustomerCode(firestore);
+            await setDoc(userDocRef, {
+                email: user.email,
+                displayName: user.displayName || 'New Customer',
+                photoURL: user.photoURL || '',
+                createdAt: new Date(),
+                role: newRole,
+                customerCode: customerCode,
+            });
+          }
       }
       
       localStorage.setItem('activeRole', newRole);

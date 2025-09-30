@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import './shopkeeper.css';
-import { Mail, Lock, Eye, EyeOff, Check, Store } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, Check, Store, User } from 'lucide-react';
 import { useFirebase } from '@/firebase/client-provider';
 import { 
     createUserWithEmailAndPassword, 
@@ -16,6 +16,7 @@ import {
     sendPasswordResetEmail
 } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { generateUniqueShopkeeperCode } from '@/lib/code-helpers';
 
 const GoogleIcon = () => (
     <svg viewBox="0 0 24 24" fill="currentColor">
@@ -78,12 +79,14 @@ export default function ShopkeeperAuthPage() {
         }
 
         if (isNewUser) {
+             const shopkeeperCode = await generateUniqueShopkeeperCode(firestore);
              await setDoc(doc(firestore, "shopkeepers", user.uid), {
                 email: user.email,
                 displayName: user.displayName || name || '',
                 photoURL: user.photoURL || '',
                 createdAt: new Date(),
-                role: 'shopkeeper'
+                role: 'shopkeeper',
+                shopkeeperCode: shopkeeperCode,
             });
         }
         handleFormTransition();
@@ -294,7 +297,7 @@ export default function ShopkeeperAuthPage() {
                                         <div className="neu-input">
                                             <input type="text" id="name" name="name" required autoComplete="name" placeholder=" " value={name} onChange={e => setName(e.target.value)} onBlur={validate} />
                                             <label htmlFor="name">Shop Name / Full Name</label>
-                                            <div className="input-icon"><Store /></div>
+                                            <div className="input-icon"><User /></div>
                                         </div>
                                         {errors.name && <span className="error-message show">{errors.name}</span>}
                                     </div>

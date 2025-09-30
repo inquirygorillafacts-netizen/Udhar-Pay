@@ -7,6 +7,7 @@ import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
 import { Camera, User, Phone, LogOut, Settings, Lock, ShieldOff, KeyRound, Store, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
+import { generateUniqueShopkeeperCode } from '@/lib/code-helpers';
 
 interface UserProfile {
   uid: string;
@@ -99,14 +100,17 @@ export default function CustomerProfilePage() {
 
       if (!userDoc.exists()) {
           // If user is not enrolled in the new role, create a document for them.
-          // We can copy some basic info from the current user object.
-          await setDoc(userDocRef, {
-              email: user.email,
-              displayName: user.displayName,
-              photoURL: user.photoURL || '',
-              createdAt: new Date(),
-              role: newRole
-          });
+          if (newRole === 'shopkeeper') {
+            const shopkeeperCode = await generateUniqueShopkeeperCode(firestore);
+            await setDoc(userDocRef, {
+                email: user.email,
+                displayName: user.displayName || 'New Shopkeeper',
+                photoURL: user.photoURL || '',
+                createdAt: new Date(),
+                role: newRole,
+                shopkeeperCode: shopkeeperCode,
+            });
+          }
       }
       
       localStorage.setItem('activeRole', newRole);
