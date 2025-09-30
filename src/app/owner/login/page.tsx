@@ -48,37 +48,32 @@ export default function OwnerAuthPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setErrors({});
         if (!validate()) return;
     
         setLoading(true);
+        setErrors({});
     
         try {
-            // Step 1: Authenticate with email and password
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
     
+            // Separate try-catch for Firestore role check
             try {
-                // Step 2: Check for role in Firestore
                 const userDocRef = doc(firestore, 'owners', user.uid);
                 const userDoc = await getDoc(userDocRef);
         
                 if (userDoc.exists() && userDoc.data().role === 'owner') {
-                    // Success: User is authenticated and is an owner
                     handleFormTransition();
                 } else {
-                    // Role check failed: User is authenticated but not an owner, or doc doesn't exist
-                    await auth.signOut(); // Sign out the user for security
+                    await auth.signOut(); 
                     setErrors({ form: 'Access denied. You do not have owner privileges.' });
                 }
             } catch (firestoreError) {
-                // Firestore check failed, sign out and show an error
                 console.error("Firestore role check failed:", firestoreError);
                 await auth.signOut();
                 setErrors({ form: 'Could not verify user role. Please try again.' });
             }
         } catch (authError: any) {
-             // Authentication with Firebase failed
              let errorMessage;
              if (authError.code === 'auth/invalid-credential' || authError.code === 'auth/user-not-found' || authError.code === 'auth/wrong-password') {
                  errorMessage = 'Invalid email or password. Access denied.';
