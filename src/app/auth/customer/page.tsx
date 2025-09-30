@@ -1,8 +1,19 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import './customer.css';
 import { Mail, Lock, Eye, EyeOff, Check } from 'lucide-react';
+import { useFirebase } from '@/firebase/client-provider';
+import { 
+    createUserWithEmailAndPassword, 
+    signInWithEmailAndPassword, 
+    GoogleAuthProvider, 
+    signInWithPopup,
+    GithubAuthProvider,
+    TwitterAuthProvider
+} from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
 
 const GoogleIcon = () => (
     <svg viewBox="0 0 24 24" fill="currentColor">
@@ -26,60 +37,19 @@ const TwitterIcon = () => (
 );
 
 export default function CustomerAuthPage() {
+    const { auth, firestore } = useFirebase();
+    const router = useRouter();
+
+    const [isSignUp, setIsSignUp] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+    const [errors, setErrors] = useState<{ email?: string; password?: string; form?: string }>({});
     const [loading, setLoading] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
     const cardRef = useRef<HTMLDivElement>(null);
 
-    const handlePasswordToggle = () => {
-        setShowPassword(!showPassword);
-    };
-
-    const validateEmail = () => {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!email) {
-            setErrors(prev => ({ ...prev, email: 'Email is required' }));
-            return false;
-        }
-        if (!emailRegex.test(email)) {
-            setErrors(prev => ({ ...prev, email: 'Please enter a valid email' }));
-            return false;
-        }
-        setErrors(prev => ({ ...prev, email: undefined }));
-        return true;
-    };
-
-    const validatePassword = () => {
-        if (!password) {
-            setErrors(prev => ({ ...prev, password: 'Password is required' }));
-            return false;
-        }
-        if (password.length < 6) {
-            setErrors(prev => ({ ...prev, password: 'Password must be at least 6 characters' }));
-            return false;
-        }
-        setErrors(prev => ({ ...prev, password: undefined }));
-        return true;
-    };
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        const isEmailValid = validateEmail();
-        const isPasswordValid = validatePassword();
-
-        if (!isEmailValid || !isPasswordValid) {
-            return;
-        }
-
-        setLoading(true);
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        setLoading(false);
-        
-        // On successful login
+    const handleFormTransition = () => {
         const formElements = document.querySelectorAll('.login-form, .divider, .social-login, .signup-link');
         formElements.forEach(el => el.classList.add('form-hiding'));
         
@@ -89,11 +59,111 @@ export default function CustomerAuthPage() {
         
         setTimeout(() => {
              console.log('Redirecting to dashboard...');
+             // This is where you would redirect to the customer's dashboard
              // router.push('/customer/dashboard');
         }, 2800);
+    }
+    
+    const handleAuthSuccess = async (user: any) => {
+        if (isSignUp) {
+            // If it's a new sign-up, create a document in the 'customers' collection
+            await setDoc(doc(firestore, "customers", user.uid), {
+                email: user.email,
+                displayName: user.displayName || '',
+                photoURL: user.photoURL || '',
+                createdAt: new Date(),
+                role: 'customer'
+            });
+        }
+        handleFormTransition();
+    };
+
+    const validate = () => {
+        const newErrors: { email?: string; password?: string } = {};
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!email) newErrors.email = 'Email is required';
+        else if (!emailRegex.test(email)) newErrors.email = 'Please enter a valid email';
+
+        if (!password) newErrors.password = 'Password is required';
+        else if (password.length < 6) newErrors.password = 'Password must be at least 6 characters';
+        
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setErrors({});
+        if (!validate()) return;
+
+        setLoading(true);
+        try {
+            if (isSignUp) {
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                await handleAuthSuccess(userCredential.user);
+            } else {
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                await handleAuthSuccess(userCredential.user);
+            }
+        } catch (error: any) {
+            let errorMessage = "An unknown error occurred.";
+            if (error.code) {
+                switch (error.code) {
+                    case 'auth/email-already-in-use':
+                        errorMessage = 'This email is already registered. Please sign in.';
+                        break;
+                    case 'auth/user-not-found':
+                    case 'auth/wrong-password':
+                    case 'auth/invalid-credential':
+                        errorMessage = 'Invalid email or password.';
+                        break;
+                    case 'auth/weak-password':
+                        errorMessage = 'The password is too weak.';
+                        break;
+                    default:
+                        errorMessage = 'Authentication failed. Please try again.';
+                }
+            }
+            setErrors({ form: errorMessage });
+        } finally {
+            setLoading(false);
+        }
     };
     
-    // Ambient light effect on mouse move
+    const handleSocialLogin = async (providerName: 'google' | 'github' | 'twitter') => {
+        setLoading(true);
+        setErrors({});
+        let provider;
+        switch(providerName) {
+            case 'google':
+                provider = new GoogleAuthProvider();
+                break;
+            case 'github':
+                provider = new GithubAuthProvider();
+                break;
+            case 'twitter':
+                provider = new TwitterAuthProvider();
+                break;
+        }
+
+        try {
+            const result = await signInWithPopup(auth, provider);
+            // Since social sign-in can be used for both login and signup, we treat it as a signup flow
+            // to ensure a document is created if it doesn't exist.
+            setIsSignUp(true);
+            await handleAuthSuccess(result.user);
+        } catch (error: any) {
+             let errorMessage = "Social login failed. Please try again.";
+             if (error.code === 'auth/account-exists-with-different-credential') {
+                errorMessage = "An account already exists with this email using a different login method.";
+             }
+             setErrors({ form: errorMessage });
+        } finally {
+            setLoading(false);
+        }
+    }
+
+
     useEffect(() => {
         const card = document.querySelector('.login-card') as HTMLDivElement;
         if (!card) return;
@@ -149,14 +219,15 @@ export default function CustomerAuthPage() {
                                         </svg>
                                     </div>
                                 </div>
-                                <h2>Welcome back</h2>
-                                <p>Please sign in to continue</p>
+                                <h2>{isSignUp ? 'Create Account' : 'Welcome back'}</h2>
+                                <p>{isSignUp ? 'Get started with your new account' : 'Please sign in to continue'}</p>
                             </div>
                             
                             <form className="login-form" noValidate onSubmit={handleSubmit}>
+                                {errors.form && <div className="error-message show" style={{textAlign: 'center', marginBottom: '1rem', marginLeft: 0}}>{errors.form}</div>}
                                 <div className={`form-group ${errors.email ? 'error' : ''}`}>
                                     <div className="neu-input">
-                                        <input type="email" id="email" name="email" required autoComplete="email" placeholder=" " value={email} onChange={e => setEmail(e.target.value)} onBlur={validateEmail} />
+                                        <input type="email" id="email" name="email" required autoComplete="email" placeholder=" " value={email} onChange={e => setEmail(e.target.value)} onBlur={validate} />
                                         <label htmlFor="email">Email address</label>
                                         <div className="input-icon"><Mail /></div>
                                     </div>
@@ -165,10 +236,10 @@ export default function CustomerAuthPage() {
 
                                 <div className={`form-group ${errors.password ? 'error' : ''}`}>
                                     <div className="neu-input password-group">
-                                        <input type={showPassword ? 'text' : 'password'} id="password" name="password" required autoComplete="current-password" placeholder=" " value={password} onChange={e => setPassword(e.target.value)} onBlur={validatePassword}/>
+                                        <input type={showPassword ? 'text' : 'password'} id="password" name="password" required autoComplete={isSignUp ? "new-password" : "current-password"} placeholder=" " value={password} onChange={e => setPassword(e.target.value)} onBlur={validate}/>
                                         <label htmlFor="password">Password</label>
                                         <div className="input-icon"><Lock /></div>
-                                        <button type="button" className="neu-toggle" aria-label="Toggle password visibility" onClick={handlePasswordToggle}>
+                                        <button type="button" className="neu-toggle" aria-label="Toggle password visibility" onClick={() => setShowPassword(!showPassword)}>
                                            {showPassword ? <EyeOff /> : <Eye />}
                                         </button>
                                     </div>
@@ -189,7 +260,7 @@ export default function CustomerAuthPage() {
                                 </div>
 
                                 <button type="submit" className={`neu-button ${loading ? 'loading' : ''}`} disabled={loading}>
-                                    <span className="btn-text">Sign In</span>
+                                    <span className="btn-text">{isSignUp ? 'Sign Up' : 'Sign In'}</span>
                                     <div className="btn-loader">
                                         <div className="neu-spinner"></div>
                                     </div>
@@ -203,13 +274,18 @@ export default function CustomerAuthPage() {
                             </div>
 
                             <div className="social-login">
-                                <button type="button" className="neu-social"><GoogleIcon /></button>
-                                <button type="button" className="neu-social"><GithubIcon /></button>
-                                <button type="button" className="neu-social"><TwitterIcon /></button>
+                                <button type="button" className="neu-social" onClick={() => handleSocialLogin('google')}><GoogleIcon /></button>
+                                <button type="button" className="neu-social" onClick={() => handleSocialLogin('github')}><GithubIcon /></button>
+                                <button type="button" className="neu-social" onClick={() => handleSocialLogin('twitter')}><TwitterIcon /></button>
                             </div>
 
                             <div className="signup-link">
-                                <p>Don't have an account? <a href="#">Sign up</a></p>
+                                <p>
+                                    {isSignUp ? "Already have an account? " : "Don't have an account? "}
+                                    <a href="#" onClick={(e) => { e.preventDefault(); setIsSignUp(!isSignUp); setErrors({}); }}>
+                                        {isSignUp ? 'Sign In' : 'Sign up'}
+                                    </a>
+                                </p>
                             </div>
                         </>
                     ) : (
