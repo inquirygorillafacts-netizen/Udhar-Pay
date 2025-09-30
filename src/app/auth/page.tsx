@@ -17,6 +17,17 @@ export default function AuthRoleSelectionPage() {
     const [loading, setLoading] = useState(false);
     const [isLockVisible, setIsLockVisible] = useState(true);
 
+    useEffect(() => {
+        const lockoutTime = localStorage.getItem('lockoutUntil');
+        if (lockoutTime) {
+            const remainingTime = Number(lockoutTime) - Date.now();
+            if (remainingTime > 0) {
+                setIsLockVisible(false);
+                setTimeout(() => setIsLockVisible(true), remainingTime);
+            }
+        }
+    }, []);
+
     const handleRoleSelect = (role: 'customer' | 'shopkeeper' | 'owner') => {
         router.push(`/auth/${role}`);
     };
@@ -42,13 +53,20 @@ export default function AuthRoleSelectionPage() {
                     setPin('');
                 } else {
                     setPinError('माफ कीजिए आप गलत मार्ग पर आ गए है |');
-                    // Hide lock for 30 seconds on wrong attempt
-                    setIsModalOpen(false);
-                    setIsLockVisible(false);
+                    const lockoutDuration = 30000;
+                    const lockoutUntil = Date.now() + lockoutDuration;
+                    localStorage.setItem('lockoutUntil', String(lockoutUntil));
+                    
+                    // Show error, then hide modal and button
                     setTimeout(() => {
-                        setIsLockVisible(true);
-                        setPinError('');
-                    }, 30000);
+                        setIsModalOpen(false);
+                        setIsLockVisible(false);
+                        // Set timeout to show the button again after cooldown
+                        setTimeout(() => {
+                            setIsLockVisible(true);
+                            localStorage.removeItem('lockoutUntil');
+                        }, lockoutDuration);
+                    }, 2000); // Wait 2 seconds before closing modal
                 }
             } else {
                 setPinError('PIN configuration not found. Contact admin.');
@@ -64,6 +82,7 @@ export default function AuthRoleSelectionPage() {
 
     const openModal = () => setIsModalOpen(true);
     const closeModal = () => {
+        if (loading) return;
         setIsModalOpen(false);
         setPinError('');
         setPin('');
@@ -80,6 +99,7 @@ export default function AuthRoleSelectionPage() {
         return () => {
             window.removeEventListener('keydown', handleEsc);
         };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
 
