@@ -1,10 +1,35 @@
 'use client';
 
 import { useFirebase } from '@/firebase/client-provider';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 export default function CustomerDashboardPage() {
   const { auth } = useFirebase();
-  const user = auth.currentUser;
+  const router = useRouter();
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        setUser(user);
+        setLoading(false);
+      } else {
+        router.replace('/customer/login');
+      }
+    });
+
+    return () => unsubscribe();
+  }, [auth, router]);
+
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="neu-spinner"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="dashboard-container">
