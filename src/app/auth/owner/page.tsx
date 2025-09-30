@@ -69,7 +69,7 @@ export default function OwnerAuthPage() {
             } else {
                 // User is authenticated but not an owner, or doc doesn't exist
                 await auth.signOut(); // Sign out the user
-                setErrors({ form: 'Invalid email or password. Access denied.' });
+                setErrors({ form: 'Access denied. You do not have owner privileges.' });
             }
         } catch (error: any) {
              let errorMessage = "Authentication failed. Please try again.";
@@ -81,6 +81,7 @@ export default function OwnerAuthPage() {
                          errorMessage = 'Invalid email or password. Access denied.';
                          break;
                      default:
+                         // Keep the generic message for other auth errors
                          errorMessage = 'Authentication failed. Please try again.';
                  }
              }
