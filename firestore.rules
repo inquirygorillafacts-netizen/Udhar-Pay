@@ -4,31 +4,25 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if the user has a specific role
-    function isRole(role) {
-      return exists(/databases/$(database)/documents/$(role)s/$(request.auth.uid));
-    }
-
-    // Owners can read/write their own document
-    match /owners/{ownerId} {
-      allow read, write: if request.auth.uid == ownerId;
-    }
-
-    // Shopkeepers can read/write their own document
-    match /shopkeepers/{shopkeeperId} {
-      allow read, write: if request.auth.uid == shopkeeperId;
-    }
-    
-    // Customers can read/write their own document
-    match /customers/{customerId} {
-      allow read, write: if request.auth.uid == customerId;
-    }
-
-    // Lock document (for owner PIN) should only be readable by authenticated users
-    // Write access should be restricted, e.g., only from a trusted server environment (not covered here for simplicity)
-    match /lock/{pinId} {
+    // Lock document can only be read by authenticated users, and not written to.
+    match /lock/owner_pin {
       allow read: if request.auth != null;
-      allow write: if false; // Lock down writes from client
+      allow write: if false; // PIN should be set manually in Console
+    }
+
+    // Customers can only read and write their own documents.
+    match /customers/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Shopkeepers can only read and write their own documents.
+    match /shopkeepers/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Owners can only read and write their own documents.
+    match /owners/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
   }
 }
