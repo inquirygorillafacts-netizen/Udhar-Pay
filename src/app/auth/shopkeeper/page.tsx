@@ -11,7 +11,8 @@ import {
     GoogleAuthProvider, 
     signInWithPopup,
     GithubAuthProvider,
-    TwitterAuthProvider
+    TwitterAuthProvider,
+    updateProfile
 } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 
@@ -42,9 +43,10 @@ export default function ShopkeeperAuthPage() {
 
     const [isSignUp, setIsSignUp] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [shopName, setShopName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [errors, setErrors] = useState<{ email?: string; password?: string; form?: string }>({});
+    const [errors, setErrors] = useState<{ shopName?: string; email?: string; password?: string; form?: string }>({});
     const [loading, setLoading] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
     const cardRef = useRef<HTMLDivElement>(null);
@@ -69,7 +71,7 @@ export default function ShopkeeperAuthPage() {
             // If it's a new sign-up, create a document in the 'shopkeepers' collection
             await setDoc(doc(firestore, "shopkeepers", user.uid), {
                 email: user.email,
-                displayName: user.displayName || '',
+                displayName: user.displayName || shopName,
                 photoURL: user.photoURL || '',
                 createdAt: new Date(),
                 role: 'shopkeeper'
@@ -79,13 +81,16 @@ export default function ShopkeeperAuthPage() {
     };
 
     const validate = () => {
-        const newErrors: { email?: string; password?: string } = {};
+        const newErrors: { shopName?: string; email?: string; password?: string } = {};
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        
+        if (isSignUp && !shopName) newErrors.shopName = 'Shop name is required';
+
         if (!email) newErrors.email = 'Email is required';
         else if (!emailRegex.test(email)) newErrors.email = 'Please enter a valid email';
 
         if (!password) newErrors.password = 'Password is required';
-        else if (password.length < 6) newErrors.password = 'Password must be at least 6 characters';
+        else if (isSignUp && password.length < 6) newErrors.password = 'Password must be at least 6 characters';
         
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
@@ -100,6 +105,7 @@ export default function ShopkeeperAuthPage() {
         try {
             if (isSignUp) {
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                await updateProfile(userCredential.user, { displayName: shopName });
                 await handleAuthSuccess(userCredential.user);
             } else {
                 const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -223,6 +229,18 @@ export default function ShopkeeperAuthPage() {
                             
                             <form className="login-form" noValidate onSubmit={handleSubmit}>
                                 {errors.form && <div className="error-message show" style={{textAlign: 'center', marginBottom: '1rem', marginLeft: 0}}>{errors.form}</div>}
+                                
+                                {isSignUp && (
+                                    <div className={`form-group ${errors.shopName ? 'error' : ''}`}>
+                                        <div className="neu-input">
+                                            <input type="text" id="shopName" name="shopName" required autoComplete="organization" placeholder=" " value={shopName} onChange={e => setShopName(e.target.value)} onBlur={validate} />
+                                            <label htmlFor="shopName">Shop Name</label>
+                                            <div className="input-icon"><Store /></div>
+                                        </div>
+                                        {errors.shopName && <span className="error-message show">{errors.shopName}</span>}
+                                    </div>
+                                )}
+
                                 <div className={`form-group ${errors.email ? 'error' : ''}`}>
                                     <div className="neu-input">
                                         <input type="email" id="email" name="email" required autoComplete="email" placeholder=" " value={email} onChange={e => setEmail(e.target.value)} onBlur={validate} />
@@ -244,6 +262,7 @@ export default function ShopkeeperAuthPage() {
                                     {errors.password && <span className="error-message show">{errors.password}</span>}
                                 </div>
 
+                                {!isSignUp && (
                                 <div className="form-options">
                                     <div className="remember-wrapper">
                                         <input type="checkbox" id="remember" name="remember"/>
@@ -256,6 +275,7 @@ export default function ShopkeeperAuthPage() {
                                     </div>
                                     <a href="#" className="forgot-link">Forgot password?</a>
                                 </div>
+                                )}
 
                                 <button type="submit" className={`neu-button ${loading ? 'loading' : ''}`} disabled={loading}>
                                     <span className="btn-text">{isSignUp ? 'Sign Up' : 'Sign In'}</span>
