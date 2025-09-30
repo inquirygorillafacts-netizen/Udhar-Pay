@@ -8,28 +8,14 @@ export default function CustomerDashboardPage() {
   const { auth } = useFirebase();
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      if (user) {
-        setUser(user);
-        setLoading(false);
-      } else {
-        router.replace('/customer/login');
-      }
-    });
-
-    return () => unsubscribe();
-  }, [auth, router]);
-
-  if (loading) {
-    return (
-      <div className="loading-container">
-        <div className="neu-spinner"></div>
-      </div>
-    );
-  }
+    // The layout already protects this page, 
+    // but we can still grab the user info here.
+    if (auth.currentUser) {
+        setUser(auth.currentUser);
+    }
+  }, [auth]);
 
   return (
     <div className="dashboard-container">

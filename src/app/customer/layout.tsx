@@ -1,9 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { LayoutDashboard, User } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useFirebase } from '@/firebase/client-provider';
 
 export default function CustomerLayout({
   children,
@@ -11,6 +12,29 @@ export default function CustomerLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const { auth } = useFirebase();
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        setLoading(false);
+      } else {
+        router.replace('/login/customer');
+      }
+    });
+
+    return () => unsubscribe();
+  }, [auth, router]);
+
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="neu-spinner"></div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ paddingBottom: '80px' }}>
