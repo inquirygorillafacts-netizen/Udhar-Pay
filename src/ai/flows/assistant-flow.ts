@@ -56,21 +56,13 @@ const generateAudioFlow = ai.defineFlow(
                         "Content-Type": "application/json",
                         "api-key": process.env.MURF_API_KEY,
                     },
-                    responseType: 'stream',
+                    responseType: 'arraybuffer',
                 }
             );
-            
-            const audioStream = murfResponse.data as PassThrough;
 
-            const chunks: any[] = [];
-            for await (const chunk of audioStream) {
-                chunks.push(chunk);
-            }
-            
-            const audioBuffer = Buffer.concat(chunks);
+            const audioBuffer = Buffer.from(murfResponse.data);
             const audioBase64 = audioBuffer.toString('base64');
-
-
+            
             if (!audioBase64) {
                 throw new Error("Murf.ai did not return an audio file.");
             }
