@@ -151,6 +151,8 @@
 /* Fullscreen Modal for AI Chat */
 .ai-chat-modal-overlay {
     padding: 0;
+    align-items: stretch;
+    justify-content: stretch;
 }
 
 .ai-chat-modal-content {
