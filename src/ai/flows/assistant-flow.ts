@@ -13,10 +13,22 @@ import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import axios from 'axios';
 
+
+export const availableVoices = [
+    { voiceId: 'hi-IN-kabir', style: 'General' },
+    { voiceId: 'it-IT-lorenzo', style: 'Conversational', multiNativeLocale: 'hi-IN' },
+    { voiceId: 'en-UK-hazel', style: 'Conversational', multiNativeLocale: 'hi-IN' },
+    { voiceId: 'de-DE-josephine', style: 'Conversational', multiNativeLocale: 'hi-IN' },
+];
+
+const DEFAULT_VOICE_ID = 'hi-IN-kabir';
+
+
 // Define the input schema for the assistant
 const AssistantInputSchema = z.object({
   query: z.string().describe('The user\'s spoken query as text.'),
   generateAudio: z.boolean().optional().default(true).describe('Whether to generate an audio response.'),
+  voiceId: z.string().optional().default(DEFAULT_VOICE_ID).describe('The voice to use for the audio response.'),
 });
 export type AssistantInput = z.infer<typeof AssistantInputSchema>;
 
@@ -33,20 +45,25 @@ const AudioOutputSchema = z.object({
 });
 export type AudioOutput = z.infer<typeof AudioOutputSchema>;
 
+const GenerateAudioInputSchema = z.object({
+    text: z.string(),
+    voiceId: z.string().optional().default(DEFAULT_VOICE_ID),
+});
+
 
 const generateAudioFlow = ai.defineFlow(
     {
         name: 'generateAudioFlow',
-        inputSchema: z.string(),
+        inputSchema: GenerateAudioInputSchema,
         outputSchema: AudioOutputSchema,
     },
-    async (text) => {
+    async ({ text, voiceId }) => {
          try {
             const murfResponse = await axios.post(
                 "https://api.murf.ai/v1/speech/stream",
                 {
                     text: text,
-                    voiceId: "en-US-terrell", // A standard, clear voice
+                    voiceId: voiceId || DEFAULT_VOICE_ID,
                     format: "WAV",
                     sampleRate: 24000,
                 },
@@ -85,7 +102,7 @@ const assistantFlow = ai.defineFlow(
     inputSchema: AssistantInputSchema,
     outputSchema: AssistantOutputSchema,
   },
-  async ({ query, generateAudio }) => {
+  async ({ query, generateAudio, voiceId }) => {
     // 1. Generate a text response from the AI
     const { output: textResponse } = await ai.generate({
       prompt: `You are a helpful AI assistant for the Udhar Pay app. Keep your answers concise and friendly. User's query: ${query}`,
@@ -108,7 +125,7 @@ const assistantFlow = ai.defineFlow(
     }
     
     // 2. Convert the text response to speech using the dedicated audio flow
-    const audioData = await generateAudioFlow(responseText);
+    const audioData = await generateAudioFlow({ text: responseText, voiceId: voiceId });
 
     return {
         text: responseText,
@@ -126,12 +143,11 @@ export async function askAiAssistant(input: AssistantInput): Promise<AssistantOu
   return assistantFlow(input);
 }
 
-
 /**
  * Generates only the audio for the initial greeting.
  * @returns The audio data URI for the greeting.
  */
-export async function generateGreetingAudio(): Promise<AudioOutput> {
-    const greetingText = "How can I help you?";
-    return generateAudioFlow(greetingText);
+export async function generateGreetingAudio(voiceId?: string): Promise<AudioOutput> {
+    const greetingText = "मे आपकी केसे मदद कर सकता हु";
+    return generateAudioFlow({ text: greetingText, voiceId: voiceId || DEFAULT_VOICE_ID });
 }

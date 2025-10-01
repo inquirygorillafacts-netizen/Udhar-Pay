@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Mic, Loader, Bot, Volume2, MessageSquare, Waves } from 'lucide-react';
-import { askAiAssistant, generateGreetingAudio } from '@/ai/flows/assistant-flow';
+import { Loader, Bot, Volume2, MessageSquare, Waves, Shuffle } from 'lucide-react';
+import { askAiAssistant, generateGreetingAudio, availableVoices } from '@/ai/flows/assistant-flow';
 import TextAssistantModal from '@/components/assistant/TextAssistantModal';
 
 type Status = 'greeting' | 'idle' | 'listening' | 'thinking' | 'speaking';
@@ -17,10 +17,18 @@ export default function VoiceAssistantPage() {
     const [status, setStatus] = useState<Status>('greeting');
     const [aiResponse, setAiResponse] = useState('');
     const [isTextModalOpen, setIsTextModalOpen] = useState(false);
-    
+    const [currentVoiceIndex, setCurrentVoiceIndex] = useState(0);
+
     const recognitionRef = useRef<any>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const hasGreetedRef = useRef(false);
+
+    const currentVoiceId = availableVoices[currentVoiceIndex].voiceId;
+
+    const handleVoiceSwitch = () => {
+        setCurrentVoiceIndex((prevIndex) => (prevIndex + 1) % availableVoices.length);
+        // Optional: Play a sample sound in the new voice
+    };
 
     const startListening = useCallback(() => {
         if (!SpeechRecognition || recognitionRef.current) {
@@ -74,7 +82,8 @@ export default function VoiceAssistantPage() {
         try {
           const response = await askAiAssistant({ 
             query: text,
-            generateAudio: true
+            generateAudio: true,
+            voiceId: currentVoiceId,
           });
           
           setAiResponse(response.text);
@@ -104,11 +113,11 @@ export default function VoiceAssistantPage() {
           setAiResponse("Sorry, I encountered an error. Please try again.");
           setStatus('idle');
         }
-    }, []);
+    }, [currentVoiceId]);
 
     const playGreeting = useCallback(async () => {
         try {
-            const response = await generateGreetingAudio();
+            const response = await generateGreetingAudio(currentVoiceId);
             if (response.audio) {
                 if (!audioRef.current) audioRef.current = new Audio();
                 
@@ -133,7 +142,7 @@ export default function VoiceAssistantPage() {
             console.error("Failed to generate greeting:", error);
             startListening(); // Fallback to listening
         }
-    }, [startListening]);
+    }, [startListening, currentVoiceId]);
 
     useEffect(() => {
         if (!hasGreetedRef.current) {
@@ -171,6 +180,10 @@ export default function VoiceAssistantPage() {
              <button onClick={() => setIsTextModalOpen(true)} className="neu-button" style={{ position: 'absolute', top: '25px', right: '25px', width: 'auto', height: 'auto', padding: '12px', margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                 <MessageSquare size={20} />
                 <span className='hidden sm:inline'>Text Mode</span>
+            </button>
+             <button onClick={handleVoiceSwitch} className="neu-button" style={{ position: 'absolute', top: '25px', left: '25px', width: 'auto', height: 'auto', padding: '12px', margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                <Shuffle size={20} />
+                <span className='hidden sm:inline'>Switch Voice</span>
             </button>
             <div className="login-card" style={{maxWidth: '500px'}}>
                 <header className="login-header">
