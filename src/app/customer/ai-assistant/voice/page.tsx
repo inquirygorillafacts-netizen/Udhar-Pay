@@ -133,16 +133,16 @@ export default function VoiceAssistantPage() {
     }, [currentVoiceId]);
 
     const playGreeting = useCallback(() => {
-        if (audioRef.current) {
-            audioRef.current.pause();
-            audioRef.current = null;
-        }
+        if (audioRef.current?.src && !audioRef.current.paused) return; // Already playing
+
         audioRef.current = new Audio("/jarvis.mp3");
 
         audioRef.current.play().then(() => {
             setStatus('speaking');
         }).catch(e => {
-            console.error("Error playing greeting audio.", e);
+            if ((e as Error).name !== 'AbortError') {
+                console.error("Error playing greeting audio.", e);
+            }
             setStatus('idle');
             startListening();
         });
@@ -159,11 +159,11 @@ export default function VoiceAssistantPage() {
             playGreeting();
         }
 
+        const currentAudio = audioRef.current;
         return () => {
-            if (audioRef.current) {
-                audioRef.current.pause();
-                audioRef.current.src = '';
-                audioRef.current = null;
+             if (currentAudio && !currentAudio.paused) {
+                currentAudio.pause();
+                currentAudio.src = '';
             }
             if(recognitionRef.current) {
                 recognitionRef.current.stop();
