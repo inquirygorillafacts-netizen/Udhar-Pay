@@ -17,22 +17,23 @@ export default function useAiAssistant() {
   const [isListening, setIsListening] = useState(false);
   const [mode, setMode] = useState<Mode>('voice');
   const [aiResponse, setAiResponse] = useState('');
+  const [inputText, setInputText] = useState('');
   
   const recognitionRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const processAudio = useCallback(async (text: string) => {
+  const processQuery = useCallback(async (text: string, audioRequested: boolean) => {
     setStatus('thinking');
     setAiResponse('');
     try {
       const response = await askAiAssistant({ 
         query: text,
-        generateAudio: mode === 'voice'
+        generateAudio: audioRequested
       });
       
       setAiResponse(response.text);
 
-      if (response.audio && mode === 'voice') {
+      if (response.audio && audioRequested) {
         if (!audioRef.current) {
           audioRef.current = new Audio();
         }
@@ -56,7 +57,12 @@ export default function useAiAssistant() {
       setAiResponse("Sorry, I encountered an error. Please try again.");
       setStatus('idle');
     }
-  }, [mode]);
+  }, []);
+
+  const sendTextMessage = useCallback(async (text: string) => {
+    setInputText('');
+    await processQuery(text, false);
+  }, [processQuery]);
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {
@@ -87,7 +93,7 @@ export default function useAiAssistant() {
     recognition.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript;
       if (transcript) {
-        processAudio(transcript);
+        processQuery(transcript, true);
       }
     };
 
@@ -106,15 +112,20 @@ export default function useAiAssistant() {
     
     recognition.start();
     recognitionRef.current = recognition;
-  }, [isListening, processAudio, status]);
+  }, [isListening, processQuery, status]);
   
   const toggleMode = () => {
       setMode(prev => prev === 'voice' ? 'text' : 'voice');
-      // Stop any ongoing speech when switching modes
+      // Stop any ongoing speech or listening when switching modes
       if(audioRef.current) {
           audioRef.current.pause();
-          setStatus('idle');
       }
+      if (recognitionRef.current) {
+          recognitionRef.current.stop();
+      }
+      setStatus('idle');
+      setIsListening(false);
+      setAiResponse('');
   }
 
   useEffect(() => {
@@ -130,5 +141,5 @@ export default function useAiAssistant() {
     }
   }, []);
 
-  return { status, isListening, startListening, stopListening, aiResponse, mode, toggleMode };
+  return { status, isListening, startListening, stopListening, aiResponse, mode, toggleMode, inputText, setInputText, sendTextMessage };
 }

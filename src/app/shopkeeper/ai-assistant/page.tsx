@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { Mic, Loader, Bot, Volume2, MessageSquare, VolumeX } from 'lucide-react';
+import { Mic, Loader, Bot, Volume2, MessageSquare, Send } from 'lucide-react';
 import useAiAssistant from '@/hooks/use-ai-assistant';
 
 export default function ShopkeeperAiAssistantPage() {
@@ -12,7 +12,10 @@ export default function ShopkeeperAiAssistantPage() {
         stopListening, 
         aiResponse, 
         mode, 
-        toggleMode 
+        toggleMode,
+        inputText,
+        setInputText,
+        sendTextMessage,
     } = useAiAssistant();
 
     const handleMicClick = () => {
@@ -22,6 +25,13 @@ export default function ShopkeeperAiAssistantPage() {
             startListening();
         }
     };
+    
+    const handleSendClick = (e: React.FormEvent) => {
+        e.preventDefault();
+        if(inputText.trim()) {
+            sendTextMessage(inputText);
+        }
+    }
 
     const getStatusIcon = () => {
         switch (status) {
@@ -57,7 +67,7 @@ export default function ShopkeeperAiAssistantPage() {
                 
                  <div className="neu-input" style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 15px', marginBottom: '30px'}}>
                     <div style={{display: 'flex', alignItems: 'center', gap: '10px', color: '#6c7293', fontWeight: 500}}>
-                        {mode === 'voice' ? <Volume2 size={20} /> : <VolumeX size={20} />}
+                        {mode === 'voice' ? <Volume2 size={20} /> : <MessageSquare size={20} />}
                         <span>{mode === 'voice' ? 'Voice Mode' : 'Text Mode'}</span>
                     </div>
                     <div className={`neu-toggle-switch ${mode === 'voice' ? 'active' : ''}`} onClick={toggleMode}>
@@ -98,24 +108,49 @@ export default function ShopkeeperAiAssistantPage() {
                     </div>
                  )}
 
-                <div style={{display: 'flex', justifyContent: 'center', marginBottom: '10px'}}>
-                    <button 
-                        className={`neu-button ${isListening ? 'active' : ''}`}
-                        onClick={handleMicClick}
-                        aria-label="Toggle AI Assistant"
-                        style={{
-                            width: '80px',
-                            height: '80px',
-                            borderRadius: '50%',
-                            margin: 0,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                        }}
-                    >
-                        <Mic size={36} />
-                    </button>
-                </div>
+                 {mode === 'voice' ? (
+                    <div style={{display: 'flex', justifyContent: 'center', marginBottom: '10px'}}>
+                        <button 
+                            className={`neu-button ${isListening ? 'active' : ''}`}
+                            onClick={handleMicClick}
+                            aria-label="Toggle AI Assistant"
+                            style={{
+                                width: '80px',
+                                height: '80px',
+                                borderRadius: '50%',
+                                margin: 0,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                            }}
+                        >
+                            <Mic size={36} />
+                        </button>
+                    </div>
+                 ) : (
+                    <form onSubmit={handleSendClick} style={{marginBottom: '10px'}}>
+                         <div className="neu-input" style={{display: 'flex', alignItems: 'center'}}>
+                            <div className="input-icon"><MessageSquare /></div>
+                            <input
+                                type="text"
+                                placeholder="Type your message..."
+                                value={inputText}
+                                onChange={(e) => setInputText(e.target.value)}
+                                style={{paddingLeft: '55px', fontSize: '1rem'}}
+                                disabled={status === 'thinking'}
+                            />
+                            <button 
+                                type="submit"
+                                className={`neu-button ${status === 'thinking' ? 'loading' : ''}`} 
+                                style={{width: 'auto', margin: '8px', padding: '10px 20px', flexShrink: 0, background: '#00c896', color: 'white'}}
+                                disabled={status === 'thinking' || !inputText.trim()}
+                                >
+                                <span className="btn-text"><Send size={18}/></span>
+                                <div className="btn-loader"><div className="neu-spinner"></div></div>
+                            </button>
+                        </div>
+                    </form>
+                 )}
             </div>
         </main>
     );
