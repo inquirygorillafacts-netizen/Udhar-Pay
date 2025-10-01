@@ -29,6 +29,7 @@ export default function VoiceAssistantPage() {
     
     const recognitionRef = useRef<any>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
+    const effectRan = useRef(false);
 
     const currentVoiceId = availableVoices[currentVoiceIndex].voiceId;
 
@@ -64,15 +65,14 @@ export default function VoiceAssistantPage() {
             if (!audioRef.current) audioRef.current = new Audio();
             
             audioRef.current.src = response.audio;
-            audioRef.current.oncanplaythrough = () => {
-              audioRef.current?.play();
-              setStatus('speaking');
-            };
+            audioRef.current.play();
+            setStatus('speaking');
+
             audioRef.current.onended = () => {
                 setStatus('idle');
             };
             audioRef.current.onerror = (e) => {
-                console.error("Error playing audio.", e);
+                console.error("Error playing AI response audio.", e);
                 setStatus('idle');
             }
           } else {
@@ -88,6 +88,7 @@ export default function VoiceAssistantPage() {
     const startListening = useCallback(() => {
         if (!SpeechRecognition) {
           alert("Sorry, your browser does not support voice recognition.");
+          setStatus('idle');
           return;
         }
          if (recognitionRef.current) {
@@ -112,18 +113,22 @@ export default function VoiceAssistantPage() {
         };
     
         recognition.onerror = (event: any) => {
-          if (event.error === 'no-speech') {
-            setStatus('idle');
-          } else if (event.error !== 'aborted') {
-            console.error('Speech recognition error:', event.error);
-            setAiResponse("Sorry, I didn't catch that. Please try again.");
+          if (event.error !== 'aborted') {
+            if (event.error === 'no-speech') {
+                // This is a normal occurrence, just reset the status.
+            } else {
+                console.error('Speech recognition error:', event.error);
+                setAiResponse("Sorry, I didn't catch that. Please try again.");
+            }
             setStatus('idle');
           }
         };
     
         recognition.onend = () => {
-           recognitionRef.current = null;
-           setStatus(currentStatus => ['thinking', 'speaking'].includes(currentStatus) ? currentStatus : 'idle');
+           if (recognitionRef.current) {
+                recognitionRef.current = null;
+                setStatus(currentStatus => ['thinking', 'speaking'].includes(currentStatus) ? currentStatus : 'idle');
+           }
         };
         
         recognition.start();
@@ -131,7 +136,7 @@ export default function VoiceAssistantPage() {
     }, [processQuery]);
 
     useEffect(() => {
-        if (showIntroVideo) {
+        if (showIntroVideo || effectRan.current) {
             return;
         }
 
@@ -139,37 +144,40 @@ export default function VoiceAssistantPage() {
         audioRef.current = greetingAudio;
 
         const handleAudioEnd = () => {
-            setStatus('idle');
             startListening();
         };
 
         const playGreeting = async () => {
-             setStatus('speaking');
-             try {
+            setStatus('speaking');
+            try {
                 await greetingAudio.play();
-             } catch (e) {
-                if ((e as Error).name === 'NotAllowedError') {
+            } catch (e) {
+                 if ((e as Error).name === 'NotAllowedError') {
                     console.error("Greeting audio blocked by browser. Starting to listen directly.", e);
                 } else {
                     console.error("Error playing greeting audio.", e);
                 }
                 // If audio fails to play, go straight to listening.
                 handleAudioEnd();
-             }
-        }
+            }
+        };
         
         greetingAudio.addEventListener('ended', handleAudioEnd);
         playGreeting();
+
+        effectRan.current = true;
 
         return () => {
             greetingAudio.removeEventListener('ended', handleAudioEnd);
             if (greetingAudio && !greetingAudio.paused) {
                 greetingAudio.pause();
+                greetingAudio.currentTime = 0;
             }
-             if (recognitionRef.current) {
+            if (recognitionRef.current) {
                 recognitionRef.current.abort();
+                recognitionRef.current = null;
             }
-        }
+        };
     }, [showIntroVideo, startListening]);
     
     const getStatusIcon = () => {
