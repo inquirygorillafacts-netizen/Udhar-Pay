@@ -1,69 +1,56 @@
-/* AI Assistant Page Styles - Dark Card on Neumorphic BG */
+/* AI Assistant Page - Neumorphic Style */
 
 .ai-container {
     min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
-    /* The neumorphic background from globals.css will apply */
     padding: 20px;
-    padding-bottom: 80px; /* Space for bottom nav */
+    padding-bottom: 90px; /* Space for bottom nav */
 }
 
 .ai-card {
-    width: 100%;
     max-width: 500px;
-    background: #000; /* Fully black card background */
-    border-radius: 30px;
-    padding: 40px 30px;
-    border: 1px solid #4e4e50;
-    box-shadow: 
-        0px 0px 40px rgba(195, 7, 63, 0.3),
-        inset 0 0 10px rgba(0,0,0,0.5);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 30px;
+    width: 100%;
 }
 
 .ai-header {
     text-align: center;
+    margin-bottom: 40px;
 }
 
 .ai-header h1 {
-    color: #f5f5f5; /* Bright white for title */
+    color: #3d4468;
     font-size: 2rem;
     font-weight: 600;
-    margin-bottom: 8px;
-    text-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
 }
 
 .ai-header p {
-    color: #9e9e9e; /* Softer grey for subtitle */
+    color: #9499b7;
     font-size: 15px;
+    margin-top: 8px;
 }
 
 .ai-face {
-    width: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 25px;
+    gap: 30px;
+    margin-bottom: 40px;
 }
 
 .ai-gif-wrapper {
-    width: clamp(200px, 60vw, 300px);
-    height: clamp(200px, 60vw, 300px);
-    background: #111; /* Slightly lighter than card */
+    width: clamp(200px, 60vw, 280px);
+    height: clamp(200px, 60vw, 280px);
+    background: #e0e5ec;
     border-radius: 50%;
-    border: 2px solid #c3073f; /* Reddish accent border */
-    box-shadow: 
-        0 0 25px #c3073f,
-        inset 0 0 15px rgba(195, 7, 63, 0.5);
     display: flex;
     align-items: center;
     justify-content: center;
-    overflow: hidden;
+    box-shadow: 
+        inset 10px 10px 25px #bec3cf,
+        inset -10px -10px 25px #ffffff;
+    padding: 20px; /* Provides some inner spacing */
 }
 
 .ai-gif {
@@ -71,6 +58,9 @@
     height: 100%;
     object-fit: cover;
     border-radius: 50%;
+    box-shadow: 
+        8px 8px 20px #bec3cf,
+        -8px -8px 20px #ffffff;
 }
 
 .ai-status-text {
@@ -78,68 +68,46 @@
     font-weight: bold;
     text-transform: uppercase;
     letter-spacing: 2px;
-    color: #66fcf1; /* Cyan accent for status */
-    background: #1a1a1d;
-    padding: 8px 20px;
-    border-radius: 20px;
-    border: 1px solid #45a29e;
-    box-shadow: 0 0 10px rgba(102, 252, 241, 0.3);
+    color: #6c7293;
+    background: #e0e5ec;
+    padding: 10px 25px;
+    border-radius: 25px;
+    box-shadow: 
+        inset 5px 5px 10px #bec3cf,
+        inset -5px -5px 10px #ffffff;
 }
 
 .ai-controls {
-    margin-top: 10px;
+    display: flex;
+    justify-content: center;
 }
 
 .ai-mic-button {
     width: 80px;
     height: 80px;
-    background: #1a1a1d;
-    border: 2px solid #45a29e;
     border-radius: 50%;
+    margin: 0; /* Override default button margin */
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #66fcf1;
-    cursor: pointer;
-    box-shadow: 
-        0 0 20px rgba(102, 252, 241, 0.5),
-        inset 0 0 8px rgba(102, 252, 241, 0.3);
     transition: all 0.3s ease-in-out;
-    animation: pulse-offline 2.5s infinite ease-in-out;
-}
-
-.ai-mic-button:active {
-     transform: scale(0.95);
-     box-shadow: 
-        0 0 10px rgba(102, 252, 241, 0.5),
-        inset 0 0 15px rgba(102, 252, 241, 0.7);
 }
 
 .ai-mic-button.listening {
-    color: #fff;
-    background: #c3073f;
-    border-color: #f5f5f5;
+    background: #00c896;
+    color: white;
+    box-shadow: 
+        inset 4px 4px 10px #00a078,
+        inset -4px -4px 10px #00f0b4,
+        0 0 20px #00c896;
     animation: pulse-listening 1.5s infinite ease-in-out;
-}
-
-@keyframes pulse-offline {
-    0%, 100% {
-        transform: scale(1);
-        box-shadow: 0 0 20px rgba(102, 252, 241, 0.5), inset 0 0 8px rgba(102, 252, 241, 0.3);
-    }
-    50% {
-        transform: scale(1.05);
-        box-shadow: 0 0 30px rgba(102, 252, 241, 0.7), inset 0 0 10px rgba(102, 252, 241, 0.4);
-    }
 }
 
 @keyframes pulse-listening {
     0%, 100% {
         transform: scale(1);
-        box-shadow: 0 0 25px #c3073f, 0 0 10px #f5f5f5;
     }
     50% {
-        transform: scale(1.1);
-        box-shadow: 0 0 40px #c3073f, 0 0 15px #f5f5f5;
+        transform: scale(1.08);
     }
 }
