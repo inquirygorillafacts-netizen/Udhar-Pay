@@ -50,14 +50,14 @@ export default function CustomerLayout({
           <span>Ledger</span>
         </Link>
         
-        <Link href="/ai-assistant" className={`admin-nav-item ${pathname === '/ai-assistant' ? 'active' : ''}`}>
-          <MessageCircle size={24} />
-          <span>AI</span>
-        </Link>
-
         <Link href="/customer/scan" className={`admin-nav-item ${pathname === '/customer/scan' ? 'active' : ''}`}>
           <QrCode size={24} />
           <span>Scan</span>
+        </Link>
+
+        <Link href="/ai-assistant" className={`admin-nav-item ${pathname === '/ai-assistant' ? 'active' : ''}`}>
+          <MessageCircle size={24} />
+          <span>AI</span>
         </Link>
 
         <Link href="/customer/credit-cards" className={`admin-nav-item ${pathname === '/customer/credit-cards' ? 'active' : ''}`}>
