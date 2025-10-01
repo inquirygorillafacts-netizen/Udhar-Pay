@@ -1,11 +1,11 @@
-/* AI Assistant Page Styles - Dark & Futuristic Theme */
+/* AI Assistant Page Styles - Dark Card on Neumorphic BG */
 
 .ai-container {
     min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #000; /* Dark background for the whole page */
+    /* The neumorphic background from globals.css will apply */
     padding: 20px;
     padding-bottom: 80px; /* Space for bottom nav */
 }
@@ -13,7 +13,7 @@
 .ai-card {
     width: 100%;
     max-width: 500px;
-    background: #1a1a1d; /* Deep dark card color */
+    background: #000; /* Fully black card background */
     border-radius: 30px;
     padding: 40px 30px;
     border: 1px solid #4e4e50;
@@ -54,7 +54,7 @@
 .ai-gif-wrapper {
     width: clamp(200px, 60vw, 300px);
     height: clamp(200px, 60vw, 300px);
-    background: #000;
+    background: #111; /* Slightly lighter than card */
     border-radius: 50%;
     border: 2px solid #c3073f; /* Reddish accent border */
     box-shadow: 
