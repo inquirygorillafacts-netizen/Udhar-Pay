@@ -5,10 +5,11 @@ import { collection, query, where, getDocs, type Firestore } from 'firebase/fire
 // --- Customer Code Generation ---
 
 /**
- * Generates a random 5-digit number as a string.
+ * Generates a random 1-digit number as a string for testing.
  */
 function generateCustomerCode(): string {
-  return Math.floor(10000 + Math.random() * 90000).toString();
+  // This will generate a number between 0 and 9.
+  return Math.floor(Math.random() * 10).toString();
 }
 
 /**
@@ -25,10 +26,10 @@ async function customerCodeExists(firestore: Firestore, code: string): Promise<b
 }
 
 /**
- * Generates a unique 5-digit code for a customer.
+ * Generates a unique 1-digit code for a customer.
  * It keeps generating a new code until a unique one is found.
  * @param firestore - The Firestore instance.
- * @returns {Promise<string>} - A unique 5-digit customer code.
+ * @returns {Promise<string>} - A unique 1-digit customer code.
  */
 export async function generateUniqueCustomerCode(firestore: Firestore): Promise<string> {
   let uniqueCode: string;
