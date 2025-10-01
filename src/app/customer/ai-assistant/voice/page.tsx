@@ -92,8 +92,8 @@ export default function VoiceAssistantPage() {
                 // Optional: Automatically start listening again after AI finishes speaking
                 // startListening(); 
             };
-            audioRef.current.onerror = () => {
-                console.error("Error playing audio.");
+            audioRef.current.onerror = (e) => {
+                console.error("Error playing audio.", e);
                 setStatus('idle');
             }
           } else {
@@ -121,8 +121,8 @@ export default function VoiceAssistantPage() {
                     setStatus('idle');
                     startListening(); // Automatically start listening after greeting
                 };
-                 audioRef.current.onerror = () => {
-                    console.error("Error playing greeting audio.");
+                 audioRef.current.onerror = (e) => {
+                    console.error("Error playing greeting audio.", e);
                     setStatus('idle');
                     startListening(); // Still try to listen
                 }

@@ -46,17 +46,17 @@ const generateAudioFlow = ai.defineFlow(
             const murfResponse = await axios.post(
                 "https://api.murf.ai/v1/speech/stream",
                 {
-                text: text,
-                voiceId: "en-US-terrell", // A standard, clear voice
-                format: "WAV",
-                sampleRate: 24000,
+                    text: text,
+                    voiceId: "en-US-terrell", // A standard, clear voice
+                    format: "WAV",
+                    sampleRate: 24000,
                 },
                 {
-                headers: {
-                    "Content-Type": "application/json",
-                    "api-key": process.env.MURF_API_KEY,
-                },
-                responseType: 'stream',
+                    headers: {
+                        "Content-Type": "application/json",
+                        "api-key": process.env.MURF_API_KEY,
+                    },
+                    responseType: 'stream',
                 }
             );
             
