@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { LayoutDashboard, User, BookText, QrCode } from 'lucide-react';
+import { LayoutDashboard, User, BookText, MessageCircle } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
@@ -49,7 +49,7 @@ export default function CustomerLayout({
           <BookText size={24} />
           <span>Ledger</span>
         </Link>
-        <Link href="/customer/scan" className="admin-nav-item admin-nav-item-primary" style={{
+        <Link href="/ai-assistant" className="admin-nav-item admin-nav-item-primary" style={{
             transform: 'translateY(-20px)',
             width: '65px',
             height: '65px',
@@ -58,7 +58,7 @@ export default function CustomerLayout({
             color: 'white',
             boxShadow: '0 -5px 20px rgba(0, 200, 150, 0.3)',
         }}>
-          <QrCode size={30} />
+          <MessageCircle size={30} />
         </Link>
         <Link href="/customer/profile" className={`admin-nav-item ${pathname === '/customer/profile' ? 'active' : ''}`}>
           <User size={24} />
