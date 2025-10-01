@@ -132,44 +132,45 @@ export default function VoiceAssistantPage() {
         recognitionRef.current = recognition;
     }, [processQuery, status]);
 
-    const playGreeting = useCallback(() => {
-        if (audioRef.current?.src && !audioRef.current.paused) return; 
-        
-        audioRef.current = new Audio("/jarvis.mp3");
-        
-        audioRef.current.play().then(() => {
-            setStatus('speaking');
-        }).catch(e => {
-            if ((e as Error).name !== 'AbortError') {
-                 console.error("Error playing greeting audio.", e);
-            }
-            setStatus('idle');
-            startListening();
-        });
+    useEffect(() => {
+        if (showIntroVideo) {
+            return;
+        }
 
-        audioRef.current.onended = () => {
+        audioRef.current = new Audio("/jarvis.mp3");
+        const currentAudio = audioRef.current;
+
+        const playGreeting = () => {
+             setStatus('speaking');
+             currentAudio.play().catch(e => {
+                if ((e as Error).name !== 'AbortError') {
+                    console.error("Error playing greeting audio.", e);
+                }
+                setStatus('idle');
+                startListening();
+            });
+        }
+        
+        playGreeting();
+
+        const handleAudioEnd = () => {
             setStatus('idle');
             startListening();
         };
 
-    }, [startListening]);
-
-    useEffect(() => {
-        if (!showIntroVideo) {
-            playGreeting();
-        }
+        currentAudio.addEventListener('ended', handleAudioEnd);
 
         return () => {
-            if (audioRef.current && !audioRef.current.paused) {
-                audioRef.current.pause();
-                audioRef.current.src = '';
+            currentAudio.removeEventListener('ended', handleAudioEnd);
+            if (!currentAudio.paused) {
+                currentAudio.pause();
             }
-            if(recognitionRef.current) {
+            if (recognitionRef.current) {
                 recognitionRef.current.abort();
                 recognitionRef.current = null;
             }
         }
-    }, [playGreeting, showIntroVideo]);
+    }, [showIntroVideo, startListening]);
     
     const getStatusIcon = () => {
         switch (status) {
