@@ -113,27 +113,25 @@ export default function VoiceAssistantPage() {
         };
     
         recognition.onerror = (event: any) => {
-          if (event.error !== 'aborted') {
-            if (event.error === 'no-speech') {
-                // This is a normal occurrence, just reset the status.
-            } else {
-                console.error('Speech recognition error:', event.error);
-                setAiResponse("Sorry, I didn't catch that. Please try again.");
-            }
-            setStatus('idle');
+          if (event.error !== 'aborted' && event.error !== 'no-speech') {
+            console.error('Speech recognition error:', event.error);
+            setAiResponse("Sorry, I didn't catch that. Please try again.");
           }
+          setStatus('idle');
         };
     
         recognition.onend = () => {
            if (recognitionRef.current) {
                 recognitionRef.current = null;
-                setStatus(currentStatus => ['thinking', 'speaking'].includes(currentStatus) ? currentStatus : 'idle');
+                if (status === 'listening') {
+                    setStatus('idle');
+                }
            }
         };
         
         recognition.start();
         recognitionRef.current = recognition;
-    }, [processQuery]);
+    }, [processQuery, status]);
 
     useEffect(() => {
         if (showIntroVideo || effectRan.current) {
