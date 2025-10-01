@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Mic, Loader, Bot, Volume2, MessageSquare, X } from 'lucide-react';
-import { askAiAssistant } from '@/ai/flows/assistant-flow';
+import { Mic, Loader, Bot, Volume2, MessageSquare, Waves } from 'lucide-react';
+import { askAiAssistant, generateGreetingAudio } from '@/ai/flows/assistant-flow';
 import TextAssistantModal from '@/components/assistant/TextAssistantModal';
 
-type Status = 'idle' | 'listening' | 'thinking' | 'speaking';
+type Status = 'greeting' | 'idle' | 'listening' | 'thinking' | 'speaking';
 
 // Polyfill for SpeechRecognition
 const SpeechRecognition =
@@ -14,13 +14,59 @@ const SpeechRecognition =
     : undefined;
 
 export default function VoiceAssistantPage() {
-    const [status, setStatus] = useState<Status>('idle');
-    const [isListening, setIsListening] = useState(false);
+    const [status, setStatus] = useState<Status>('greeting');
     const [aiResponse, setAiResponse] = useState('');
     const [isTextModalOpen, setIsTextModalOpen] = useState(false);
     
     const recognitionRef = useRef<any>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
+    const hasGreetedRef = useRef(false);
+
+    const startListening = useCallback(() => {
+        if (!SpeechRecognition || recognitionRef.current) {
+          if (!SpeechRecognition) {
+              alert("Sorry, your browser does not support voice recognition.");
+          }
+          return;
+        }
+    
+        const recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.lang = 'en-US';
+    
+        recognition.onstart = () => {
+          setStatus('listening');
+          setAiResponse('');
+        };
+    
+        recognition.onresult = (event: any) => {
+          recognitionRef.current = null;
+          const transcript = event.results[0][0].transcript;
+          if (transcript) {
+            processQuery(transcript);
+          }
+        };
+    
+        recognition.onerror = (event: any) => {
+          console.error('Speech recognition error:', event.error);
+          if (event.error !== 'no-speech') {
+             setAiResponse("Sorry, I didn't catch that. Please try again.");
+          }
+          setStatus('idle');
+          recognitionRef.current = null;
+        };
+    
+        recognition.onend = () => {
+          if (status === 'listening') {
+             setStatus('idle');
+          }
+           recognitionRef.current = null;
+        };
+        
+        recognition.start();
+        recognitionRef.current = recognition;
+    }, [status]); // Dependency on status to avoid stale closures
 
     const processQuery = useCallback(async (text: string) => {
         setStatus('thinking');
@@ -34,16 +80,17 @@ export default function VoiceAssistantPage() {
           setAiResponse(response.text);
     
           if (response.audio) {
-            if (!audioRef.current) {
-              audioRef.current = new Audio();
-            }
+            if (!audioRef.current) audioRef.current = new Audio();
+            
             audioRef.current.src = response.audio;
             audioRef.current.oncanplaythrough = () => {
               audioRef.current?.play();
               setStatus('speaking');
             };
             audioRef.current.onended = () => {
-              setStatus('idle');
+                setStatus('idle');
+                // Optional: Automatically start listening again after AI finishes speaking
+                // startListening(); 
             };
             audioRef.current.onerror = () => {
                 console.error("Error playing audio.");
@@ -57,90 +104,66 @@ export default function VoiceAssistantPage() {
           setAiResponse("Sorry, I encountered an error. Please try again.");
           setStatus('idle');
         }
-      }, []);
+    }, []);
 
-      const stopListening = useCallback(() => {
-        if (recognitionRef.current) {
-          recognitionRef.current.stop();
+    const playGreeting = useCallback(async () => {
+        try {
+            const response = await generateGreetingAudio();
+            if (response.audio) {
+                if (!audioRef.current) audioRef.current = new Audio();
+                
+                audioRef.current.src = response.audio;
+                audioRef.current.oncanplaythrough = () => {
+                    audioRef.current?.play();
+                    setStatus('speaking');
+                };
+                audioRef.current.onended = () => {
+                    setStatus('idle');
+                    startListening(); // Automatically start listening after greeting
+                };
+                 audioRef.current.onerror = () => {
+                    console.error("Error playing greeting audio.");
+                    setStatus('idle');
+                    startListening(); // Still try to listen
+                }
+            } else {
+                 startListening(); // If no audio, just start listening
+            }
+        } catch (error) {
+            console.error("Failed to generate greeting:", error);
+            startListening(); // Fallback to listening
         }
-      }, []);
-
-      const startListening = useCallback(() => {
-        if (isListening || !SpeechRecognition) {
-          if (!SpeechRecognition) {
-              alert("Sorry, your browser does not support voice recognition.");
-          }
-          return;
-        }
-    
-        const recognition = new SpeechRecognition();
-        recognition.continuous = false;
-        recognition.interimResults = false;
-        recognition.lang = 'en-US';
-    
-        recognition.onstart = () => {
-          setIsListening(true);
-          setStatus('listening');
-          setAiResponse('');
-        };
-    
-        recognition.onresult = (event: any) => {
-          const transcript = event.results[0][0].transcript;
-          if (transcript) {
-            processQuery(transcript);
-          }
-        };
-    
-        recognition.onerror = (event: any) => {
-          console.error('Speech recognition error:', event.error);
-          // Don't set status to idle here, onend will handle it.
-        };
-    
-        recognition.onend = () => {
-          setIsListening(false);
-          // Only change status if we are not already thinking or speaking
-          if (status === 'listening') {
-            setStatus('idle');
-          }
-        };
-        
-        recognition.start();
-        recognitionRef.current = recognition;
-      }, [isListening, processQuery, status]);
-
-    const handleMicClick = () => {
-        if (isListening) {
-            stopListening();
-        } else {
-            startListening();
-        }
-    };
-    
-    const getStatusIcon = () => {
-        switch (status) {
-            case 'listening':
-                return <Mic size={24} className="text-red-500 animate-pulse" />;
-            case 'thinking':
-                return <Loader size={24} className="animate-spin" />;
-            case 'speaking':
-                 return <Volume2 size={24} className="text-green-500" />;
-            case 'idle':
-            default:
-                return <Bot size={24} />;
-        }
-    };
+    }, [startListening]);
 
     useEffect(() => {
+        if (!hasGreetedRef.current) {
+            hasGreetedRef.current = true;
+            playGreeting();
+        }
+
         return () => {
             if (audioRef.current) {
                 audioRef.current.pause();
+                audioRef.current.src = '';
                 audioRef.current = null;
             }
             if(recognitionRef.current) {
                 recognitionRef.current.stop();
+                recognitionRef.current = null;
             }
         }
-    }, []);
+    }, [playGreeting]);
+    
+    const getStatusIcon = () => {
+        switch (status) {
+            case 'listening': return <Waves size={24} className="text-blue-500" />;
+            case 'thinking': return <Loader size={24} className="animate-spin" />;
+            case 'speaking': return <Volume2 size={24} className="text-green-500" />;
+            case 'greeting': return <Bot size={24} className="animate-pulse" />;
+            case 'idle':
+            default: return <Bot size={24} />;
+        }
+    };
 
     return (
       <>
@@ -155,7 +178,7 @@ export default function VoiceAssistantPage() {
                         <div className="icon-inner" style={{width: '50px', height: '50px'}}>🤖</div>
                     </div>
                     <h1>Voice Assistant</h1>
-                    <p>Tap the mic and ask me anything!</p>
+                    <p>I'm listening...</p>
                 </header>
 
                 <div style={{textAlign: 'center', marginBottom: '30px'}}>
@@ -191,23 +214,8 @@ export default function VoiceAssistantPage() {
                     </div>
                  )}
 
-                <div style={{display: 'flex', justifyContent: 'center', marginBottom: '10px'}}>
-                    <button 
-                        className={`neu-button ${isListening ? 'active' : ''}`}
-                        onClick={handleMicClick}
-                        aria-label="Toggle AI Assistant"
-                        style={{
-                            width: '80px',
-                            height: '80px',
-                            borderRadius: '50%',
-                            margin: 0,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                        }}
-                    >
-                        <Mic size={36} />
-                    </button>
+                 <div style={{display: 'flex', justifyContent: 'center', marginBottom: '10px', minHeight: '80px'}}>
+                    {/* The microphone button is removed for automatic operation */}
                 </div>
             </div>
         </main>

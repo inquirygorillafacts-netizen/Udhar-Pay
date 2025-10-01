@@ -4,6 +4,7 @@
  * generates a spoken response using Murf.ai, and returns it as audio data.
  *
  * - `askAiAssistant` - A function that orchestrates the text-to-text and text-to-speech process.
+ * - `generateGreetingAudio` - A function that generates a standard audio greeting.
  * - `AssistantInput` - The input type for the `askAiAssistant` function.
  * - `AssistantOutput` - The return type for the `askAiAssistant` function.
  */
@@ -26,6 +27,64 @@ const AssistantOutputSchema = z.object({
   audio: z.string().optional().describe("The AI\'s spoken response as a base64-encoded WAV data URI."),
 });
 export type AssistantOutput = z.infer<typeof AssistantOutputSchema>;
+
+// Define a simple output schema for just audio
+const AudioOutputSchema = z.object({
+    audio: z.string().describe("The AI's spoken response as a base64-encoded WAV data URI."),
+});
+export type AudioOutput = z.infer<typeof AudioOutputSchema>;
+
+
+const generateAudioFlow = ai.defineFlow(
+    {
+        name: 'generateAudioFlow',
+        inputSchema: z.string(),
+        outputSchema: AudioOutputSchema,
+    },
+    async (text) => {
+         try {
+            const murfResponse = await axios.post(
+                "https://api.murf.ai/v1/speech/stream",
+                {
+                text: text,
+                voiceId: "en-US-terrell", // A standard, clear voice
+                format: "WAV",
+                sampleRate: 24000,
+                },
+                {
+                headers: {
+                    "Content-Type": "application/json",
+                    "api-key": process.env.MURF_API_KEY,
+                },
+                responseType: 'stream',
+                }
+            );
+            
+            const audioStream = murfResponse.data as PassThrough;
+
+            const chunks: any[] = [];
+            for await (const chunk of audioStream) {
+                chunks.push(chunk);
+            }
+            
+            const audioBuffer = Buffer.concat(chunks);
+            const audioBase64 = audioBuffer.toString('base64');
+
+
+            if (!audioBase64) {
+                throw new Error("Murf.ai did not return an audio file.");
+            }
+
+            return {
+                audio: `data:audio/wav;base64,${audioBase64}`,
+            };
+
+        } catch (error) {
+            console.error("Error calling Murf.ai API:", error);
+            throw new Error("Failed to generate audio from Murf.ai");
+        }
+    }
+);
 
 
 // Define the main flow for the AI assistant
@@ -56,53 +115,14 @@ const assistantFlow = ai.defineFlow(
             text: responseText,
         };
     }
+    
+    // 2. Convert the text response to speech using the dedicated audio flow
+    const audioData = await generateAudioFlow(responseText);
 
-    // 2. Convert the text response to speech using Murf.ai streaming API
-    try {
-      const murfResponse = await axios.post(
-        "https://api.murf.ai/v1/speech/stream",
-        {
-          text: responseText,
-          voiceId: "en-US-terrell", // A standard, clear voice
-          format: "WAV",
-          sampleRate: 24000,
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            "api-key": process.env.MURF_API_KEY,
-          },
-          responseType: 'stream',
-        }
-      );
-      
-      const audioStream = murfResponse.data as PassThrough;
-
-      const chunks: any[] = [];
-      for await (const chunk of audioStream) {
-          chunks.push(chunk);
-      }
-      
-      const audioBuffer = Buffer.concat(chunks);
-      const audioBase64 = audioBuffer.toString('base64');
-
-
-      if (!audioBase64) {
-        throw new Error("Murf.ai did not return an audio file.");
-      }
-
-      return {
+    return {
         text: responseText,
-        audio: `data:audio/wav;base64,${audioBase64}`,
-      };
-
-    } catch (error) {
-        console.error("Error calling Murf.ai API:", error);
-        // Fallback to text-only response if TTS fails
-        return {
-            text: responseText,
-        };
-    }
+        audio: audioData.audio,
+    };
   }
 );
 
@@ -113,4 +133,14 @@ const assistantFlow = ai.defineFlow(
  */
 export async function askAiAssistant(input: AssistantInput): Promise<AssistantOutput> {
   return assistantFlow(input);
+}
+
+
+/**
+ * Generates only the audio for the initial greeting.
+ * @returns The audio data URI for the greeting.
+ */
+export async function generateGreetingAudio(): Promise<AudioOutput> {
+    const greetingText = "How can I help you?";
+    return generateAudioFlow(greetingText);
 }
