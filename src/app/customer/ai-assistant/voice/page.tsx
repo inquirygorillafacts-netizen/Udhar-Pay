@@ -113,8 +113,6 @@ export default function VoiceAssistantPage() {
         };
     
         recognition.onerror = (event: any) => {
-          // "aborted" is a common error when the component unmounts or re-renders.
-          // We can often ignore it unless it's persistent.
           if (event.error !== 'aborted') {
             console.error('Speech recognition error:', event.error);
             if (event.error !== 'no-speech') {
@@ -125,9 +123,7 @@ export default function VoiceAssistantPage() {
         };
     
         recognition.onend = () => {
-          // Clean up the reference when recognition ends naturally.
           recognitionRef.current = null;
-          // Only change status if it was 'listening' to avoid conflicts.
           if (status === 'listening') {
              setStatus('idle');
           }
@@ -135,7 +131,7 @@ export default function VoiceAssistantPage() {
         
         recognition.start();
         recognitionRef.current = recognition;
-    }, [status, processQuery]); 
+    }, [processQuery, status]); 
 
     const playGreeting = useCallback(() => {
         if (audioRef.current?.src && !audioRef.current.paused) return; 
@@ -163,15 +159,11 @@ export default function VoiceAssistantPage() {
             playGreeting();
         }
 
-        const currentAudio = audioRef.current;
-        // The cleanup function now only handles the audio,
-        // preventing the race condition with speech recognition.
         return () => {
-             if (currentAudio && !currentAudio.paused) {
-                currentAudio.pause();
-                currentAudio.src = '';
+            if (audioRef.current && !audioRef.current.paused) {
+                audioRef.current.pause();
+                audioRef.current.src = '';
             }
-            // Stop recognition only if it's active when the component truly unmounts.
             if(recognitionRef.current) {
                 recognitionRef.current.abort();
                 recognitionRef.current = null;

@@ -130,7 +130,7 @@ export default function VoiceAssistantPage() {
         
         recognition.start();
         recognitionRef.current = recognition;
-    }, [status, processQuery]);
+    }, [processQuery, status]);
 
     const playGreeting = useCallback(() => {
         if (audioRef.current?.src && !audioRef.current.paused) return; 
@@ -159,11 +159,10 @@ export default function VoiceAssistantPage() {
             playGreeting();
         }
 
-        const currentAudio = audioRef.current;
         return () => {
-            if (currentAudio && !currentAudio.paused) {
-                currentAudio.pause();
-                currentAudio.src = '';
+            if (audioRef.current && !audioRef.current.paused) {
+                audioRef.current.pause();
+                audioRef.current.src = '';
             }
             if(recognitionRef.current) {
                 recognitionRef.current.abort();
