@@ -25,29 +25,12 @@ export default function VoiceAssistantPage() {
     const [aiResponse, setAiResponse] = useState('');
     const [isTextModalOpen, setIsTextModalOpen] = useState(false);
     const [currentVoiceIndex, setCurrentVoiceIndex] = useState(0);
-    const [showIntroVideo, setShowIntroVideo] = useState(false);
+    const [showIntroVideo, setShowIntroVideo] = useState(true); // Default to true, useEffect will correct it
     
     const recognitionRef = useRef<any>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
-    const effectRan = useRef(false);
 
     const currentVoiceId = availableVoices[currentVoiceIndex].voiceId;
-
-     useEffect(() => {
-        const hasSeenIntro = localStorage.getItem('hasSeenAiIntro');
-        if (hasSeenIntro !== 'true') {
-            setShowIntroVideo(true);
-        }
-    }, []);
-
-    const handleVideoEnd = () => {
-        localStorage.setItem('hasSeenAiIntro', 'true');
-        setShowIntroVideo(false);
-    };
-
-    const handleVoiceSwitch = () => {
-        setCurrentVoiceIndex((prevIndex) => (prevIndex + 1) % availableVoices.length);
-    };
 
     const processQuery = useCallback(async (text: string) => {
         setStatus('thinking');
@@ -84,7 +67,7 @@ export default function VoiceAssistantPage() {
           setStatus('idle');
         }
     }, [currentVoiceId]);
-
+    
     const startListening = useCallback(() => {
         if (!SpeechRecognition) {
           alert("Sorry, your browser does not support voice recognition.");
@@ -113,11 +96,11 @@ export default function VoiceAssistantPage() {
         };
     
         recognition.onerror = (event: any) => {
-          if (event.error !== 'aborted' && event.error !== 'no-speech') {
-            console.error('Speech recognition error:', event.error);
-            setAiResponse("Sorry, I didn't catch that. Please try again.");
-          }
-          setStatus('idle');
+            if (event.error !== 'no-speech' && event.error !== 'aborted') {
+              console.error('Speech recognition error:', event.error);
+              setAiResponse("Sorry, I didn't catch that. Please try again.");
+            }
+            setStatus('idle');
         };
     
         recognition.onend = () => {
@@ -133,50 +116,56 @@ export default function VoiceAssistantPage() {
         recognitionRef.current = recognition;
     }, [processQuery, status]);
 
-    useEffect(() => {
-        if (showIntroVideo || effectRan.current) {
-            return;
-        }
-
+    const playGreetingAndListen = useCallback(() => {
+        setStatus('speaking');
         const greetingAudio = new Audio("/jarvis.mp3");
         audioRef.current = greetingAudio;
 
-        const handleAudioEnd = () => {
+        greetingAudio.onended = () => {
             startListening();
         };
 
-        const playGreeting = async () => {
-            setStatus('speaking');
-            try {
-                await greetingAudio.play();
-            } catch (e) {
-                 if ((e as Error).name === 'NotAllowedError') {
-                    console.error("Greeting audio blocked by browser. Starting to listen directly.", e);
-                } else {
-                    console.error("Error playing greeting audio.", e);
-                }
-                // If audio fails to play, go straight to listening.
-                handleAudioEnd();
+        greetingAudio.play().catch(e => {
+            if ((e as Error).name === 'NotAllowedError') {
+                console.error("Greeting audio blocked by browser. Starting to listen directly.", e);
+            } else {
+                console.error("Error playing greeting audio.", e);
             }
-        };
-        
-        greetingAudio.addEventListener('ended', handleAudioEnd);
-        playGreeting();
+            // If audio fails to play, go straight to listening.
+            startListening();
+        });
+    }, [startListening]);
 
-        effectRan.current = true;
-
-        return () => {
-            greetingAudio.removeEventListener('ended', handleAudioEnd);
-            if (greetingAudio && !greetingAudio.paused) {
-                greetingAudio.pause();
-                greetingAudio.currentTime = 0;
+    useEffect(() => {
+        const hasSeenIntro = localStorage.getItem('hasSeenAiIntro');
+        if (hasSeenIntro === 'true') {
+            setShowIntroVideo(false);
+            playGreetingAndListen();
+        } else {
+            setShowIntroVideo(true);
+        }
+         return () => {
+            if (audioRef.current && !audioRef.current.paused) {
+                audioRef.current.pause();
+                audioRef.current.src = '';
             }
             if (recognitionRef.current) {
                 recognitionRef.current.abort();
                 recognitionRef.current = null;
             }
         };
-    }, [showIntroVideo, startListening]);
+    }, [playGreetingAndListen]);
+
+
+    const handleVideoEnd = () => {
+        localStorage.setItem('hasSeenAiIntro', 'true');
+        setShowIntroVideo(false);
+        playGreetingAndListen();
+    };
+
+    const handleVoiceSwitch = () => {
+        setCurrentVoiceIndex((prevIndex) => (prevIndex + 1) % availableVoices.length);
+    };
     
     const getStatusIcon = () => {
         switch (status) {
