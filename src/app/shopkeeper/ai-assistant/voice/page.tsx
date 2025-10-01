@@ -112,20 +112,18 @@ export default function VoiceAssistantPage() {
         };
     
         recognition.onerror = (event: any) => {
+          console.error('Speech recognition error:', event.error);
           if (event.error !== 'aborted') {
-            console.error('Speech recognition error:', event.error);
             if (event.error !== 'no-speech') {
                setAiResponse("Sorry, I didn't catch that. Please try again.");
             }
           }
-          recognitionRef.current = null;
           setStatus('idle');
         };
     
         recognition.onend = () => {
            recognitionRef.current = null;
-           // Check the status before setting to idle to avoid race conditions.
-           setStatus(currentStatus => currentStatus === 'listening' ? 'idle' : currentStatus);
+           setStatus(currentStatus => ['thinking', 'speaking'].includes(currentStatus) ? currentStatus : 'idle');
         };
         
         recognition.start();
@@ -137,11 +135,8 @@ export default function VoiceAssistantPage() {
             return;
         }
 
-        if (!audioRef.current) {
-            audioRef.current = new Audio("/jarvis.mp3");
-        }
-        
-        const currentAudio = audioRef.current;
+        const greetingAudio = new Audio("/jarvis.mp3");
+        audioRef.current = greetingAudio;
 
         const handleAudioEnd = () => {
             setStatus('idle');
@@ -151,26 +146,25 @@ export default function VoiceAssistantPage() {
         const playGreeting = async () => {
              setStatus('speaking');
              try {
-                await currentAudio.play();
+                await greetingAudio.play();
              } catch (e) {
                 if ((e as Error).name === 'NotAllowedError') {
-                    console.log("Greeting audio blocked by browser. Starting to listen directly.");
+                    console.error("Greeting audio blocked by browser. Starting to listen directly.", e);
                 } else {
                     console.error("Error playing greeting audio.", e);
                 }
-                handleAudioEnd(); // Go straight to listening if audio fails
+                // If audio fails to play, go straight to listening.
+                handleAudioEnd();
              }
         }
         
-        currentAudio.addEventListener('ended', handleAudioEnd);
-        
+        greetingAudio.addEventListener('ended', handleAudioEnd);
         playGreeting();
 
         return () => {
-            currentAudio.removeEventListener('ended', handleAudioEnd);
-            if (!currentAudio.paused) {
-                currentAudio.pause();
-                currentAudio.currentTime = 0;
+            greetingAudio.removeEventListener('ended', handleAudioEnd);
+            if (!greetingAudio.paused) {
+                greetingAudio.pause();
             }
              if (recognitionRef.current) {
                 recognitionRef.current.abort();
