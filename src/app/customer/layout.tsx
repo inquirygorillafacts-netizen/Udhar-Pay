@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { LayoutDashboard, User } from 'lucide-react';
+import { LayoutDashboard, User, BookText } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
@@ -44,6 +44,10 @@ export default function CustomerLayout({
         <Link href="/customer/dashboard" className={`admin-nav-item ${pathname === '/customer/dashboard' ? 'active' : ''}`}>
           <LayoutDashboard size={24} />
           <span>Dashboard</span>
+        </Link>
+        <Link href="/customer/ledger" className={`admin-nav-item ${pathname === '/customer/ledger' ? 'active' : ''}`}>
+          <BookText size={24} />
+          <span>Ledger</span>
         </Link>
         <Link href="/customer/profile" className={`admin-nav-item ${pathname === '/customer/profile' ? 'active' : ''}`}>
           <User size={24} />
