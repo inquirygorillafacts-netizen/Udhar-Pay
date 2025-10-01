@@ -13,13 +13,13 @@ import { z } from 'genkit';
 import wav from 'wav';
 
 // Define the input schema for the assistant
-export const AssistantInputSchema = z.object({
+const AssistantInputSchema = z.object({
   query: z.string().describe('The user\'s spoken query as text.'),
 });
 export type AssistantInput = z.infer<typeof AssistantInputSchema>;
 
 // Define the output schema for the assistant
-export const AssistantOutputSchema = z.object({
+const AssistantOutputSchema = z.object({
   text: z.string().describe('The AI\'s textual response.'),
   audio: z.string().describe("The AI's spoken response as a base64-encoded WAV data URI."),
 });
