@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import Image from 'next/image';
-import { Mic, Loader, Bot, Volume2, MessageSquare } from 'lucide-react';
+import Link from 'next/link';
+import { Mic, Loader, Bot, Volume2, MessageSquare, X } from 'lucide-react';
 import { askAiAssistant } from '@/ai/flows/assistant-flow';
 
 type Status = 'idle' | 'listening' | 'thinking' | 'speaking';
@@ -61,7 +61,6 @@ export default function VoiceAssistantPage() {
       const stopListening = useCallback(() => {
         if (recognitionRef.current) {
           recognitionRef.current.stop();
-          setIsListening(false);
         }
       }, []);
 
@@ -81,7 +80,7 @@ export default function VoiceAssistantPage() {
         recognition.onstart = () => {
           setIsListening(true);
           setStatus('listening');
-          setAiResponse(''); // Clear previous response
+          setAiResponse('');
         };
     
         recognition.onresult = (event: any) => {
@@ -93,8 +92,6 @@ export default function VoiceAssistantPage() {
     
         recognition.onerror = (event: any) => {
           console.error('Speech recognition error:', event.error);
-          setIsListening(false);
-          setStatus('idle');
         };
     
         recognition.onend = () => {
@@ -143,18 +140,15 @@ export default function VoiceAssistantPage() {
     }, []);
 
     return (
-        <main className="login-container">
+        <main className="login-container" style={{ position: 'relative' }}>
+             <Link href="/shopkeeper/ai-assistant/text" className="neu-button" style={{ position: 'absolute', top: '25px', right: '25px', width: 'auto', height: 'auto', padding: '12px', margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                <MessageSquare size={20} />
+                 <span className='hidden sm:inline'>Text Mode</span>
+            </Link>
             <div className="login-card" style={{maxWidth: '500px'}}>
                 <header className="login-header">
                      <div className="neu-icon" style={{width: '100px', height: '100px', position: 'relative'}}>
-                        <Image 
-                            src="/jarvis.gif" 
-                            alt="AI Assistant Animation" 
-                            layout="fill"
-                            objectFit="cover"
-                            style={{borderRadius: '50%'}}
-                            unoptimized={true}
-                        />
+                        <div className="icon-inner" style={{width: '50px', height: '50px'}}>🤖</div>
                     </div>
                     <h1>Voice Assistant</h1>
                     <p>Tap the mic and ask me anything!</p>

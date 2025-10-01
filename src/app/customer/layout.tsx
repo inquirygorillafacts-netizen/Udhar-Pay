@@ -35,6 +35,8 @@ export default function CustomerLayout({
       </div>
     );
   }
+  
+  const isAiAssistantActive = pathname.startsWith('/customer/ai-assistant');
 
   return (
     <div style={{ paddingBottom: '80px' }}>
@@ -55,7 +57,7 @@ export default function CustomerLayout({
           <span>Scan</span>
         </Link>
 
-        <Link href="/customer/ai-assistant" className={`admin-nav-item ${pathname === '/customer/ai-assistant' ? 'active' : ''}`}>
+        <Link href="/customer/ai-assistant/voice" className={`admin-nav-item ${isAiAssistantActive ? 'active' : ''}`}>
           <MessageCircle size={24} />
           <span>AI</span>
         </Link>

@@ -35,6 +35,8 @@ export default function ShopkeeperLayout({
       </div>
     );
   }
+  
+  const isAiAssistantActive = pathname.startsWith('/shopkeeper/ai-assistant');
 
   return (
     <div style={{ paddingBottom: '80px' }}>
@@ -45,7 +47,7 @@ export default function ShopkeeperLayout({
           <LayoutDashboard size={24} />
           <span>Dashboard</span>
         </Link>
-        <Link href="/shopkeeper/ai-assistant" className={`admin-nav-item ${pathname === '/shopkeeper/ai-assistant' ? 'active' : ''}`}>
+        <Link href="/shopkeeper/ai-assistant/voice" className={`admin-nav-item ${isAiAssistantActive ? 'active' : ''}`}>
             <MessageCircle size={24} />
             <span>AI</span>
         </Link>

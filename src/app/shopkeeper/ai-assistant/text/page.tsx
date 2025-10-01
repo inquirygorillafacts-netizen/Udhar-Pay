@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Loader, MessageSquare, Send, Bot, User } from 'lucide-react';
+import { Loader, MessageSquare, Send, Bot, User, ArrowLeft } from 'lucide-react';
 import { askAiAssistant } from '@/ai/flows/assistant-flow';
+import { useRouter } from 'next/navigation';
 
 interface Message {
   sender: 'user' | 'ai';
@@ -10,6 +11,7 @@ interface Message {
 }
 
 export default function TextAssistantPage() {
+  const router = useRouter();
   const [inputText, setInputText] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [status, setStatus] = useState<'idle' | 'thinking'>('idle');
@@ -50,14 +52,30 @@ export default function TextAssistantPage() {
         className="login-card" 
         style={{
           maxWidth: '600px', 
-          height: 'calc(100vh - 120px)',
+          height: 'calc(100vh - 40px)', // Adjusted height
+          maxHeight: '800px', // Max height for larger screens
           display: 'flex',
-          flexDirection: 'column'
+          flexDirection: 'column',
+          margin: '20px'
         }}
       >
-        <header className="login-header" style={{marginBottom: '20px', paddingBottom: '20px', borderBottom: '2px solid #d1d9e6'}}>
-            <h1 style={{fontSize: '1.5rem'}}>Text Assistant</h1>
-            <p style={{fontSize: '0.9rem'}}>Chat with the Udhar Pay AI</p>
+        <header 
+          className="login-header" 
+          style={{
+            marginBottom: '20px', 
+            paddingBottom: '20px', 
+            borderBottom: '2px solid #d1d9e6',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '15px'
+          }}>
+            <button onClick={() => router.back()} className="neu-button" style={{width: '45px', height: '45px', padding: 0, margin: 0, flexShrink: 0}}>
+              <ArrowLeft size={20} />
+            </button>
+            <div style={{textAlign: 'left'}}>
+              <h1 style={{fontSize: '1.5rem', marginBottom: '0'}}>Text Assistant</h1>
+              <p style={{fontSize: '0.9rem', margin: 0}}>Chat with the Udhar Pay AI</p>
+            </div>
         </header>
 
         <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px', marginBottom: '20px' }}>
@@ -100,7 +118,7 @@ export default function TextAssistantPage() {
           </div>
         </div>
 
-        <form onSubmit={handleSendClick} style={{ marginBottom: 0, marginTop: 'auto' }}>
+        <form onSubmit={handleSendClick} style={{ marginBottom: 0, marginTop: 'auto', padding: '0 20px 10px' }}>
           <div className="neu-input" style={{ display: 'flex', alignItems: 'center' }}>
             <div className="input-icon"><MessageSquare /></div>
             <input

@@ -1,25 +1,20 @@
+
 'use client';
 
 import { useRouter } from 'next/navigation';
 import { MessageSquare, Mic } from 'lucide-react';
-import Image from 'next/image';
 
 export default function AiAssistantMenuPage() {
   const router = useRouter();
 
   return (
     <main className="login-container">
-      <div className="login-card" style={{ maxWidth: '500px' }}>
+      <div className="login-card" style={{ maxWidth: '500px', textAlign: 'center' }}>
         <header className="login-header">
-          <div className="neu-icon" style={{ width: '100px', height: '100px', position: 'relative' }}>
-            <Image
-              src="/jarvis.gif"
-              alt="AI Assistant Animation"
-              layout="fill"
-              objectFit="cover"
-              style={{ borderRadius: '50%' }}
-              unoptimized={true}
-            />
+           <div className="neu-icon" style={{ width: '100px', height: '100px' }}>
+              <div className="icon-inner" style={{width: '50px', height: '50px'}}>
+                🤖
+              </div>
           </div>
           <h1>AI Assistant</h1>
           <p>How would you like to interact?</p>
