@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { askAiAssistant } from '@/ai/flows/assistant-flow';
 
 type Status = 'idle' | 'listening' | 'thinking' | 'speaking';
+type Mode = 'voice' | 'text';
 
 // Polyfill for SpeechRecognition
 const SpeechRecognition =
@@ -14,15 +15,24 @@ const SpeechRecognition =
 export default function useAiAssistant() {
   const [status, setStatus] = useState<Status>('idle');
   const [isListening, setIsListening] = useState(false);
+  const [mode, setMode] = useState<Mode>('voice');
+  const [aiResponse, setAiResponse] = useState('');
+  
   const recognitionRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const processAudio = useCallback(async (text: string) => {
     setStatus('thinking');
+    setAiResponse('');
     try {
-      const response = await askAiAssistant({ query: text });
+      const response = await askAiAssistant({ 
+        query: text,
+        generateAudio: mode === 'voice'
+      });
       
-      if (response.audio) {
+      setAiResponse(response.text);
+
+      if (response.audio && mode === 'voice') {
         if (!audioRef.current) {
           audioRef.current = new Audio();
         }
@@ -43,20 +53,23 @@ export default function useAiAssistant() {
       }
     } catch (error) {
       console.error('Error with AI Assistant:', error);
+      setAiResponse("Sorry, I encountered an error. Please try again.");
       setStatus('idle');
     }
-  }, []);
+  }, [mode]);
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {
       recognitionRef.current.stop();
       setIsListening(false);
-      // Status will be set to 'thinking' by the onresult handler
     }
   }, []);
 
   const startListening = useCallback(() => {
     if (isListening || !SpeechRecognition) {
+      if (!SpeechRecognition) {
+          alert("Sorry, your browser does not support voice recognition.");
+      }
       return;
     }
 
@@ -68,6 +81,7 @@ export default function useAiAssistant() {
     recognition.onstart = () => {
       setIsListening(true);
       setStatus('listening');
+      setAiResponse(''); // Clear previous response
     };
 
     recognition.onresult = (event: any) => {
@@ -93,19 +107,28 @@ export default function useAiAssistant() {
     recognition.start();
     recognitionRef.current = recognition;
   }, [isListening, processAudio, status]);
+  
+  const toggleMode = () => {
+      setMode(prev => prev === 'voice' ? 'text' : 'voice');
+      // Stop any ongoing speech when switching modes
+      if(audioRef.current) {
+          audioRef.current.pause();
+          setStatus('idle');
+      }
+  }
 
   useEffect(() => {
-    if (!SpeechRecognition) {
-      console.warn('SpeechRecognition API not supported in this browser.');
-    }
     // Cleanup audio on unmount
     return () => {
         if (audioRef.current) {
             audioRef.current.pause();
             audioRef.current = null;
         }
+        if(recognitionRef.current) {
+            recognitionRef.current.stop();
+        }
     }
   }, []);
 
-  return { status, isListening, startListening, stopListening };
+  return { status, isListening, startListening, stopListening, aiResponse, mode, toggleMode };
 }

@@ -15,13 +15,14 @@ import wav from 'wav';
 // Define the input schema for the assistant
 const AssistantInputSchema = z.object({
   query: z.string().describe('The user\'s spoken query as text.'),
+  generateAudio: z.boolean().optional().default(true).describe('Whether to generate an audio response.'),
 });
 export type AssistantInput = z.infer<typeof AssistantInputSchema>;
 
 // Define the output schema for the assistant
 const AssistantOutputSchema = z.object({
   text: z.string().describe('The AI\'s textual response.'),
-  audio: z.string().describe("The AI's spoken response as a base64-encoded WAV data URI."),
+  audio: z.string().optional().describe("The AI's spoken response as a base64-encoded WAV data URI."),
 });
 export type AssistantOutput = z.infer<typeof AssistantOutputSchema>;
 
@@ -57,7 +58,7 @@ const assistantFlow = ai.defineFlow(
     inputSchema: AssistantInputSchema,
     outputSchema: AssistantOutputSchema,
   },
-  async ({ query }) => {
+  async ({ query, generateAudio }) => {
     // 1. Generate a text response from the AI
     const { output: textResponse } = await ai.generate({
       prompt: `You are a helpful AI assistant for the Udhar Pay app. Keep your answers concise and friendly. User's query: ${query}`,
@@ -71,6 +72,13 @@ const assistantFlow = ai.defineFlow(
       throw new Error('No text response from AI.');
     }
     const responseText = textResponse;
+
+    // If audio generation is disabled, return only the text
+    if (!generateAudio) {
+        return {
+            text: responseText,
+        };
+    }
 
     // 2. Convert the text response to speech
     const { media } = await ai.generate({
@@ -104,7 +112,7 @@ const assistantFlow = ai.defineFlow(
 /**
  * Public-facing wrapper function to invoke the assistant flow.
  * @param input The user's query.
- * @returns The AI's text response and the spoken audio data URI.
+ * @returns The AI's text response and optionally the spoken audio data URI.
  */
 export async function askAiAssistant(input: AssistantInput): Promise<AssistantOutput> {
   return assistantFlow(input);

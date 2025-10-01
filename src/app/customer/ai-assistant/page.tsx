@@ -1,11 +1,19 @@
 'use client';
 
 import Image from 'next/image';
-import { Mic, Loader, Bot, Volume2 } from 'lucide-react';
+import { Mic, Loader, Bot, Volume2, MessageSquare, VolumeX } from 'lucide-react';
 import useAiAssistant from '@/hooks/use-ai-assistant';
 
 export default function CustomerAiAssistantPage() {
-    const { status, isListening, startListening, stopListening } = useAiAssistant();
+    const { 
+        status, 
+        isListening, 
+        startListening, 
+        stopListening, 
+        aiResponse, 
+        mode, 
+        toggleMode 
+    } = useAiAssistant();
 
     const handleMicClick = () => {
         if (isListening) {
@@ -47,7 +55,17 @@ export default function CustomerAiAssistantPage() {
                     <p>How can I help you manage your credits and payments today?</p>
                 </header>
 
-                <div style={{textAlign: 'center', marginBottom: '40px'}}>
+                <div className="neu-input" style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 15px', marginBottom: '30px'}}>
+                    <div style={{display: 'flex', alignItems: 'center', gap: '10px', color: '#6c7293', fontWeight: 500}}>
+                        {mode === 'voice' ? <Volume2 size={20} /> : <VolumeX size={20} />}
+                        <span>{mode === 'voice' ? 'Voice Mode' : 'Text Mode'}</span>
+                    </div>
+                    <div className={`neu-toggle-switch ${mode === 'voice' ? 'active' : ''}`} onClick={toggleMode}>
+                        <div className="neu-toggle-handle"></div>
+                    </div>
+                </div>
+
+                <div style={{textAlign: 'center', marginBottom: '30px'}}>
                     <div 
                         style={{
                             fontSize: '1rem',
@@ -68,8 +86,20 @@ export default function CustomerAiAssistantPage() {
                         <span>{status}</span>
                     </div>
                 </div>
+                
+                 {aiResponse && (
+                    <div style={{marginBottom: '30px', padding: '20px', background: '#e0e5ec', borderRadius: '15px', boxShadow: 'inset 5px 5px 10px #bec3cf, inset -5px -5px 10px #ffffff'}}>
+                        <div style={{display: 'flex', alignItems: 'flex-start', gap: '15px'}}>
+                             <div className="neu-icon" style={{width: '40px', height: '40px', margin: 0, flexShrink: 0, background: '#00c896'}}>
+                                <MessageSquare size={20} color="white"/>
+                             </div>
+                             <p style={{color: '#3d4468', fontSize: '15px', lineHeight: 1.6, paddingTop: '5px'}}>{aiResponse}</p>
+                        </div>
+                    </div>
+                 )}
 
-                <div style={{display: 'flex', justifyContent: 'center'}}>
+
+                <div style={{display: 'flex', justifyContent: 'center', marginBottom: '10px'}}>
                     <button 
                         className={`neu-button ${isListening ? 'active' : ''}`}
                         onClick={handleMicClick}
