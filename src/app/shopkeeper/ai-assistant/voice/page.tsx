@@ -2,10 +2,17 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Loader, Bot, Volume2, MessageSquare, Waves, Shuffle } from 'lucide-react';
-import { askAiAssistant, generateGreetingAudio, availableVoices } from '@/ai/flows/assistant-flow';
+import { askAiAssistant, generateGreetingAudio } from '@/ai/flows/assistant-flow';
 import TextAssistantModal from '@/components/assistant/TextAssistantModal';
 
 type Status = 'greeting' | 'idle' | 'listening' | 'thinking' | 'speaking';
+
+const availableVoices = [
+    { voiceId: 'it-IT-lorenzo', style: 'Conversational', multiNativeLocale: 'hi-IN' },
+    { voiceId: 'hi-IN-kabir', style: 'General' },
+    { voiceId: 'en-UK-hazel', style: 'Conversational', multiNativeLocale: 'hi-IN' },
+    { voiceId: 'de-DE-josephine', style: 'Conversational', multiNativeLocale: 'hi-IN' },
+];
 
 // Polyfill for SpeechRecognition
 const SpeechRecognition =

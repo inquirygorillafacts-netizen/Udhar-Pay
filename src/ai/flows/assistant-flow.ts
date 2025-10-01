@@ -13,14 +13,6 @@ import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import axios from 'axios';
 
-
-export const availableVoices = [
-    { voiceId: 'hi-IN-kabir', style: 'General' },
-    { voiceId: 'it-IT-lorenzo', style: 'Conversational', multiNativeLocale: 'hi-IN' },
-    { voiceId: 'en-UK-hazel', style: 'Conversational', multiNativeLocale: 'hi-IN' },
-    { voiceId: 'de-DE-josephine', style: 'Conversational', multiNativeLocale: 'hi-IN' },
-];
-
 const DEFAULT_VOICE_ID = 'hi-IN-kabir';
 
 
