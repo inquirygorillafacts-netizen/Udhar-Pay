@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { LayoutDashboard, User, BookText, MessageCircle, QrCode, CreditCard } from 'lucide-react';
+import { LayoutDashboard, User, BookText, Bot, QrCode, CreditCard } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
@@ -58,7 +58,7 @@ export default function CustomerLayout({
         </Link>
 
         <Link href="/customer/ai-assistant/voice" className={`admin-nav-item ${isAiAssistantActive ? 'active' : ''}`}>
-          <MessageCircle size={24} />
+          <Bot size={24} />
           <span>AI</span>
         </Link>
 
