@@ -60,13 +60,14 @@ export default function CustomerLayout({
           <span>Scan</span>
         </Link>
 
-        <Link href="/customer/profile" className={`admin-nav-item ${pathname === '/customer/profile' ? 'active' : ''}`}>
-          <User size={24} />
-          <span>Profile</span>
-        </Link>
         <Link href="/customer/credit-cards" className={`admin-nav-item ${pathname === '/customer/credit-cards' ? 'active' : ''}`}>
           <CreditCard size={24} />
           <span>Cards</span>
+        </Link>
+
+        <Link href="/customer/profile" className={`admin-nav-item ${pathname === '/customer/profile' ? 'active' : ''}`}>
+          <User size={24} />
+          <span>Profile</span>
         </Link>
       </nav>
     </div>
