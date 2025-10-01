@@ -53,7 +53,7 @@ export default function TextAssistantModal({ onClose }: TextAssistantModalProps)
       <div 
         className="login-card ai-chat-modal-content" 
         onClick={(e) => e.stopPropagation()}
-        style={{height: '100%', minHeight: '100svh'}}
+        style={{height: '100%', minHeight: '100svh', display: 'flex', flexDirection: 'column'}}
       >
         <header 
           className="login-header" 
@@ -121,7 +121,7 @@ export default function TextAssistantModal({ onClose }: TextAssistantModalProps)
           </div>
         </div>
 
-        <form onSubmit={handleSendClick} style={{ marginBottom: 0, padding: '10px', flexShrink: 0 }}>
+        <form onSubmit={handleSendClick} style={{ padding: '10px', flexShrink: 0, marginBottom: 0 }}>
           <div className="neu-input" style={{ display: 'flex', alignItems: 'center' }}>
             <div className="input-icon"><MessageSquare /></div>
             <input
