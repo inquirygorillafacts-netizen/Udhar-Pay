@@ -133,17 +133,16 @@ export default function VoiceAssistantPage() {
     }, [currentVoiceId]);
 
     const playGreeting = useCallback(() => {
-        if (!audioRef.current) {
-            audioRef.current = new Audio("/jarvis.mp3");
-        } else {
-            audioRef.current.src = "/jarvis.mp3";
+        if (audioRef.current) {
+            audioRef.current.pause();
+            audioRef.current = null;
         }
-        
+        audioRef.current = new Audio("/jarvis.mp3");
+
         audioRef.current.play().then(() => {
             setStatus('speaking');
         }).catch(e => {
             console.error("Error playing greeting audio.", e);
-            // If autoplay fails, go straight to listening
             setStatus('idle');
             startListening();
         });
@@ -152,7 +151,6 @@ export default function VoiceAssistantPage() {
             setStatus('idle');
             startListening();
         };
-
     }, [startListening]);
 
     useEffect(() => {
