@@ -118,7 +118,8 @@ export default function VoiceAssistantPage() {
               setAiResponse("Sorry, I didn't catch that. Please try again.");
             }
           }
-          setStatus('idle');
+           recognitionRef.current = null;
+           setStatus('idle');
         };
     
         recognition.onend = () => {
@@ -137,13 +138,17 @@ export default function VoiceAssistantPage() {
             return;
         }
 
-        audioRef.current = new Audio("/jarvis.mp3");
-        const currentAudio = audioRef.current;
+        const currentAudio = new Audio("/jarvis.mp3");
+        audioRef.current = currentAudio;
 
         const playGreeting = () => {
              setStatus('speaking');
              currentAudio.play().catch(e => {
-                if ((e as Error).name !== 'AbortError') {
+                // This error is expected if the user hasn't interacted with the page yet.
+                // We'll just start listening instead.
+                if ((e as Error).name === 'NotAllowedError') {
+                    console.log("Greeting audio blocked by browser. Starting to listen directly.");
+                } else {
                     console.error("Error playing greeting audio.", e);
                 }
                 setStatus('idle');
@@ -165,9 +170,8 @@ export default function VoiceAssistantPage() {
             if (!currentAudio.paused) {
                 currentAudio.pause();
             }
-            if (recognitionRef.current) {
+             if (recognitionRef.current) {
                 recognitionRef.current.abort();
-                recognitionRef.current = null;
             }
         }
     }, [showIntroVideo, startListening]);
