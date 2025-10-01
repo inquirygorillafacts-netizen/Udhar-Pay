@@ -49,7 +49,7 @@ export default function TextAssistantModal({ onClose }: TextAssistantModalProps)
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay ai-chat-modal-overlay" onClick={onClose}>
       <div 
         className="login-card ai-chat-modal-content" 
         onClick={(e) => e.stopPropagation()}

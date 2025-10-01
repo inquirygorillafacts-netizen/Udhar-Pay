@@ -149,6 +149,10 @@
 }
 
 /* Fullscreen Modal for AI Chat */
+.ai-chat-modal-overlay {
+    padding: 0;
+}
+
 .ai-chat-modal-content {
     width: 100%;
     height: 100%;
