@@ -1,7 +1,7 @@
 'use server';
 /**
  * @fileOverview A conversational AI assistant flow that processes text input,
- * generates a spoken response, and returns it as audio data.
+ * generates a spoken response using Murf.ai, and returns it as audio data.
  *
  * - `askAiAssistant` - A function that orchestrates the text-to-text and text-to-speech process.
  * - `AssistantInput` - The input type for the `askAiAssistant` function.
@@ -10,7 +10,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import wav from 'wav';
+import axios from 'axios';
 
 // Define the input schema for the assistant
 const AssistantInputSchema = z.object({
@@ -26,30 +26,6 @@ const AssistantOutputSchema = z.object({
 });
 export type AssistantOutput = z.infer<typeof AssistantOutputSchema>;
 
-/**
- * Converts raw PCM audio buffer to a base64-encoded WAV string.
- * @param pcmData Buffer containing the raw PCM audio data.
- * @returns A promise that resolves to the base64-encoded WAV string.
- */
-async function toWav(pcmData: Buffer): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const writer = new wav.Writer({
-      channels: 1,
-      sampleRate: 24000,
-      bitDepth: 16,
-    });
-
-    const bufs: any[] = [];
-    writer.on('error', reject);
-    writer.on('data', (d) => bufs.push(d));
-    writer.on('end', () => {
-      resolve(Buffer.concat(bufs).toString('base64'));
-    });
-
-    writer.write(pcmData);
-    writer.end();
-  });
-}
 
 // Define the main flow for the AI assistant
 const assistantFlow = ai.defineFlow(
@@ -80,32 +56,44 @@ const assistantFlow = ai.defineFlow(
         };
     }
 
-    // 2. Convert the text response to speech
-    const { media } = await ai.generate({
-      model: 'googleai/gemini-2.5-flash-preview-tts',
-      prompt: responseText,
-      config: {
-        responseModalities: ['AUDIO'],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: 'Algenib' },
-          },
+    // 2. Convert the text response to speech using Murf.ai
+    try {
+      const murfResponse = await axios.post(
+        "https://api.murf.ai/v1/speech/generate",
+        {
+          text: responseText,
+          voiceId: "en-US-terrell", // A standard, clear voice
+          format: "WAV",
+          sampleRate: 24000,
+          encodeAsBase64: true,
         },
-      },
-    });
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "api-key": process.env.MURF_API_KEY,
+          },
+        }
+      );
 
-    if (!media || !media.url) {
-      throw new Error('Failed to generate audio from TTS model.');
+      const audioBase64 = murfResponse.data.audioFile;
+
+      if (!audioBase64) {
+        throw new Error("Murf.ai did not return an audio file.");
+      }
+
+      return {
+        text: responseText,
+        audio: `data:audio/wav;base64,${audioBase64}`,
+      };
+
+    } catch (error) {
+        console.error("Error calling Murf.ai API:", error);
+        // Fallback to text-only response if TTS fails
+        return {
+            text: responseText,
+        };
     }
-    
-    // The TTS model returns raw PCM data in a data URI. We need to convert it to WAV.
-    const audioBuffer = Buffer.from(media.url.substring(media.url.indexOf(',') + 1), 'base64');
-    const wavBase64 = await toWav(audioBuffer);
-
-    return {
-      text: responseText,
-      audio: `data:audio/wav;base64,${wavBase64}`,
-    };
   }
 );
 
