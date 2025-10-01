@@ -124,14 +124,13 @@ export default function VoiceAssistantPage() {
     
         recognition.onend = () => {
           recognitionRef.current = null;
-          if (status === 'listening') {
-             setStatus('idle');
-          }
+          // Check the status before setting to idle to avoid race conditions.
+          setStatus(currentStatus => currentStatus === 'listening' ? 'idle' : currentStatus);
         };
         
         recognition.start();
         recognitionRef.current = recognition;
-    }, [processQuery, status]); 
+    }, [processQuery]); 
 
     useEffect(() => {
         if (showIntroVideo) {
