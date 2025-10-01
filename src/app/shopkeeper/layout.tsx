@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { LayoutDashboard, User, MessageCircle } from 'lucide-react';
+import { LayoutDashboard, User, MessageCircle, LifeBuoy } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
@@ -49,9 +49,13 @@ export default function ShopkeeperLayout({
             <MessageCircle size={24} />
             <span>AI Helper</span>
         </Link>
-        <Link href="/shopkeeper/profile" className={`admin-nav-item ${pathname === '/shopkeeper/profile' ? 'active' : ''}`}>
+         <Link href="/shopkeeper/profile" className={`admin-nav-item ${pathname === '/shopkeeper/profile' ? 'active' : ''}`}>
           <User size={24} />
           <span>Profile</span>
+        </Link>
+        <Link href="/shopkeeper/helpline" className={`admin-nav-item ${pathname === '/shopkeeper/helpline' ? 'active' : ''}`}>
+          <LifeBuoy size={24} />
+          <span>Help</span>
         </Link>
       </nav>
     </div>
