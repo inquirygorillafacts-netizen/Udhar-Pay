@@ -78,7 +78,7 @@ export default function TextAssistantModal({ onClose }: TextAssistantModalProps)
         <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px 20px 20px' }}>
           <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
             {messages.length === 0 && (
-                <div style={{textAlign: 'center', color: '#9499b7', paddingTop: '20%'}}>
+                <div style={{textAlign: 'center', color: '#9499b7', paddingTop: '40%'}}>
                     <Bot size={40} className="mx-auto mb-4"/>
                     <p>Ask me anything about Udhar Pay!</p>
                 </div>
