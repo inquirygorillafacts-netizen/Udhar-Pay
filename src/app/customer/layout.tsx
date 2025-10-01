@@ -50,30 +50,15 @@ export default function CustomerLayout({
           <span>Ledger</span>
         </Link>
         
-        {/* --- Center Primary Buttons --- */}
-        <Link href="/ai-assistant" className="admin-nav-item admin-nav-item-primary" style={{
-            transform: 'translateY(-20px) translateX(-5px)', // Adjusted for two buttons
-            width: '65px',
-            height: '65px',
-            borderRadius: '50%',
-            background: '#00c896',
-            color: 'white',
-            boxShadow: '0 -5px 20px rgba(0, 200, 150, 0.3)',
-        }}>
-          <MessageCircle size={30} />
+        <Link href="/ai-assistant" className={`admin-nav-item ${pathname === '/ai-assistant' ? 'active' : ''}`}>
+          <MessageCircle size={24} />
+          <span>AI Help</span>
         </Link>
-        <Link href="/customer/scan" className="admin-nav-item admin-nav-item-primary" style={{
-            transform: 'translateY(-20px) translateX(5px)', // Adjusted for two buttons
-            width: '65px',
-            height: '65px',
-            borderRadius: '50%',
-            background: '#3d4468',
-            color: 'white',
-            boxShadow: '0 -5px 20px rgba(61, 68, 104, 0.3)',
-        }}>
-          <QrCode size={30} />
+
+        <Link href="/customer/scan" className={`admin-nav-item ${pathname === '/customer/scan' ? 'active' : ''}`}>
+          <QrCode size={24} />
+          <span>Scan QR</span>
         </Link>
-        {/* --- End Center Buttons --- */}
 
         <Link href="/customer/profile" className={`admin-nav-item ${pathname === '/customer/profile' ? 'active' : ''}`}>
           <User size={24} />
