@@ -112,13 +112,13 @@ export default function VoiceAssistantPage() {
         };
     
         recognition.onerror = (event: any) => {
-          console.error('Speech recognition error:', event.error);
-          if (event.error !== 'aborted') {
-            if (event.error !== 'no-speech') {
-              setAiResponse("Sorry, I didn't catch that. Please try again.");
-            }
+          if (event.error === 'no-speech') {
+            setStatus('idle');
+          } else if (event.error !== 'aborted') {
+            console.error('Speech recognition error:', event.error);
+            setAiResponse("Sorry, I didn't catch that. Please try again.");
+            setStatus('idle');
           }
-           setStatus('idle');
         };
     
         recognition.onend = () => {
@@ -163,7 +163,7 @@ export default function VoiceAssistantPage() {
 
         return () => {
             greetingAudio.removeEventListener('ended', handleAudioEnd);
-            if (!greetingAudio.paused) {
+            if (greetingAudio && !greetingAudio.paused) {
                 greetingAudio.pause();
             }
              if (recognitionRef.current) {
