@@ -29,7 +29,6 @@ export default function VoiceAssistantPage() {
 
     const recognitionRef = useRef<any>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
-    const hasGreetedRef = useRef(false);
 
     const currentVoiceId = availableVoices[currentVoiceIndex].voiceId;
 
@@ -154,8 +153,7 @@ export default function VoiceAssistantPage() {
     }, [startListening]);
 
     useEffect(() => {
-        if (!showIntroVideo && !hasGreetedRef.current) {
-            hasGreetedRef.current = true;
+        if (!showIntroVideo) {
             playGreeting();
         }
 
