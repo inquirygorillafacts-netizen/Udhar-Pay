@@ -11,6 +11,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import axios from 'axios';
+import { PassThrough } from 'stream';
 
 // Define the input schema for the assistant
 const AssistantInputSchema = z.object({
@@ -56,27 +57,35 @@ const assistantFlow = ai.defineFlow(
         };
     }
 
-    // 2. Convert the text response to speech using Murf.ai
+    // 2. Convert the text response to speech using Murf.ai streaming API
     try {
       const murfResponse = await axios.post(
-        "https://api.murf.ai/v1/speech/generate",
+        "https://api.murf.ai/v1/speech/stream",
         {
           text: responseText,
           voiceId: "en-US-terrell", // A standard, clear voice
           format: "WAV",
           sampleRate: 24000,
-          encodeAsBase64: true,
         },
         {
           headers: {
             "Content-Type": "application/json",
-            Accept: "application/json",
             "api-key": process.env.MURF_API_KEY,
           },
+          responseType: 'stream',
         }
       );
+      
+      const audioStream = murfResponse.data as PassThrough;
 
-      const audioBase64 = murfResponse.data.audioFile;
+      const chunks: any[] = [];
+      for await (const chunk of audioStream) {
+          chunks.push(chunk);
+      }
+      
+      const audioBuffer = Buffer.concat(chunks);
+      const audioBase64 = audioBuffer.toString('base64');
+
 
       if (!audioBase64) {
         throw new Error("Murf.ai did not return an audio file.");
