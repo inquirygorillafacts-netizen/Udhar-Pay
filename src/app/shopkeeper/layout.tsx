@@ -47,7 +47,7 @@ export default function ShopkeeperLayout({
         </Link>
         <Link href="/ai-assistant" className={`admin-nav-item ${pathname === '/ai-assistant' ? 'active' : ''}`}>
             <MessageCircle size={24} />
-            <span>AI Helper</span>
+            <span>AI</span>
         </Link>
          <Link href="/shopkeeper/profile" className={`admin-nav-item ${pathname === '/shopkeeper/profile' ? 'active' : ''}`}>
           <User size={24} />

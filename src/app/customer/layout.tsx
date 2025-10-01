@@ -52,7 +52,7 @@ export default function CustomerLayout({
         
         <Link href="/ai-assistant" className={`admin-nav-item ${pathname === '/ai-assistant' ? 'active' : ''}`}>
           <MessageCircle size={24} />
-          <span>AI Help</span>
+          <span>AI</span>
         </Link>
 
         <Link href="/customer/scan" className={`admin-nav-item ${pathname === '/customer/scan' ? 'active' : ''}`}>
