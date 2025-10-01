@@ -1,16 +1,32 @@
 'use client';
 
 import Image from 'next/image';
-import { Mic } from 'lucide-react';
-import { useState } from 'react';
+import { Mic, Loader, Bot, Volume2 } from 'lucide-react';
+import useAiAssistant from '@/hooks/use-ai-assistant';
 
 export default function CustomerAiAssistantPage() {
-    const [status, setStatus] = useState('OFFLINE');
-    const [isListening, setIsListening] = useState(false);
+    const { status, isListening, startListening, stopListening } = useAiAssistant();
 
     const handleMicClick = () => {
-        setIsListening(prev => !prev);
-        setStatus(prev => prev === 'OFFLINE' ? 'LISTENING...' : 'OFFLINE');
+        if (isListening) {
+            stopListening();
+        } else {
+            startListening();
+        }
+    };
+
+    const getStatusIcon = () => {
+        switch (status) {
+            case 'listening':
+                return <Mic size={24} className="text-red-500 animate-pulse" />;
+            case 'thinking':
+                return <Loader size={24} className="animate-spin" />;
+            case 'speaking':
+                 return <Volume2 size={24} className="text-green-500" />;
+            case 'idle':
+            default:
+                return <Bot size={24} />;
+        }
     };
 
     return (
@@ -42,11 +58,14 @@ export default function CustomerAiAssistantPage() {
                             background: '#e0e5ec',
                             padding: '10px 25px',
                             borderRadius: '25px',
-                            display: 'inline-block',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '12px',
                             boxShadow: 'inset 5px 5px 10px #bec3cf, inset -5px -5px 10px #ffffff'
                         }}
                     >
-                        {status}
+                        {getStatusIcon()}
+                        <span>{status}</span>
                     </div>
                 </div>
 
