@@ -49,6 +49,42 @@ export default function VoiceAssistantPage() {
         setCurrentVoiceIndex((prevIndex) => (prevIndex + 1) % availableVoices.length);
     };
     
+    const processQuery = useCallback(async (text: string) => {
+        setStatus('thinking');
+        setAiResponse('');
+        try {
+          const response = await askAiAssistant({ 
+            query: text,
+            generateAudio: true,
+            voiceId: currentVoiceId,
+          });
+          
+          setAiResponse(response.text);
+    
+          if (response.audio) {
+            if (!audioRef.current) audioRef.current = new Audio();
+            
+            audioRef.current.src = response.audio;
+            audioRef.current.play();
+            setStatus('speaking');
+
+            audioRef.current.onended = () => {
+                setStatus('idle');
+            };
+            audioRef.current.onerror = (e) => {
+                console.error("Error playing AI response audio.", e);
+                setStatus('idle');
+            }
+          } else {
+            setStatus('idle');
+          }
+        } catch (error) {
+          console.error('Error with AI Assistant:', error);
+          setAiResponse("Sorry, I encountered an error. Please try again.");
+          setStatus('idle');
+        }
+    }, [currentVoiceId]);
+
     const startListening = useCallback(() => {
         if (!SpeechRecognition) {
             alert("Sorry, your browser does not support voice recognition.");
@@ -98,43 +134,6 @@ export default function VoiceAssistantPage() {
         recognition.start();
         recognitionRef.current = recognition;
     }, [processQuery]); 
-    
-    const processQuery = useCallback(async (text: string) => {
-        setStatus('thinking');
-        setAiResponse('');
-        try {
-          const response = await askAiAssistant({ 
-            query: text,
-            generateAudio: true,
-            voiceId: currentVoiceId,
-          });
-          
-          setAiResponse(response.text);
-    
-          if (response.audio) {
-            if (!audioRef.current) audioRef.current = new Audio();
-            
-            audioRef.current.src = response.audio;
-            audioRef.current.play();
-            setStatus('speaking');
-
-            audioRef.current.onended = () => {
-                setStatus('idle');
-            };
-            audioRef.current.onerror = (e) => {
-                console.error("Error playing AI response audio.", e);
-                setStatus('idle');
-            }
-          } else {
-            setStatus('idle');
-          }
-        } catch (error) {
-          console.error('Error with AI Assistant:', error);
-          setAiResponse("Sorry, I encountered an error. Please try again.");
-          setStatus('idle');
-        }
-    }, [currentVoiceId]);
-
 
     useEffect(() => {
         if (showIntroVideo || effectRan.current) {
