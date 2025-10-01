@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import Link from 'next/link';
-import { Mic, Loader, Bot, Volume2, MessageSquare, X } from 'lucide-react';
+import { Mic, Loader, Bot, Volume2, MessageSquare } from 'lucide-react';
 import { askAiAssistant } from '@/ai/flows/assistant-flow';
+import TextAssistantModal from '@/components/assistant/TextAssistantModal';
 
 type Status = 'idle' | 'listening' | 'thinking' | 'speaking';
 
@@ -17,6 +17,7 @@ export default function VoiceAssistantPage() {
     const [status, setStatus] = useState<Status>('idle');
     const [isListening, setIsListening] = useState(false);
     const [aiResponse, setAiResponse] = useState('');
+    const [isTextModalOpen, setIsTextModalOpen] = useState(false);
     
     const recognitionRef = useRef<any>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -140,11 +141,12 @@ export default function VoiceAssistantPage() {
     }, []);
 
     return (
+      <>
         <main className="login-container" style={{ position: 'relative' }}>
-             <Link href="/shopkeeper/ai-assistant/text" className="neu-button" style={{ position: 'absolute', top: '25px', right: '25px', width: 'auto', height: 'auto', padding: '12px', margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+             <button onClick={() => setIsTextModalOpen(true)} className="neu-button" style={{ position: 'absolute', top: '25px', right: '25px', width: 'auto', height: 'auto', padding: '12px', margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                 <MessageSquare size={20} />
                  <span className='hidden sm:inline'>Text Mode</span>
-            </Link>
+            </button>
             <div className="login-card" style={{maxWidth: '500px'}}>
                 <header className="login-header">
                      <div className="neu-icon" style={{width: '100px', height: '100px', position: 'relative'}}>
@@ -207,5 +209,8 @@ export default function VoiceAssistantPage() {
                 </div>
             </div>
         </main>
+
+        {isTextModalOpen && <TextAssistantModal onClose={() => setIsTextModalOpen(false)} />}
+      </>
     );
 }

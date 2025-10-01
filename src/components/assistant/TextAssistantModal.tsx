@@ -3,15 +3,17 @@
 import { useState, useRef, useEffect } from 'react';
 import { Loader, MessageSquare, Send, Bot, User, X } from 'lucide-react';
 import { askAiAssistant } from '@/ai/flows/assistant-flow';
-import { useRouter } from 'next/navigation';
 
 interface Message {
   sender: 'user' | 'ai';
   text: string;
 }
 
-export default function TextAssistantPage() {
-  const router = useRouter();
+interface TextAssistantModalProps {
+    onClose: () => void;
+}
+
+export default function TextAssistantModal({ onClose }: TextAssistantModalProps) {
   const [inputText, setInputText] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [status, setStatus] = useState<'idle' | 'thinking'>('idle');
@@ -47,21 +49,10 @@ export default function TextAssistantPage() {
   };
 
   return (
-    <main className="login-container" style={{padding: '0', minHeight: '100svh'}}>
+    <div className="modal-overlay" onClick={onClose}>
       <div 
-        className="login-card" 
-        style={{
-          width: '100%', 
-          height: '100svh',
-          maxHeight: '100svh',
-          borderRadius: 0,
-          display: 'flex',
-          flexDirection: 'column',
-          margin: 0,
-          padding: '20px',
-          boxShadow: 'none',
-          position: 'relative'
-        }}
+        className="login-card ai-chat-modal-content" 
+        onClick={(e) => e.stopPropagation()}
       >
         <header 
           className="login-header" 
@@ -77,7 +68,7 @@ export default function TextAssistantPage() {
               <h1 style={{fontSize: '1.5rem', marginBottom: '0'}}>Text Assistant</h1>
               <p style={{fontSize: '0.9rem', margin: 0}}>Chat with the Udhar Pay AI</p>
             </div>
-             <button onClick={() => router.back()} className="neu-button" style={{width: '45px', height: '45px', padding: 0, margin: 0, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+             <button onClick={onClose} className="neu-button" style={{width: '45px', height: '45px', padding: 0, margin: 0, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
               <X size={20} />
             </button>
         </header>
@@ -145,6 +136,6 @@ export default function TextAssistantPage() {
           </div>
         </form>
       </div>
-    </main>
+    </div>
   );
 }
