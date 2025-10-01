@@ -96,7 +96,7 @@ export default function CustomerDashboardPage() {
         }
 
         const shopkeeperDoc = querySnapshot.docs[0];
-        const shopkeeperId = shopkeeperDoc.id;
+        const shopkeeperId = shopkeeperDoc.id; // This is the shopkeeper's UID
         const shopkeeperName = shopkeeperDoc.data().displayName;
 
         if (userProfile.connections?.includes(shopkeeperId)) {
@@ -106,6 +106,7 @@ export default function CustomerDashboardPage() {
             return;
         }
 
+        // Use the UID to establish the connection
         const customerRef = doc(firestore, 'customers', auth.currentUser.uid);
         await updateDoc(customerRef, {
             connections: arrayUnion(shopkeeperId)
