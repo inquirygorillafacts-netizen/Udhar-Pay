@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Loader, MessageSquare, Send, Bot, User, ArrowLeft } from 'lucide-react';
+import { Loader, MessageSquare, Send, Bot, User, X } from 'lucide-react';
 import { askAiAssistant } from '@/ai/flows/assistant-flow';
 import { useRouter } from 'next/navigation';
 
@@ -47,16 +47,20 @@ export default function TextAssistantPage() {
   };
 
   return (
-    <main className="login-container" style={{padding: '20px 0'}}>
+    <main className="login-container" style={{padding: '0', minHeight: '100svh'}}>
       <div 
         className="login-card" 
         style={{
-          maxWidth: '600px', 
-          height: 'calc(100vh - 40px)', // Adjusted height
-          maxHeight: '800px', // Max height for larger screens
+          width: '100%', 
+          height: '100svh',
+          maxHeight: '100svh',
+          borderRadius: 0,
           display: 'flex',
           flexDirection: 'column',
-          margin: '20px'
+          margin: 0,
+          padding: '20px',
+          boxShadow: 'none',
+          position: 'relative'
         }}
       >
         <header 
@@ -69,16 +73,16 @@ export default function TextAssistantPage() {
             alignItems: 'center',
             gap: '15px'
           }}>
-            <button onClick={() => router.back()} className="neu-button" style={{width: '45px', height: '45px', padding: 0, margin: 0, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-              <ArrowLeft size={20} />
-            </button>
-            <div style={{textAlign: 'left'}}>
+            <div style={{textAlign: 'left', flex: 1}}>
               <h1 style={{fontSize: '1.5rem', marginBottom: '0'}}>Text Assistant</h1>
               <p style={{fontSize: '0.9rem', margin: 0}}>Chat with the Udhar Pay AI</p>
             </div>
+             <button onClick={() => router.back()} className="neu-button" style={{width: '45px', height: '45px', padding: 0, margin: 0, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+              <X size={20} />
+            </button>
         </header>
 
-        <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px', marginBottom: '20px' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '0 10px', marginBottom: '20px' }}>
           <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
             {messages.map((msg, index) => (
               <div key={index} style={{display: 'flex', gap: '15px', alignItems: 'flex-start', justifyContent: msg.sender === 'user' ? 'flex-end' : 'flex-start' }}>
@@ -118,7 +122,7 @@ export default function TextAssistantPage() {
           </div>
         </div>
 
-        <form onSubmit={handleSendClick} style={{ marginBottom: 0, marginTop: 'auto', padding: '0 20px 10px' }}>
+        <form onSubmit={handleSendClick} style={{ marginBottom: 0, marginTop: 'auto' }}>
           <div className="neu-input" style={{ display: 'flex', alignItems: 'center' }}>
             <div className="input-icon"><MessageSquare /></div>
             <input
