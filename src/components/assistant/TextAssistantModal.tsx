@@ -73,7 +73,7 @@ export default function TextAssistantModal({ onClose }: TextAssistantModalProps)
             </button>
         </header>
 
-        <div style={{ flex: 1, overflowY: 'auto', padding: '0 10px', marginBottom: '20px' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px 20px 20px' }}>
           <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
             {messages.map((msg, index) => (
               <div key={index} style={{display: 'flex', gap: '15px', alignItems: 'flex-start', justifyContent: msg.sender === 'user' ? 'flex-end' : 'flex-start' }}>
@@ -113,7 +113,7 @@ export default function TextAssistantModal({ onClose }: TextAssistantModalProps)
           </div>
         </div>
 
-        <form onSubmit={handleSendClick} style={{ marginBottom: 0, marginTop: 'auto' }}>
+        <form onSubmit={handleSendClick} style={{ marginBottom: 0, marginTop: 'auto', padding: '0 10px 10px 10px' }}>
           <div className="neu-input" style={{ display: 'flex', alignItems: 'center' }}>
             <div className="input-icon"><MessageSquare /></div>
             <input
