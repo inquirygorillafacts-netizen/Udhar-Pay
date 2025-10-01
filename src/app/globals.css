@@ -589,6 +589,10 @@ body {
     transform: translateY(-2px);
 }
 
+.admin-nav-item.admin-nav-item-primary:not(.active) {
+    color: white; /* Ensure icon is white when not active */
+}
+
 /* Message Sidebar */
 .message-sidebar-overlay {
     position: fixed;

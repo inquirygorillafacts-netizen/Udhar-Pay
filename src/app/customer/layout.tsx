@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { LayoutDashboard, User, BookText } from 'lucide-react';
+import { LayoutDashboard, User, BookText, QrCode } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
@@ -49,10 +49,23 @@ export default function CustomerLayout({
           <BookText size={24} />
           <span>Ledger</span>
         </Link>
+        <Link href="/customer/scan" className="admin-nav-item admin-nav-item-primary" style={{
+            transform: 'translateY(-20px)',
+            width: '65px',
+            height: '65px',
+            borderRadius: '50%',
+            background: '#00c896',
+            color: 'white',
+            boxShadow: '0 -5px 20px rgba(0, 200, 150, 0.3)',
+        }}>
+          <QrCode size={30} />
+        </Link>
         <Link href="/customer/profile" className={`admin-nav-item ${pathname === '/customer/profile' ? 'active' : ''}`}>
           <User size={24} />
           <span>Profile</span>
         </Link>
+        {/* Empty item for spacing */}
+        <div className="admin-nav-item" style={{visibility: 'hidden'}}></div>
       </nav>
     </div>
   );
