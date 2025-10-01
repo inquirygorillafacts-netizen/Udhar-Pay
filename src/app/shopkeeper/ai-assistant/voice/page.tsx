@@ -48,52 +48,6 @@ export default function VoiceAssistantPage() {
         setCurrentVoiceIndex((prevIndex) => (prevIndex + 1) % availableVoices.length);
     };
 
-    const startListening = useCallback(() => {
-        if (!SpeechRecognition || recognitionRef.current) {
-          if (!SpeechRecognition) {
-              alert("Sorry, your browser does not support voice recognition.");
-          }
-          return;
-        }
-    
-        const recognition = new SpeechRecognition();
-        recognition.continuous = false;
-        recognition.interimResults = false;
-        recognition.lang = 'en-US';
-    
-        recognition.onstart = () => {
-          setStatus('listening');
-          setAiResponse('');
-        };
-    
-        recognition.onresult = (event: any) => {
-          recognitionRef.current = null;
-          const transcript = event.results[0][0].transcript;
-          if (transcript) {
-            processQuery(transcript);
-          }
-        };
-    
-        recognition.onerror = (event: any) => {
-          console.error('Speech recognition error:', event.error);
-          if (event.error !== 'no-speech') {
-             setAiResponse("Sorry, I didn't catch that. Please try again.");
-          }
-          setStatus('idle');
-          recognitionRef.current = null;
-        };
-    
-        recognition.onend = () => {
-          if (status === 'listening') {
-             setStatus('idle');
-          }
-           recognitionRef.current = null;
-        };
-        
-        recognition.start();
-        recognitionRef.current = recognition;
-    }, [status]); // Dependency on status to avoid stale closures
-
     const processQuery = useCallback(async (text: string) => {
         setStatus('thinking');
         setAiResponse('');
@@ -131,8 +85,55 @@ export default function VoiceAssistantPage() {
         }
     }, [currentVoiceId]);
 
+    const startListening = useCallback(() => {
+        if (!SpeechRecognition) {
+          alert("Sorry, your browser does not support voice recognition.");
+          return;
+        }
+         if (recognitionRef.current) {
+          return;
+        }
+    
+        const recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.lang = 'en-US';
+    
+        recognition.onstart = () => {
+          setStatus('listening');
+          setAiResponse('');
+        };
+    
+        recognition.onresult = (event: any) => {
+          const transcript = event.results[0][0].transcript;
+          if (transcript) {
+            processQuery(transcript);
+          }
+        };
+    
+        recognition.onerror = (event: any) => {
+          if (event.error !== 'aborted') {
+            console.error('Speech recognition error:', event.error);
+            if (event.error !== 'no-speech') {
+               setAiResponse("Sorry, I didn't catch that. Please try again.");
+            }
+          }
+          setStatus('idle');
+        };
+    
+        recognition.onend = () => {
+           recognitionRef.current = null;
+          if (status === 'listening') {
+             setStatus('idle');
+          }
+        };
+        
+        recognition.start();
+        recognitionRef.current = recognition;
+    }, [status, processQuery]);
+
     const playGreeting = useCallback(() => {
-        if (audioRef.current?.src && !audioRef.current.paused) return; // Already playing
+        if (audioRef.current?.src && !audioRef.current.paused) return; 
         
         audioRef.current = new Audio("/jarvis.mp3");
         
@@ -165,7 +166,7 @@ export default function VoiceAssistantPage() {
                 currentAudio.src = '';
             }
             if(recognitionRef.current) {
-                recognitionRef.current.stop();
+                recognitionRef.current.abort();
                 recognitionRef.current = null;
             }
         }
