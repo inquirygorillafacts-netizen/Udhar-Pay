@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { LayoutDashboard, User, BookText, MessageCircle, QrCode, LifeBuoy } from 'lucide-react';
+import { LayoutDashboard, User, BookText, MessageCircle, QrCode, CreditCard } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
@@ -79,9 +79,9 @@ export default function CustomerLayout({
           <User size={24} />
           <span>Profile</span>
         </Link>
-        <Link href="/customer/helpline" className={`admin-nav-item ${pathname === '/customer/helpline' ? 'active' : ''}`}>
-          <LifeBuoy size={24} />
-          <span>Help</span>
+        <Link href="/customer/credit-cards" className={`admin-nav-item ${pathname === '/customer/credit-cards' ? 'active' : ''}`}>
+          <CreditCard size={24} />
+          <span>Cards</span>
         </Link>
       </nav>
     </div>
