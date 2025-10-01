@@ -57,7 +57,7 @@ export default function CustomerLayout({
 
         <Link href="/customer/scan" className={`admin-nav-item ${pathname === '/customer/scan' ? 'active' : ''}`}>
           <QrCode size={24} />
-          <span>Scan QR</span>
+          <span>Scan</span>
         </Link>
 
         <Link href="/customer/profile" className={`admin-nav-item ${pathname === '/customer/profile' ? 'active' : ''}`}>
