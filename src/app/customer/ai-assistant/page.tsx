@@ -1,15 +1,14 @@
 'use client';
 
-import { useState } from 'react';
 import Image from 'next/image';
 import { Mic } from 'lucide-react';
+import { useState } from 'react';
 
-export default function AiAssistantPageContent() {
+export default function CustomerAiAssistantPage() {
     const [status, setStatus] = useState('OFFLINE');
     const [isListening, setIsListening] = useState(false);
 
     const handleMicClick = () => {
-        // This logic will be expanded in the future to handle real voice recognition.
         setIsListening(prev => !prev);
         setStatus(prev => prev === 'OFFLINE' ? 'LISTENING...' : 'OFFLINE');
     };
@@ -18,24 +17,22 @@ export default function AiAssistantPageContent() {
         <main className="login-container">
             <div className="login-card" style={{maxWidth: '500px'}}>
                 <header className="login-header">
-                     <div className="neu-icon" style={{width: '100px', height: '100px', position: 'relative', overflow: 'visible'}}>
+                     <div className="neu-icon" style={{width: '100px', height: '100px', position: 'relative'}}>
                         <Image 
                             src="/jarvis.gif" 
                             alt="AI Assistant Animation" 
                             layout="fill"
                             objectFit="cover"
-                            className="ai-gif"
                             style={{borderRadius: '50%'}}
-                            unoptimized={true} // GIF animations don't need Next.js optimization
+                            unoptimized={true}
                         />
                     </div>
-                    <h1>AI Assistant</h1>
-                    <p>Your personal guide for Udhar Pay</p>
+                    <h1>Customer AI Assistant</h1>
+                    <p>How can I help you manage your credits and payments today?</p>
                 </header>
 
                 <div style={{textAlign: 'center', marginBottom: '40px'}}>
                     <div 
-                        id="status-text" 
                         style={{
                             fontSize: '1rem',
                             fontWeight: 'bold',
@@ -66,7 +63,6 @@ export default function AiAssistantPageContent() {
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            transition: 'all 0.3s ease-in-out'
                         }}
                     >
                         <Mic size={36} />
