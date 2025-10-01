@@ -137,37 +137,40 @@ export default function VoiceAssistantPage() {
             return;
         }
 
-        const currentAudio = new Audio("/jarvis.mp3");
-        audioRef.current = currentAudio;
-
-        const playGreeting = () => {
-             setStatus('speaking');
-             currentAudio.play().catch(e => {
-                // This error is expected if the user hasn't interacted with the page yet.
-                // We'll just start listening instead.
-                if ((e as Error).name === 'NotAllowedError') {
-                    console.log("Greeting audio blocked by browser. Starting to listen directly.");
-                } else {
-                    console.error("Error playing greeting audio.", e);
-                }
-                setStatus('idle');
-                startListening();
-            });
+        if (!audioRef.current) {
+            audioRef.current = new Audio("/jarvis.mp3");
         }
         
-        playGreeting();
+        const currentAudio = audioRef.current;
 
         const handleAudioEnd = () => {
             setStatus('idle');
             startListening();
         };
 
+        const playGreeting = async () => {
+             setStatus('speaking');
+             try {
+                await currentAudio.play();
+             } catch (e) {
+                if ((e as Error).name === 'NotAllowedError') {
+                    console.log("Greeting audio blocked by browser. Starting to listen directly.");
+                } else {
+                    console.error("Error playing greeting audio.", e);
+                }
+                handleAudioEnd(); // Go straight to listening if audio fails
+             }
+        }
+        
         currentAudio.addEventListener('ended', handleAudioEnd);
+        
+        playGreeting();
 
         return () => {
             currentAudio.removeEventListener('ended', handleAudioEnd);
             if (!currentAudio.paused) {
                 currentAudio.pause();
+                currentAudio.currentTime = 0;
             }
              if (recognitionRef.current) {
                 recognitionRef.current.abort();
