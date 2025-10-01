@@ -25,6 +25,7 @@ export default function VoiceAssistantPage() {
     const [aiResponse, setAiResponse] = useState('');
     const [isTextModalOpen, setIsTextModalOpen] = useState(false);
     const [currentVoiceIndex, setCurrentVoiceIndex] = useState(0);
+    const [showIntroVideo, setShowIntroVideo] = useState(false);
     
     const recognitionRef = useRef<any>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -32,9 +33,20 @@ export default function VoiceAssistantPage() {
 
     const currentVoiceId = availableVoices[currentVoiceIndex].voiceId;
 
+     useEffect(() => {
+        const hasSeenIntro = localStorage.getItem('hasSeenAiIntro');
+        if (hasSeenIntro !== 'true') {
+            setShowIntroVideo(true);
+        }
+    }, []);
+
+    const handleVideoEnd = () => {
+        localStorage.setItem('hasSeenAiIntro', 'true');
+        setShowIntroVideo(false);
+    };
+
     const handleVoiceSwitch = () => {
         setCurrentVoiceIndex((prevIndex) => (prevIndex + 1) % availableVoices.length);
-        // Optional: Play a sample sound in the new voice
     };
 
     const startListening = useCallback(() => {
@@ -105,8 +117,6 @@ export default function VoiceAssistantPage() {
             };
             audioRef.current.onended = () => {
                 setStatus('idle');
-                // Optional: Automatically start listening again after AI finishes speaking
-                // startListening(); 
             };
             audioRef.current.onerror = (e) => {
                 console.error("Error playing audio.", e);
@@ -135,24 +145,24 @@ export default function VoiceAssistantPage() {
                 };
                 audioRef.current.onended = () => {
                     setStatus('idle');
-                    startListening(); // Automatically start listening after greeting
+                    startListening();
                 };
                  audioRef.current.onerror = (e) => {
                     console.error("Error playing greeting audio.", e);
                     setStatus('idle');
-                    startListening(); // Still try to listen
+                    startListening();
                 }
             } else {
-                 startListening(); // If no audio, just start listening
+                 startListening();
             }
         } catch (error) {
             console.error("Failed to generate greeting:", error);
-            startListening(); // Fallback to listening
+            startListening();
         }
     }, [startListening, currentVoiceId]);
 
     useEffect(() => {
-        if (!hasGreetedRef.current) {
+        if (!showIntroVideo && !hasGreetedRef.current) {
             hasGreetedRef.current = true;
             playGreeting();
         }
@@ -168,7 +178,7 @@ export default function VoiceAssistantPage() {
                 recognitionRef.current = null;
             }
         }
-    }, [playGreeting]);
+    }, [playGreeting, showIntroVideo]);
     
     const getStatusIcon = () => {
         switch (status) {
@@ -180,6 +190,20 @@ export default function VoiceAssistantPage() {
             default: return <Bot size={24} />;
         }
     };
+    
+    if (showIntroVideo) {
+        return (
+            <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'black', zIndex: 9999 }}>
+                <video
+                    src="/jarvis.mp4"
+                    autoPlay
+                    playsInline
+                    onEnded={handleVideoEnd}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+            </div>
+        );
+    }
 
     return (
       <>
