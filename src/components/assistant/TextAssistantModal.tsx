@@ -75,6 +75,12 @@ export default function TextAssistantModal({ onClose }: TextAssistantModalProps)
 
         <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px 20px 20px' }}>
           <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
+            {messages.length === 0 && (
+                <div style={{textAlign: 'center', color: '#9499b7', paddingTop: '20%'}}>
+                    <Bot size={40} className="mx-auto mb-4"/>
+                    <p>Ask me anything about Udhar Pay!</p>
+                </div>
+            )}
             {messages.map((msg, index) => (
               <div key={index} style={{display: 'flex', gap: '15px', alignItems: 'flex-start', justifyContent: msg.sender === 'user' ? 'flex-end' : 'flex-start' }}>
                 {msg.sender === 'ai' && (
@@ -113,7 +119,7 @@ export default function TextAssistantModal({ onClose }: TextAssistantModalProps)
           </div>
         </div>
 
-        <form onSubmit={handleSendClick} style={{ marginBottom: 0, marginTop: 'auto', padding: '0 10px 10px 10px' }}>
+        <form onSubmit={handleSendClick} style={{ marginBottom: 0, marginTop: 'auto', padding: '10px' }}>
           <div className="neu-input" style={{ display: 'flex', alignItems: 'center' }}>
             <div className="input-icon"><MessageSquare /></div>
             <input
