@@ -14,7 +14,6 @@ const availableVoices = [
     { voiceId: 'de-DE-josephine', style: 'Conversational', multiNativeLocale: 'hi-IN' },
 ];
 
-// Polyfill for SpeechRecognition
 const SpeechRecognition =
   typeof window !== 'undefined'
     ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
@@ -25,7 +24,7 @@ export default function VoiceAssistantPage() {
     const [aiResponse, setAiResponse] = useState('');
     const [isTextModalOpen, setIsTextModalOpen] = useState(false);
     const [currentVoiceIndex, setCurrentVoiceIndex] = useState(0);
-    const [showIntroVideo, setShowIntroVideo] = useState(true); // Default to true, useEffect will correct it
+    const [showIntroVideo, setShowIntroVideo] = useState(true);
 
     const recognitionRef = useRef<any>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -67,7 +66,7 @@ export default function VoiceAssistantPage() {
           setStatus('idle');
         }
     }, [currentVoiceId]);
-    
+
     const startListening = useCallback(() => {
         if (!SpeechRecognition) {
             alert("Sorry, your browser does not support voice recognition.");
@@ -104,11 +103,9 @@ export default function VoiceAssistantPage() {
         };
     
         recognition.onend = () => {
-          if (recognitionRef.current) {
-            recognitionRef.current = null;
-            if (status === 'listening') {
-              setStatus('idle');
-            }
+          recognitionRef.current = null;
+          if (status === 'listening') {
+            setStatus('idle');
           }
         };
         
@@ -126,12 +123,13 @@ export default function VoiceAssistantPage() {
         };
 
         greetingAudio.play().catch(e => {
+            // This is a common browser restriction. We'll just log it and start listening.
             if ((e as Error).name === 'NotAllowedError') {
-                console.error("Greeting audio blocked by browser. Starting to listen directly.", e);
+                console.log("Greeting audio blocked by browser. Starting to listen directly.");
             } else {
                 console.error("Error playing greeting audio.", e);
             }
-            // If audio fails to play, go straight to listening.
+            // If audio fails to play for any reason, go straight to listening.
             startListening();
         });
     }, [startListening]);
@@ -144,8 +142,9 @@ export default function VoiceAssistantPage() {
         } else {
             setShowIntroVideo(true);
         }
-         return () => {
-            if (audioRef.current && !audioRef.current.paused) {
+
+        return () => {
+            if (audioRef.current) {
                 audioRef.current.pause();
                 audioRef.current.src = '';
             }
@@ -154,7 +153,9 @@ export default function VoiceAssistantPage() {
                 recognitionRef.current = null;
             }
         };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [playGreetingAndListen]);
+
 
     const handleVideoEnd = () => {
         localStorage.setItem('hasSeenAiIntro', 'true');
