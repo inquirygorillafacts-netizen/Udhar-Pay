@@ -4,7 +4,6 @@
  * generates a spoken response using Murf.ai, and returns it as audio data.
  *
  * - `askAiAssistant` - A function that orchestrates the text-to-text and text-to-speech process.
- * - `generateGreetingAudio` - A function that generates a standard audio greeting.
  * - `AssistantInput` - The input type for the `askAiAssistant` function.
  * - `AssistantOutput` - The return type for the `askAiAssistant` function.
  */
@@ -31,11 +30,6 @@ const AssistantOutputSchema = z.object({
 });
 export type AssistantOutput = z.infer<typeof AssistantOutputSchema>;
 
-// Define a simple output schema for just audio
-const AudioOutputSchema = z.object({
-    audio: z.string().describe("The AI's spoken response as a base64-encoded WAV data URI."),
-});
-export type AudioOutput = z.infer<typeof AudioOutputSchema>;
 
 const GenerateAudioInputSchema = z.object({
     text: z.string(),
@@ -47,7 +41,7 @@ const generateAudioFlow = ai.defineFlow(
     {
         name: 'generateAudioFlow',
         inputSchema: GenerateAudioInputSchema,
-        outputSchema: AudioOutputSchema,
+        outputSchema: AssistantOutputSchema,
     },
     async ({ text, voiceId }) => {
          try {
@@ -76,6 +70,7 @@ const generateAudioFlow = ai.defineFlow(
             }
 
             return {
+                text: text,
                 audio: `data:audio/wav;base64,${audioBase64}`,
             };
 
@@ -133,13 +128,4 @@ const assistantFlow = ai.defineFlow(
  */
 export async function askAiAssistant(input: AssistantInput): Promise<AssistantOutput> {
   return assistantFlow(input);
-}
-
-/**
- * Generates only the audio for the initial greeting.
- * @returns The audio data URI for the greeting.
- */
-export async function generateGreetingAudio(voiceId?: string): Promise<AudioOutput> {
-    const greetingText = "मे आपकी केसे मदद कर सकता हु";
-    return generateAudioFlow({ text: greetingText, voiceId: voiceId || DEFAULT_VOICE_ID });
 }

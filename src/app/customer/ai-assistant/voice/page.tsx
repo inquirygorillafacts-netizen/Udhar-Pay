@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Loader, Bot, Volume2, MessageSquare, Waves, Shuffle } from 'lucide-react';
-import { askAiAssistant, generateGreetingAudio } from '@/ai/flows/assistant-flow';
+import { askAiAssistant } from '@/ai/flows/assistant-flow';
 import TextAssistantModal from '@/components/assistant/TextAssistantModal';
 
 type Status = 'greeting' | 'idle' | 'listening' | 'thinking' | 'speaking';
@@ -132,34 +132,28 @@ export default function VoiceAssistantPage() {
         }
     }, [currentVoiceId]);
 
-    const playGreeting = useCallback(async () => {
-        try {
-            const response = await generateGreetingAudio(currentVoiceId);
-            if (response.audio) {
-                if (!audioRef.current) audioRef.current = new Audio();
-                
-                audioRef.current.src = response.audio;
-                audioRef.current.oncanplaythrough = () => {
-                    audioRef.current?.play();
-                    setStatus('speaking');
-                };
-                audioRef.current.onended = () => {
-                    setStatus('idle');
-                    startListening();
-                };
-                 audioRef.current.onerror = (e) => {
-                    console.error("Error playing greeting audio.", e);
-                    setStatus('idle');
-                    startListening();
-                }
-            } else {
-                 startListening();
-            }
-        } catch (error) {
-            console.error("Failed to generate greeting:", error);
-            startListening();
+    const playGreeting = useCallback(() => {
+        if (!audioRef.current) {
+            audioRef.current = new Audio("/jarvis.mp3");
+        } else {
+            audioRef.current.src = "/jarvis.mp3";
         }
-    }, [startListening, currentVoiceId]);
+        
+        audioRef.current.play().then(() => {
+            setStatus('speaking');
+        }).catch(e => {
+            console.error("Error playing greeting audio.", e);
+            // If autoplay fails, go straight to listening
+            setStatus('idle');
+            startListening();
+        });
+
+        audioRef.current.onended = () => {
+            setStatus('idle');
+            startListening();
+        };
+
+    }, [startListening]);
 
     useEffect(() => {
         if (!showIntroVideo && !hasGreetedRef.current) {
