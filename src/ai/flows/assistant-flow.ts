@@ -23,7 +23,7 @@ export type AssistantInput = z.infer<typeof AssistantInputSchema>;
 // Define the output schema for the assistant
 const AssistantOutputSchema = z.object({
   text: z.string().describe('The AI\'s textual response.'),
-  audio: z.string().optional().describe("The AI's spoken response as a base64-encoded WAV data URI."),
+  audio: z.string().optional().describe("The AI\'s spoken response as a base64-encoded WAV data URI."),
 });
 export type AssistantOutput = z.infer<typeof AssistantOutputSchema>;
 
@@ -39,7 +39,7 @@ const assistantFlow = ai.defineFlow(
     // 1. Generate a text response from the AI
     const { output: textResponse } = await ai.generate({
       prompt: `You are a helpful AI assistant for the Udhar Pay app. Keep your answers concise and friendly. User's query: ${query}`,
-      model: 'googleai/gemini-2.5-flash',
+      model: 'googleai/gemini-2.0-flash',
       output: {
         format: 'text',
       },
