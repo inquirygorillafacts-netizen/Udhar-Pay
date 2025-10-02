@@ -5,9 +5,11 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
-import { Camera, User, Phone, LogOut, Settings, Lock, ShieldOff, KeyRound, Store, CheckCircle } from 'lucide-react';
+import { Camera, User, Phone, LogOut, Settings, Lock, ShieldOff, KeyRound, Store, CheckCircle, QrCode, Share2 } from 'lucide-react';
 import Link from 'next/link';
 import { generateUniqueCustomerCode } from '@/lib/code-helpers';
+import QRCode from "react-qr-code";
+
 
 interface UserProfile {
   uid: string;
@@ -17,6 +19,7 @@ interface UserProfile {
   mobileNumber?: string;
   pinEnabled?: boolean;
   pin?: string;
+  shopkeeperCode?: string;
 }
 
 export default function ShopkeeperProfilePage() {
@@ -49,6 +52,7 @@ export default function ShopkeeperProfilePage() {
   const [isChangingPin, setIsChangingPin] = useState(false);
   
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showQrModal, setShowQrModal] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -229,6 +233,19 @@ export default function ShopkeeperProfilePage() {
       }
   }
 
+  const handleShareCode = () => {
+    if (navigator.share && userProfile?.shopkeeperCode) {
+      navigator.share({
+        title: 'My Shopkeeper Code',
+        text: `Connect with me on Udhar Pay! My code is: ${userProfile.shopkeeperCode}`,
+      }).catch((error) => console.log('Error sharing', error));
+    } else {
+      // Fallback for browsers that don't support navigator.share
+      navigator.clipboard.writeText(userProfile?.shopkeeperCode || '');
+      alert('Shopkeeper code copied to clipboard!');
+    }
+  };
+
   const handleSignOut = async () => {
     await auth.signOut();
     localStorage.removeItem('activeRole');
@@ -249,9 +266,14 @@ export default function ShopkeeperProfilePage() {
     <>
     <div className="login-container" style={{paddingTop: '40px', paddingBottom: '80px', minHeight: 'auto'}}>
       <div className="login-card" style={{ maxWidth: '500px', position: 'relative' }}>
-          <button className="neu-button" onClick={() => setShowSettingsModal(true)} style={{ position: 'absolute', top: '25px', right: '25px', width: '45px', height: '45px', padding: 0, margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Settings size={20} />
-          </button>
+          <div style={{ position: 'absolute', top: '25px', right: '25px', display: 'flex', gap: '10px' }}>
+            <button className="neu-button" onClick={() => setShowQrModal(true)} style={{ width: '45px', height: '45px', padding: 0, margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <QrCode size={20} />
+            </button>
+            <button className="neu-button" onClick={() => setShowSettingsModal(true)} style={{ width: '45px', height: '45px', padding: 0, margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Settings size={20} />
+            </button>
+          </div>
       
         <div className="login-header" style={{ marginTop: '0px', marginBottom: '40px' }}>
           <div className="neu-icon" style={{ position: 'relative', width: '100px', height: '100px', overflow: 'visible' }}>
@@ -399,6 +421,36 @@ export default function ShopkeeperProfilePage() {
                     <span>Change PIN Instead</span>
                 </button>
               </div>
+          </div>
+        </div>
+      )}
+      
+      {showQrModal && userProfile && (
+        <div className="modal-overlay" onClick={() => setShowQrModal(false)}>
+          <div className="login-card modal-content" style={{maxWidth: '420px', textAlign: 'center'}} onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                  <h2 style={{fontSize: '1.5rem'}}>{userProfile.displayName}'s Code</h2>
+                  <button className="close-button" onClick={() => setShowQrModal(false)}>&times;</button>
+              </div>
+              <p style={{color: '#9499b7', marginBottom: '25px'}}>Show this QR to your customers to let them connect with you.</p>
+
+              <div style={{background: 'white', padding: '20px', borderRadius: '20px', boxShadow: 'inset 5px 5px 10px #bec3cf, inset -5px -5px 10px #ffffff', marginBottom: '25px'}}>
+                {userProfile.shopkeeperCode ? (
+                    <QRCode
+                        value={userProfile.shopkeeperCode}
+                        style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+                        viewBox={`0 0 256 256`}
+                    />
+                ) : (
+                    <p>No code generated yet.</p>
+                )}
+              </div>
+              
+              <p style={{color: '#3d4468', fontWeight: 'bold', fontSize: '1.5rem', letterSpacing: '2px'}}>{userProfile.shopkeeperCode}</p>
+
+              <button className="neu-button" onClick={handleShareCode} style={{margin: '25px 0 0 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'}}>
+                  <Share2 size={20}/> Share Code
+              </button>
           </div>
         </div>
       )}
