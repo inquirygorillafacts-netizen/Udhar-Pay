@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
 import { doc, onSnapshot, collection, query, where, getDocs, writeBatch } from 'firebase/firestore';
 import Link from 'next/link';
-import { MessageSquare, X, Check, Wallet, ShieldAlert, Users, BookUser, Banknote, User, Search, ArrowLeft, ArrowRight, QrCode, Share2, RefreshCw } from 'lucide-react';
+import { MessageSquare, X, Check, ShieldAlert, Users, ArrowLeft, ArrowRight, QrCode, Share2, RefreshCw } from 'lucide-react';
 import { acceptConnectionRequest, rejectConnectionRequest } from '@/lib/connections';
 import CustomerCard from '@/app/shopkeeper/components/CustomerCard';
 import QRCode from "react-qr-code";
@@ -19,6 +19,7 @@ interface UserProfile {
   balances?: { [key: string]: number };
   connections?: string[];
   shopkeeperCode?: string;
+  customerCode?: string;
 }
 
 interface ConnectionRequest {
@@ -355,7 +356,7 @@ export default function ShopkeeperDashboardPage() {
                     onChange={(e) => setCustomerSearchTerm(e.target.value)}
                 />
                 <label htmlFor="search">Search Customer by Name or Code</label>
-                <div className="input-icon"><Search /></div>
+                <div className="input-icon"><Users /></div>
             </div>
         </div>
         
@@ -435,7 +436,7 @@ export default function ShopkeeperDashboardPage() {
                 {shopkeeperProfile?.photoURL ? (
                     <img src={shopkeeperProfile.photoURL} alt={shopkeeperProfile.displayName || ''} style={{width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover'}} />
                 ) : (
-                    <User size={24} />
+                    <Users size={24} />
                 )}
                 </div>
             </Link>
