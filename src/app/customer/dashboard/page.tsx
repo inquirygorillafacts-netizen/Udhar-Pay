@@ -368,13 +368,11 @@ export default function CustomerDashboardPage() {
                     </h2>
                      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                           {connectedShopkeepers.map(shopkeeper => (
-                            <Link key={shopkeeper.uid} href={`/customer/payment/${shopkeeper.uid}`} legacyBehavior>
-                              <a style={{textDecoration: 'none'}}>
+                            <Link key={shopkeeper.uid} href={`/customer/payment/${shopkeeper.uid}`} style={{textDecoration: 'none'}}>
                                 <ShopkeeperCard 
                                   shopkeeper={shopkeeper}
                                   balance={userProfile.balances?.[shopkeeper.uid] || 0}
                                 />
-                              </a>
                             </Link>
                           ))}
                       </div>
