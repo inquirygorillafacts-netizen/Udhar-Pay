@@ -58,7 +58,6 @@ export default function ShopkeeperDashboardPage() {
   
   const [isMessageSidebarOpen, setIsMessageSidebarOpen] = useState(false);
   const [connectionRequests, setConnectionRequests] = useState<ConnectionRequest[]>([]);
-  const [notifications, setNotifications] = useState<ShopkeeperNotification[]>([]);
   
   // --- Give Credit State ---
   const [step, setStep] = useState('enterAmount'); // enterAmount, selectCustomer, success
@@ -76,27 +75,24 @@ export default function ShopkeeperDashboardPage() {
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
   const qrSvgRef = useRef<HTMLDivElement>(null);
 
-
+  // Effect for profile, customers, and connection requests
   useEffect(() => {
     if (!auth.currentUser || !firestore) {
         setLoadingProfile(false);
         return;
     };
 
-    // Fetch user profile
     const userRef = doc(firestore, 'shopkeepers', auth.currentUser.uid);
     const unsubscribeProfile = onSnapshot(userRef, async (docSnap) => {
       if (docSnap.exists()) {
         const profile = { uid: docSnap.id, ...docSnap.data() } as UserProfile;
         setShopkeeperProfile(profile);
 
-        // Load saved QR from local storage
+        if (!qrCodeDataUrl) {
           const savedQr = localStorage.getItem('shopkeeperQrCodePng');
-          if (savedQr) {
-              setQrCodeDataUrl(savedQr);
-          }
+          if (savedQr) setQrCodeDataUrl(savedQr);
+        }
 
-        // Fetch connected customers
         const customerIds = profile.connections || [];
         if (customerIds.length > 0) {
           setLoadingCustomers(true);
@@ -117,7 +113,6 @@ export default function ShopkeeperDashboardPage() {
           setFilteredCustomers([]);
           setLoadingCustomers(false);
         }
-
       }
       setLoadingProfile(false);
     }, (error) => {
@@ -143,44 +138,21 @@ export default function ShopkeeperDashboardPage() {
       unsubscribeProfile();
       unsubscribeConnections();
     };
-  }, [auth.currentUser, firestore]);
+  }, [auth.currentUser, firestore, qrCodeDataUrl]);
 
-  // Separate effect for credit request notifications and active request tracking
+  // Separate effect for tracking the active credit request's status
   useEffect(() => {
-    if (!auth.currentUser || !firestore) return;
-    
-    const qCreditRequests = query(collection(firestore, 'creditRequests'), where('shopkeeperId', '==', auth.currentUser.uid));
-    const unsubscribeCreditRequests = onSnapshot(qCreditRequests, (querySnapshot) => {
-        querySnapshot.docChanges().forEach((change) => {
-            if (change.type === "modified") {
-                const req = change.doc.data();
-                
-                // Update active request status for real-time tracking modal
-                if (activeRequest && activeRequest.id === change.doc.id) {
-                    setActiveRequest({ id: change.doc.id, ...req });
-                }
+    if (!activeRequest || !firestore) return;
 
-                // Add to notifications list
-                if (req.status === 'approved' || req.status === 'rejected') {
-                    const alreadyNotified = notifications.some(n => n.id === change.doc.id);
-                    if (!alreadyNotified) {
-                        const newNotification = {
-                            id: change.doc.id,
-                            message: `${req.customerName} has ${req.status} your credit request of ₹${req.amount}.`,
-                            type: req.status === 'approved' ? 'success' : 'error' as 'success' | 'error',
-                            timestamp: new Date()
-                        };
-                        setNotifications(prev => [newNotification, ...prev].sort((a,b) => b.timestamp.getTime() - a.timestamp.getTime()));
-                    }
-                }
-            }
-        });
+    const requestRef = doc(firestore, 'creditRequests', activeRequest.id);
+    const unsubscribe = onSnapshot(requestRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setActiveRequest({ id: docSnap.id, ...docSnap.data() });
+      }
     });
 
-    return () => unsubscribeCreditRequests();
-
-  }, [auth.currentUser, firestore, notifications, activeRequest]);
-
+    return () => unsubscribe();
+  }, [activeRequest, firestore]);
 
   // Effect for filtering customers
   useEffect(() => {
@@ -216,7 +188,7 @@ export default function ShopkeeperDashboardPage() {
                 img.src = 'data:image/svg+xml;base64,' + btoa(svgData);
             }
         }
-    }, 100); // Small delay to ensure SVG is rendered
+    }, 100);
   }
 
   const handleOpenQrModal = () => {
@@ -231,7 +203,6 @@ export default function ShopkeeperDashboardPage() {
       setQrCodeDataUrl(null);
       generateAndSaveQrCode();
   }
-
 
   const handleAccept = async (requestId: string, customerId: string, shopkeeperId: string) => {
       if (!firestore) return;
@@ -277,8 +248,6 @@ export default function ShopkeeperDashboardPage() {
     }
   };
 
-
-  // --- Give Credit Functions ---
   const handleKeyPress = (key: string) => {
     if (creditAmount.length >= 7) return;
     if (key === '.' && creditAmount.includes('.')) return;
@@ -342,8 +311,6 @@ export default function ShopkeeperDashboardPage() {
       setActiveRequest(null);
       setIsRequestingCredit(false);
   }
-
-  // --- Render Functions ---
 
   const renderEnterAmount = () => {
     return (
@@ -440,7 +407,7 @@ export default function ShopkeeperDashboardPage() {
     const getStatusColor = (status: CreditRequestStatus) => {
         if (status === 'approved') return '#00c896'; // green
         if (status === 'rejected') return '#ff3b5c'; // red
-        return '#6c7293'; // grey
+        return '#d1d9e6'; // grey for pending line
     }
     
     const status = activeRequest.status;
@@ -461,15 +428,11 @@ export default function ShopkeeperDashboardPage() {
 
                 {/* Status Pipeline */}
                 <div style={{ padding: '30px 0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {/* Step 1: Sent */}
                     <div style={{textAlign: 'center'}}>
                          <div className="neu-icon" style={{width: '40px', height: '40px', margin: '0 auto 5px', background: '#00c896', color: 'white'}}><Check size={20}/></div>
                          <p style={{fontSize: '12px', color: '#3d4468', fontWeight: 600}}>Sent</p>
                     </div>
-                    {/* Line 1 */}
-                    <div style={{flex: 1, height: '3px', background: isPending ? '#d1d9e6' : getStatusColor(status), margin: '0 10px -15px 10px', transition: 'background 0.3s ease'}}></div>
-                    
-                    {/* Step 2: Pending */}
+                    <div style={{flex: 1, height: '3px', background: getStatusColor(status), margin: '0 10px -15px 10px', transition: 'background 0.3s ease'}}></div>
                     <div style={{textAlign: 'center'}}>
                          <div className="neu-icon" style={{width: '40px', height: '40px', margin: '0 auto 5px', background: isPending ? '#e0e5ec' : getStatusColor(status), color: isPending ? '#6c7293' : 'white', transition: 'background 0.3s ease'}}>
                            {isPending ? <div className="neu-spinner" style={{width: '16px', height: '16px'}}></div> : isApproved ? <Check size={20}/> : <X size={20}/>}
@@ -512,8 +475,6 @@ export default function ShopkeeperDashboardPage() {
     );
   }
   
-  const totalNotifications = connectionRequests.length + notifications.length;
-
   return (
     <>
     <header className="dashboard-header">
@@ -542,9 +503,9 @@ export default function ShopkeeperDashboardPage() {
             onClick={() => setIsMessageSidebarOpen(true)}
         >
             <MessageSquare size={20} />
-            {totalNotifications > 0 && (
+            {connectionRequests.length > 0 && (
             <span style={{ position: 'absolute', top: '-5px', right: '-5px', background: '#ff3b5c', color: 'white', borderRadius: '50%', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 'bold' }}>
-                {totalNotifications}
+                {connectionRequests.length}
             </span>
             )}
         </button>
@@ -562,7 +523,7 @@ export default function ShopkeeperDashboardPage() {
               <button className="close-button" onClick={() => setIsMessageSidebarOpen(false)}>&times;</button>
           </div>
           <div className="sidebar-content" style={{overflowY: 'auto', padding: '10px'}}>
-            {totalNotifications === 0 ? (
+            {connectionRequests.length === 0 ? (
                 <p style={{color: '#6c7293', textAlign: 'center'}}>
                     You have no new notifications.
                 </p>
@@ -581,16 +542,6 @@ export default function ShopkeeperDashboardPage() {
                                     Accept
                                 </button>
                             </div>
-                        </li>
-                    ))}
-                    {notifications.map(note => (
-                         <li key={note.id} style={{ background: note.type === 'success' ? '#e6f9f3' : '#ffeef1', padding: '15px', borderRadius: '15px', borderLeft: `4px solid ${note.type === 'success' ? '#00c896' : '#ff3b5c'}` }}>
-                            <p style={{ color: '#3d4468', fontWeight: '500', margin: 0 }}>
-                                {note.message}
-                            </p>
-                            <p style={{fontSize: '12px', color: '#9499b7', marginTop: '5px'}}>
-                                {note.timestamp.toLocaleTimeString()}
-                            </p>
                         </li>
                     ))}
                 </ul>
