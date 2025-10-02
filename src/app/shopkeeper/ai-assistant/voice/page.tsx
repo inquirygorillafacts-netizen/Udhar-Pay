@@ -31,7 +31,6 @@ export default function VoiceAssistantPage() {
 
     const currentVoiceId = availableVoices[currentVoiceIndex].voiceId;
 
-    // This function will be called to start the listening process
     const startListening = useCallback(() => {
         if (!SpeechRecognition) {
             alert("माफ़ कीजिए, आपका ब्राउज़र वॉइस रिकग्निशन का समर्थन नहीं करता है।");
@@ -60,21 +59,19 @@ export default function VoiceAssistantPage() {
         };
 
         recognition.onerror = (event: any) => {
-            if (event.error !== 'no-speech' && event.error !== 'aborted') {
+            if (event.error === 'no-speech' || event.error === 'aborted') {
+                // Do nothing, just let it stop listening.
+                 setStatus('idle');
+            } else {
                 console.error('Speech recognition error:', event.error);
                 setAiResponse("माफ़ कीजिए, मैं आपकी बात नहीं सुन सका। कृपया फिर प्रयास करें।");
-                setStatus('idle');
-            } else if (isAssistantOn) {
-                 startListening();
-            } else {
                 setStatus('idle');
             }
         };
         
         recognition.start();
         recognitionRef.current = recognition;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isAssistantOn]);
+    }, []);
 
     const processQuery = async (text: string) => {
         setStatus('thinking');
@@ -86,22 +83,21 @@ export default function VoiceAssistantPage() {
             });
             setAiResponse(response.text);
 
-            if (response.audio) {
-                if (audioRef.current) {
-                    audioRef.current.src = response.audio;
-                    audioRef.current.play();
-                    setStatus('speaking');
+            if (response.audio && audioRef.current) {
+                audioRef.current.src = response.audio;
+                audioRef.current.play();
+                setStatus('speaking');
 
-                    audioRef.current.onended = () => {
-                        if (isAssistantOn) {
-                            startListening();
-                        } else {
-                            setStatus('idle');
-                        }
-                    };
-                }
+                audioRef.current.onended = () => {
+                    if (isAssistantOn) {
+                        setStatus('listening');
+                        startListening();
+                    } else {
+                        setStatus('idle');
+                    }
+                };
             } else {
-                if (isAssistantOn) {
+                 if (isAssistantOn) {
                     startListening();
                 } else {
                     setStatus('idle');
@@ -110,19 +106,21 @@ export default function VoiceAssistantPage() {
         } catch (error) {
             console.error('Error with AI Assistant:', error);
             setAiResponse("माफ़ कीजिए, कोई त्रुटि हुई। कृपया फिर प्रयास करें।");
-            if (isAssistantOn) {
+             if (isAssistantOn) {
                 startListening();
             } else {
                 setStatus('idle');
             }
         }
     };
-
-    // Play greeting audio on initial load
+    
+    // Initialize and play greeting audio
     useEffect(() => {
         audioRef.current = new Audio("/jarvis.mp3");
         audioRef.current.play().catch(e => {
-            console.log("Greeting audio auto-play failed, requires user interaction.", e.name);
+            if (e.name === 'NotAllowedError') {
+                console.log("Greeting audio auto-play failed, requires user interaction.");
+            }
         });
 
         return () => {
@@ -148,7 +146,6 @@ export default function VoiceAssistantPage() {
             // When turning OFF, stop everything.
             if (recognitionRef.current) {
                 recognitionRef.current.abort();
-                recognitionRef.current = null;
             }
             if (audioRef.current) {
                 audioRef.current.pause();
@@ -173,6 +170,18 @@ export default function VoiceAssistantPage() {
         }
     };
 
+    const getStatusText = () => {
+        if (!isAssistantOn) return "असिस्टेंट बंद है";
+        switch (status) {
+            case 'listening': return "मैं सुन रहा हूँ...";
+            case 'thinking': return "सोच रहा हूँ...";
+            case 'speaking': return "बोल रहा हूँ...";
+            case 'idle': return "चालू करने के लिए तैयार";
+            default: return "असिस्टेंट बंद है";
+        }
+    }
+
+
     return (
       <>
         <main className="login-container" style={{ position: 'relative' }}>
@@ -190,7 +199,7 @@ export default function VoiceAssistantPage() {
                         <div className="icon-inner" style={{width: '50px', height: '50px'}}>🤖</div>
                     </div>
                     <h1>Voice Assistant</h1>
-                    <p>{isAssistantOn ? (status === 'listening' ? "मैं सुन रहा हूँ..." : (status === 'thinking' ? "सोच रहा हूँ..." : "बोल रहा हूँ...")) : "असिस्टेंट बंद है"}</p>
+                    <p>{getStatusText()}</p>
                 </header>
 
                 <div style={{textAlign: 'center', marginBottom: '30px'}}>
@@ -239,7 +248,6 @@ export default function VoiceAssistantPage() {
                  )}
             </div>
         </main>
-
         {isTextModalOpen && <TextAssistantModal onClose={() => setIsTextModalOpen(false)} />}
       </>
     );
