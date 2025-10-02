@@ -1,4 +1,4 @@
-import { doc, writeBatch, type Firestore, collection, addDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
+import { doc, writeBatch, type Firestore, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc } from 'firebase/firestore';
 
 interface ConnectionRequestPayload {
   requestId: string;
@@ -12,18 +12,22 @@ export const sendConnectionRequest = async (firestore: Firestore, customerId: st
     const q = query(requestsRef, 
         where('customerId', '==', customerId), 
         where('shopkeeperId', '==', shopkeeperId),
-        where('status', 'in', ['pending', 'approved'])
     );
-    const existingRequest = await getDocs(q);
-
-    if (!existingRequest.empty) {
-        throw new Error("A connection request already exists or is already approved.");
+    const existingRequestSnapshot = await getDocs(q);
+    
+    if (!existingRequestSnapshot.empty) {
+        const existingRequest = existingRequestSnapshot.docs[0].data();
+        if(existingRequest.status === 'pending') {
+            throw new Error("A connection request has already been sent and is pending approval.");
+        } else if (existingRequest.status === 'approved') {
+            throw new Error("You are already connected to this shopkeeper.");
+        }
     }
     
     await addDoc(requestsRef, {
       customerId,
       shopkeeperId,
-      customerName,
+      customerName: customerName || 'A new customer',
       status: 'pending',
       createdAt: serverTimestamp()
     });
@@ -41,15 +45,23 @@ export const acceptConnectionRequest = async (firestore: Firestore, payload: Con
 
   // Add customerId to shopkeeper's connections array
   const shopkeeperRef = doc(firestore, 'shopkeepers', shopkeeperId);
-  batch.update(shopkeeperRef, {
-    connections: [...((await getDoc(shopkeeperRef)).data()?.connections || []), customerId]
-  });
+  const shopkeeperDoc = await getDoc(shopkeeperRef);
+  const shopkeeperConnections = shopkeeperDoc.data()?.connections || [];
+  if (!shopkeeperConnections.includes(customerId)) {
+    batch.update(shopkeeperRef, {
+        connections: [...shopkeeperConnections, customerId]
+    });
+  }
 
   // Add shopkeeperId to customer's connections array
   const customerRef = doc(firestore, 'customers', customerId);
-  batch.update(customerRef, {
-    connections: [...((await getDoc(customerRef)).data()?.connections || []), shopkeeperId]
-  });
+  const customerDoc = await getDoc(customerRef);
+  const customerConnections = customerDoc.data()?.connections || [];
+   if (!customerConnections.includes(shopkeeperId)) {
+      batch.update(customerRef, {
+        connections: [...customerConnections, shopkeeperId]
+      });
+   }
 
   await batch.commit();
 };

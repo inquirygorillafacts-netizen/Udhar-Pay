@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
 import { doc, onSnapshot, collection, query, where, getDocs, writeBatch } from 'firebase/firestore';
 import Link from 'next/link';
-import { MessageSquare, X, Check, ShieldAlert, Users, ArrowLeft, ArrowRight, QrCode, Share2, RefreshCw } from 'lucide-react';
+import { MessageSquare, X, Check, ArrowLeft, ArrowRight, QrCode, Share2, RefreshCw, Users as UsersIcon } from 'lucide-react';
 import { acceptConnectionRequest, rejectConnectionRequest } from '@/lib/connections';
 import CustomerCard from '@/app/shopkeeper/components/CustomerCard';
 import QRCode from "react-qr-code";
@@ -61,71 +61,69 @@ export default function ShopkeeperDashboardPage() {
 
 
   useEffect(() => {
-    if (!auth.currentUser) {
+    if (!auth.currentUser || !firestore) {
         setLoadingProfile(false);
         return;
     };
 
-    if (firestore && auth.currentUser) {
-      // Fetch user profile
-      const userRef = doc(firestore, 'shopkeepers', auth.currentUser.uid);
-      const unsubscribeProfile = onSnapshot(userRef, async (docSnap) => {
-        if (docSnap.exists()) {
-          const profile = { uid: docSnap.id, ...docSnap.data() } as UserProfile;
-          setShopkeeperProfile(profile);
+    // Fetch user profile
+    const userRef = doc(firestore, 'shopkeepers', auth.currentUser.uid);
+    const unsubscribeProfile = onSnapshot(userRef, async (docSnap) => {
+      if (docSnap.exists()) {
+        const profile = { uid: docSnap.id, ...docSnap.data() } as UserProfile;
+        setShopkeeperProfile(profile);
 
-          // Load saved QR from local storage
-           const savedQr = localStorage.getItem('shopkeeperQrCodePng');
-           if (savedQr) {
-               setQrCodeDataUrl(savedQr);
-           }
-
-          // Fetch connected customers
-          const customerIds = profile.connections || [];
-          if (customerIds.length > 0) {
-            setLoadingCustomers(true);
-            const customersQuery = query(collection(firestore, 'customers'), where('__name__', 'in', customerIds));
-            const customersSnap = await getDocs(customersQuery);
-            const customerProfiles = customersSnap.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile));
-            
-            const customersWithBalance = customerProfiles.map(cust => ({
-                ...cust,
-                balance: profile.balances?.[cust.uid] || 0
-            })) as CustomerForSelection[];
-
-            setCustomers(customersWithBalance);
-            setFilteredCustomers(customersWithBalance);
-            setLoadingCustomers(false);
-          } else {
-            setCustomers([]);
-            setFilteredCustomers([]);
-            setLoadingCustomers(false);
+        // Load saved QR from local storage
+          const savedQr = localStorage.getItem('shopkeeperQrCodePng');
+          if (savedQr) {
+              setQrCodeDataUrl(savedQr);
           }
 
+        // Fetch connected customers
+        const customerIds = profile.connections || [];
+        if (customerIds.length > 0) {
+          setLoadingCustomers(true);
+          const customersQuery = query(collection(firestore, 'customers'), where('__name__', 'in', customerIds));
+          const customersSnap = await getDocs(customersQuery);
+          const customerProfiles = customersSnap.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile));
+          
+          const customersWithBalance = customerProfiles.map(cust => ({
+              ...cust,
+              balance: profile.balances?.[cust.uid] || 0
+          })) as CustomerForSelection[];
+
+          setCustomers(customersWithBalance);
+          setFilteredCustomers(customersWithBalance);
+          setLoadingCustomers(false);
+        } else {
+          setCustomers([]);
+          setFilteredCustomers([]);
+          setLoadingCustomers(false);
         }
+
+      }
+      setLoadingProfile(false);
+    }, (error) => {
+        console.error("Error fetching user document:", error);
         setLoadingProfile(false);
-      }, (error) => {
-          console.error("Error fetching user document:", error);
-          setLoadingProfile(false);
-      });
+    });
 
-      // Fetch connection requests
-      const requestsRef = collection(firestore, 'connectionRequests');
-      const qConnections = query(requestsRef, where('shopkeeperId', '==', auth.currentUser.uid), where('status', '==', 'pending'));
-      
-      const unsubscribeConnections = onSnapshot(qConnections, (querySnapshot) => {
-        const requests = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ConnectionRequest));
-        setConnectionRequests(requests);
-      }, (error) => {
-        console.error("Error fetching connection requests:", error);
-      });
+    // Fetch connection requests
+    const requestsRef = collection(firestore, 'connectionRequests');
+    const qConnections = query(requestsRef, where('shopkeeperId', '==', auth.currentUser.uid), where('status', '==', 'pending'));
+    
+    const unsubscribeConnections = onSnapshot(qConnections, (querySnapshot) => {
+      const requests = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ConnectionRequest));
+      setConnectionRequests(requests);
+    }, (error) => {
+      console.error("Error fetching connection requests:", error);
+    });
 
-      return () => {
-        unsubscribeProfile();
-        unsubscribeConnections();
-      };
-    }
-  }, [auth.currentUser, firestore, router]);
+    return () => {
+      unsubscribeProfile();
+      unsubscribeConnections();
+    };
+  }, [auth.currentUser, firestore]);
 
   // Effect for filtering customers
   useEffect(() => {
@@ -356,7 +354,7 @@ export default function ShopkeeperDashboardPage() {
                     onChange={(e) => setCustomerSearchTerm(e.target.value)}
                 />
                 <label htmlFor="search">Search Customer by Name or Code</label>
-                <div className="input-icon"><Users /></div>
+                <div className="input-icon"><UsersIcon /></div>
             </div>
         </div>
         
@@ -436,7 +434,7 @@ export default function ShopkeeperDashboardPage() {
                 {shopkeeperProfile?.photoURL ? (
                     <img src={shopkeeperProfile.photoURL} alt={shopkeeperProfile.displayName || ''} style={{width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover'}} />
                 ) : (
-                    <Users size={24} />
+                    <UsersIcon size={24} />
                 )}
                 </div>
             </Link>

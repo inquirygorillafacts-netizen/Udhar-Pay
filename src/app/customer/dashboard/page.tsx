@@ -3,10 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
-import { doc, onSnapshot, collection, query, where, getDocs, updateDoc, arrayUnion } from 'firebase/firestore';
+import { doc, onSnapshot, collection, query, where, getDocs } from 'firebase/firestore';
 import Link from 'next/link';
-import { Paperclip, X, Wallet, User } from 'lucide-react';
+import { Paperclip, X, User } from 'lucide-react';
 import ShopkeeperCard from '@/app/customer/components/ShopkeeperCard';
+import { sendConnectionRequest } from '@/lib/connections';
 
 interface UserProfile {
   uid: string;
@@ -96,7 +97,7 @@ export default function CustomerDashboardPage() {
         }
 
         const shopkeeperDoc = querySnapshot.docs[0];
-        const shopkeeperId = shopkeeperDoc.id; // This is the shopkeeper's UID
+        const shopkeeperId = shopkeeperDoc.id;
         const shopkeeperName = shopkeeperDoc.data().displayName;
 
         if (userProfile.connections?.includes(shopkeeperId)) {
@@ -106,18 +107,14 @@ export default function CustomerDashboardPage() {
             return;
         }
 
-        // Use the UID to establish the connection
-        const customerRef = doc(firestore, 'customers', auth.currentUser.uid);
-        await updateDoc(customerRef, {
-            connections: arrayUnion(shopkeeperId)
-        });
+        await sendConnectionRequest(firestore, auth.currentUser.uid, shopkeeperId, userProfile.displayName);
         
-        setModalMessage(`Connection with ${shopkeeperName} successful!`);
+        setModalMessage(`Connection request sent to ${shopkeeperName}! You will be notified upon approval.`);
         setShopkeeperCode('');
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error connecting to shopkeeper:", error);
-        setModalMessage('An error occurred while sending the request. Please try again.');
+        setModalMessage(error.message || 'An error occurred while sending the request. Please try again.');
     } finally {
         setIsConnecting(false);
     }
