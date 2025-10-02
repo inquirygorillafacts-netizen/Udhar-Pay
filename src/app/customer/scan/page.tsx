@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Html5Qrcode } from 'html5-qrcode';
 import { useFirebase } from '@/firebase/client-provider';
-import { sendConnectionRequest } from '@/lib/connections';
+import { collection, getDocs, query, where, getDoc, doc } from 'firebase/firestore';
+
 
 export default function CustomerScanQrPage() {
   const router = useRouter();
@@ -42,21 +43,31 @@ export default function CustomerScanQrPage() {
             await scannerRef.current.stop();
           }
           
-          const shopkeeperIdentifier = decodedText; // This is the shopkeeperCode from the QR
+          const shopkeeperCode = decodedText;
 
-          // Use the unified connection logic
-          const result = await sendConnectionRequest(firestore, auth.currentUser!.uid, shopkeeperIdentifier, auth.currentUser?.displayName || 'A new customer');
-          
-          if (result.status === 'already_connected' && result.shopkeeper) {
-              // If already connected, redirect to the page where they can request credit
-              router.push(`/customer/request-credit/${result.shopkeeper.id}`);
-          } else if (result.status === 'request_sent') {
-              // If not connected, a request was sent. Notify the user and go to dashboard.
-              toast({
-                title: "Connection Request Sent",
-                description: `Your request to connect has been sent. You'll be notified upon approval.`,
-              });
-              router.push('/customer/dashboard');
+          // 1. Find shopkeeper by code
+          const shopkeepersRef = collection(firestore, 'shopkeepers');
+          const q = query(shopkeepersRef, where('shopkeeperCode', '==', shopkeeperCode.toUpperCase()));
+          const shopkeeperSnapshot = await getDocs(q);
+
+          if (shopkeeperSnapshot.empty) {
+              throw new Error("Invalid QR Code. No shopkeeper found.");
+          }
+
+          const shopkeeperDoc = shopkeeperSnapshot.docs[0];
+          const shopkeeperId = shopkeeperDoc.id;
+
+          // 2. Check if customer is already connected
+          const customerRef = doc(firestore, 'customers', auth.currentUser!.uid);
+          const customerSnap = await getDoc(customerRef);
+          const customerConnections = customerSnap.data()?.connections || [];
+
+          if (customerConnections.includes(shopkeeperId)) {
+              // Already connected, go to request credit page
+              router.push(`/customer/request-credit/${shopkeeperId}`);
+          } else {
+              // Not connected, go to the new connect page
+              router.push(`/customer/connect/${shopkeeperId}`);
           }
   
         } catch (err: any) {
@@ -65,10 +76,7 @@ export default function CustomerScanQrPage() {
               title: 'Scan Error', 
               description: err.message || 'Could not process the QR code. Please try again.' 
             });
-            // Go back to allow retry, as pushing to dashboard might be confusing
             router.back(); 
-        } finally {
-            // No need to set isProcessingRef to false as we are navigating away
         }
       };
 
