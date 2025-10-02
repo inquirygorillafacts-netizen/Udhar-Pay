@@ -163,19 +163,20 @@ export default function ShopkeeperDashboardPage() {
 
   // Separate effect for tracking the active credit request's status
   useEffect(() => {
-    if (!activeRequest || !firestore) return;
+    if (!activeRequest?.id || !firestore) return;
 
     const requestRef = doc(firestore, 'creditRequests', activeRequest.id);
     const unsubscribe = onSnapshot(requestRef, (docSnap) => {
       if (docSnap.exists()) {
         setActiveRequest({ id: docSnap.id, ...docSnap.data() });
       } else {
+        // The request document may have been deleted or is no longer relevant
         setActiveRequest(null);
       }
     });
 
     return () => unsubscribe();
-  }, [activeRequest, firestore]);
+  }, [activeRequest?.id, firestore]);
 
   // Effect for filtering customers
   useEffect(() => {
