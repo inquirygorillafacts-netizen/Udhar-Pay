@@ -40,54 +40,58 @@ export default function QrPoster({ shopkeeperName, shopkeeperCode }: QrPosterPro
             background: '#e0e5ec',
             borderRadius: '20px',
             boxShadow: '20px 20px 60px #bec3cf, -20px -20px 60px #ffffff',
-            padding: '30px',
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
             position: 'relative',
             overflow: 'hidden'
         }}>
+            {/* Green Border */}
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '10px', background: '#00c896', zIndex: 2 }}></div>
+            <div style={{ position: 'absolute', top: '10px', left: 0, bottom: 0, width: '10px', background: '#00c896', zIndex: 2 }}></div>
+            <div style={{ position: 'absolute', top: '10px', right: 0, bottom: 0, width: '10px', background: '#00c896', zIndex: 2 }}></div>
+            
             <WavyBackground />
 
-             <div style={{ zIndex: 1, textAlign: 'center', padding: '10px', background: 'rgba(255, 255, 255, 0.7)', borderRadius: '15px', border: '2px solid #00c896', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
-                <p style={{color: '#3d4468', margin: 0, fontSize: '15px', fontWeight: 500}}>
-                    पैसे हैं तो <span style={{color: '#007BFF', fontWeight: 'bold'}}>PhonePe</span> अगर नहीं है तो <span style={{color: '#00c896', fontWeight: 'bold'}}>Udhar Pay</span>
-                </p>
-            </div>
+            <div style={{ padding: '30px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', height: '100%', zIndex: 1 }}>
 
-            <div style={{ zIndex: 1, textAlign: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
-                    <Image src="/logo.png" alt="Udhar Pay Logo" width={40} height={40} style={{ borderRadius: '50%' }} />
-                    <h1 style={{ color: '#3d4468', fontSize: '2rem', fontWeight: 'bold', margin: 0 }}>Udhar Pay</h1>
+                <div style={{ zIndex: 1, textAlign: 'center', padding: '10px', background: 'rgba(255, 255, 255, 0.7)', borderRadius: '15px', border: '2px solid #00c896', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
+                    <p style={{color: '#3d4468', margin: 0, fontSize: '15px', fontWeight: 500}}>
+                        पैसे हैं तो <span style={{color: '#007BFF', fontWeight: 'bold'}}>PhonePe</span> अगर नहीं है तो <span style={{color: '#00c896', fontWeight: 'bold'}}>Udhar Pay</span>
+                    </p>
                 </div>
-            </div>
 
-            <div style={{
-                zIndex: 1,
-                background: 'white',
-                padding: '20px',
-                borderRadius: '15px',
-                boxShadow: '10px 10px 30px rgba(0,0,0,0.1)',
-                margin: '0 auto',
-                width: '100%',
-                maxWidth: '280px',
-            }}>
-                <QRCode
-                    value={shopkeeperCode}
-                    style={{ height: "auto", maxWidth: "100%", width: "100%" }}
-                    viewBox={`0 0 256 256`}
-                />
-            </div>
-            
-            <div style={{ zIndex: 1, textAlign: 'center', marginTop: 'auto' }}>
-                <h2 style={{ color: '#3d4468', fontSize: '1.75rem', fontWeight: 600, margin: '0 0 5px 0' }}>{shopkeeperName}</h2>
-                <p style={{ color: '#00c896', fontSize: '1.25rem', fontWeight: 'bold', margin: 0, letterSpacing: '2px', background: 'rgba(255,255,255,0.7)', padding: '5px 10px', borderRadius: '10px', display: 'inline-block' }}>
-                    {shopkeeperCode}
-                </p>
-                 <p style={{color: '#3d4468', marginTop: '15px', fontSize: '15px', fontWeight: 600}}>
-                   उधार लेने के लिए QR CODE स्केन करे |
-                </p>
+                <div style={{ zIndex: 1, textAlign: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
+                        <Image src="/logo.png" alt="Udhar Pay Logo" width={40} height={40} style={{ borderRadius: '50%' }} />
+                        <h1 style={{ color: '#3d4468', fontSize: '2rem', fontWeight: 'bold', margin: 0 }}>Udhar Pay</h1>
+                    </div>
+                </div>
+
+                <div style={{
+                    zIndex: 1,
+                    background: 'white',
+                    padding: '20px',
+                    borderRadius: '15px',
+                    boxShadow: '10px 10px 30px rgba(0,0,0,0.1)',
+                    margin: '0 auto',
+                    width: '100%',
+                    maxWidth: '280px',
+                }}>
+                    <QRCode
+                        value={shopkeeperCode}
+                        style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+                        viewBox={`0 0 256 256`}
+                    />
+                </div>
+                
+                <div style={{ zIndex: 1, textAlign: 'center' }}>
+                    <h2 style={{ color: '#3d4468', fontSize: '1.75rem', fontWeight: 600, margin: '0 0 5px 0' }}>{shopkeeperName}</h2>
+                    <p style={{ color: '#00c896', fontSize: '1.25rem', fontWeight: 'bold', margin: 0, letterSpacing: '2px', background: 'rgba(255,255,255,0.7)', padding: '5px 10px', borderRadius: '10px', display: 'inline-block' }}>
+                        {shopkeeperCode}
+                    </p>
+                    <p style={{color: '#3d4468', marginTop: '15px', fontSize: '15px', fontWeight: 600}}>
+                       उधार लेने के लिए QR CODE स्केन करे |
+                    </p>
+                </div>
             </div>
         </div>
     );
