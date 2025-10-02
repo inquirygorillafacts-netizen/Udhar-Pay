@@ -11,14 +11,18 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import axios from 'axios';
-import { getHistory, addMessage, ChatMessage } from '@/lib/ai-memory';
+import type { ChatMessage } from '@/lib/ai-memory';
 
 const DEFAULT_VOICE_ID = 'hi-IN-kabir';
 
 
 // Define the input schema for the assistant
 const AssistantInputSchema = z.object({
-  query: z.string().describe('The user\'s spoken query as text.'),
+  query: z.string().describe("The user's spoken query as text."),
+  history: z.array(z.object({
+      sender: z.enum(['user', 'ai']),
+      text: z.string(),
+  })).optional().describe('The conversation history.'),
   generateAudio: z.boolean().optional().default(true).describe('Whether to generate an audio response.'),
   voiceId: z.string().optional().default(DEFAULT_VOICE_ID).describe('The voice to use for the audio response.'),
 });
@@ -26,8 +30,8 @@ export type AssistantInput = z.infer<typeof AssistantInputSchema>;
 
 // Define the output schema for the assistant
 const AssistantOutputSchema = z.object({
-  text: z.string().describe('The AI\'s textual response.'),
-  audio: z.string().optional().describe("The AI\'s spoken response as a base64-encoded WAV data URI."),
+  text: z.string().describe("The AI's textual response."),
+  audio: z.string().optional().describe("The AI's spoken response as a base64-encoded WAV data URI."),
 });
 export type AssistantOutput = z.infer<typeof AssistantOutputSchema>;
 
@@ -42,7 +46,7 @@ const generateAudioFlow = ai.defineFlow(
     {
         name: 'generateAudioFlow',
         inputSchema: GenerateAudioInputSchema,
-        outputSchema: AssistantOutputSchema,
+        outputSchema: z.object({ audio: z.string() }),
     },
     async ({ text, voiceId }) => {
          try {
@@ -71,7 +75,6 @@ const generateAudioFlow = ai.defineFlow(
             }
 
             return {
-                text: text,
                 audio: `data:audio/wav;base64,${audioBase64}`,
             };
 
@@ -90,15 +93,13 @@ const assistantFlow = ai.defineFlow(
     inputSchema: AssistantInputSchema,
     outputSchema: AssistantOutputSchema,
   },
-  async ({ query, generateAudio, voiceId }) => {
-    // 1. Add user's query to memory
-    addMessage({ sender: 'user', text: query });
+  async ({ query, history = [], generateAudio, voiceId }) => {
+    
+    // Combine the current query with the history
+    const fullHistory: ChatMessage[] = [...history, { sender: 'user', text: query }];
+    const historyText = fullHistory.map(msg => `${msg.sender === 'user' ? 'Boss' : 'Jarvis'}: ${msg.text}`).join('\n');
 
-    // 2. Get the full conversation history
-    const history = getHistory();
-    const historyText = history.map(msg => `${msg.sender === 'user' ? 'Boss' : 'Jarvis'}: ${msg.text}`).join('\n');
-
-    // 3. Generate a text response from the AI with context
+    // Generate a text response from the AI with context
     const { output: textResponse } = await ai.generate({
       prompt: `You are Jarvis, the world's most advanced AI assistant. The user is your "Boss". You are helpful, respectful, and incredibly intelligent.
       You will now continue a conversation. Here is the history so far:
@@ -118,9 +119,6 @@ const assistantFlow = ai.defineFlow(
     }
     const responseText = textResponse;
 
-    // 4. Add AI's response to memory
-    addMessage({ sender: 'ai', text: responseText });
-
     // If audio generation is disabled, return only the text
     if (!generateAudio) {
         return {
@@ -128,19 +126,19 @@ const assistantFlow = ai.defineFlow(
         };
     }
     
-    // 5. Convert the text response to speech using the dedicated audio flow
-    const audioData = await generateAudioFlow({ text: responseText, voiceId: voiceId });
+    // Convert the text response to speech using the dedicated audio flow
+    const { audio } = await generateAudioFlow({ text: responseText, voiceId: voiceId });
 
     return {
         text: responseText,
-        audio: audioData.audio,
+        audio: audio,
     };
   }
 );
 
 /**
  * Public-facing wrapper function to invoke the assistant flow.
- * @param input The user's query.
+ * @param input The user's query and conversation history.
  * @returns The AI's text response and optionally the spoken audio data URI.
  */
 export async function askAiAssistant(input: AssistantInput): Promise<AssistantOutput> {

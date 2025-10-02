@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Loader, MessageSquare, Send, Bot, User, X, Trash2 } from 'lucide-react';
 import { askAiAssistant } from '@/ai/flows/assistant-flow';
-import { getHistory, clearHistory, ChatMessage } from '@/lib/ai-memory';
+import { getHistory, clearHistory, addMessage, ChatMessage } from '@/lib/ai-memory';
 
 interface TextAssistantModalProps {
     onClose: () => void;
@@ -32,18 +32,24 @@ export default function TextAssistantModal({ onClose }: TextAssistantModalProps)
     if (!query) return;
 
     setInputText('');
-    setMessages(prev => [...prev, { sender: 'user', text: query }]);
+    
+    addMessage({ sender: 'user', text: query });
+    setMessages(getHistory());
     setStatus('thinking');
 
     try {
       const response = await askAiAssistant({
         query: query,
+        history: getHistory(),
         generateAudio: false, // We only want text
       });
-      setMessages(getHistory()); // Fetch the latest history which now includes the AI's response
+      addMessage({ sender: 'ai', text: response.text });
+      setMessages(getHistory());
     } catch (error) {
       console.error("AI Error:", error);
-      setMessages(prev => [...prev, { sender: 'ai', text: "Sorry, something went wrong." }]);
+      const errorMessage = "Sorry, something went wrong.";
+      addMessage({ sender: 'ai', text: errorMessage });
+      setMessages(getHistory());
     } finally {
       setStatus('idle');
     }
