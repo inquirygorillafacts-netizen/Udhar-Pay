@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
-import { doc, onSnapshot, collection, query, where, getDocs, addDoc, serverTimestamp, DocumentData } from 'firebase/firestore';
+import { doc, onSnapshot, collection, query, where, getDocs, addDoc, serverTimestamp, DocumentData, writeBatch, updateDoc } from 'firebase/firestore';
 import Link from 'next/link';
 import { MessageSquare, X, Check, ArrowLeft, ArrowRight, QrCode, Share2, RefreshCw, User as UsersIcon, CheckCircle, XCircle } from 'lucide-react';
 import { acceptConnectionRequest, rejectConnectionRequest } from '@/lib/connections';
@@ -30,11 +30,12 @@ interface ConnectionRequest {
   status: string;
 }
 
-interface ShopkeeperNotification {
+interface CustomerCreditRequest {
     id: string;
-    message: string;
-    type: 'success' | 'error';
-    timestamp: Date;
+    customerId: string;
+    customerName: string;
+    amount: number;
+    notes?: string;
 }
 
 interface CustomerForSelection extends UserProfile {
@@ -58,6 +59,7 @@ export default function ShopkeeperDashboardPage() {
   
   const [isMessageSidebarOpen, setIsMessageSidebarOpen] = useState(false);
   const [connectionRequests, setConnectionRequests] = useState<ConnectionRequest[]>([]);
+  const [customerCreditRequests, setCustomerCreditRequests] = useState<CustomerCreditRequest[]>([]);
   
   // --- Give Credit State ---
   const [step, setStep] = useState('enterAmount'); // enterAmount, selectCustomer, success
@@ -131,20 +133,31 @@ export default function ShopkeeperDashboardPage() {
       });
       setConnectionRequests(newRequests);
 
-       // Auto-remove notifications from UI after 1 minute
       newRequests.forEach(req => {
         setTimeout(() => {
             setConnectionRequests(prevReqs => prevReqs.filter(r => r.id !== req.id));
-        }, 60000); // 60 seconds
+        }, 60000);
       });
 
     }, (error) => {
       console.error("Error fetching connection requests:", error);
     });
+    
+    const creditRequestsRef = collection(firestore, 'creditRequests');
+    const qCredit = query(creditRequestsRef, where('shopkeeperId', '==', auth.currentUser.uid), where('status', '==', 'pending'), where('requestedBy', '==', 'customer'));
+
+    const unsubscribeCreditRequests = onSnapshot(qCredit, (snapshot) => {
+        const requests: CustomerCreditRequest[] = [];
+        snapshot.forEach(doc => {
+            requests.push({ id: doc.id, ...doc.data() } as CustomerCreditRequest);
+        });
+        setCustomerCreditRequests(requests);
+    });
 
     return () => {
       unsubscribeProfile();
       unsubscribeConnections();
+      unsubscribeCreditRequests();
     };
   }, [auth.currentUser, firestore, qrCodeDataUrl]);
 
@@ -214,7 +227,7 @@ export default function ShopkeeperDashboardPage() {
       generateAndSaveQrCode();
   }
 
-  const handleAccept = async (requestId: string, customerId: string, shopkeeperId: string) => {
+  const handleAcceptConnection = async (requestId: string, customerId: string, shopkeeperId: string) => {
       if (!firestore) return;
       try {
           await acceptConnectionRequest(firestore, { requestId, customerId, shopkeeperId });
@@ -224,7 +237,7 @@ export default function ShopkeeperDashboardPage() {
       }
   };
 
-  const handleReject = async (requestId: string) => {
+  const handleRejectConnection = async (requestId: string) => {
       if (!firestore) return;
       try {
           await rejectConnectionRequest(firestore, requestId);
@@ -233,6 +246,51 @@ export default function ShopkeeperDashboardPage() {
           alert("Failed to reject request.");
       }
   };
+  
+    const handleCreditRequestResponse = async (request: CustomerCreditRequest, response: 'approved' | 'rejected') => {
+        if (!auth.currentUser || !firestore || !shopkeeperProfile) return;
+        
+        try {
+            const requestRef = doc(firestore, 'creditRequests', request.id);
+
+            if (response === 'approved') {
+                const batch = writeBatch(firestore);
+                batch.update(requestRef, { status: 'approved' });
+
+                const balanceChange = request.amount;
+                const shopkeeperRef = doc(firestore, 'shopkeepers', auth.currentUser.uid);
+                const customerRef = doc(firestore, 'customers', request.customerId);
+
+                const shopkeeperBalances = shopkeeperProfile.balances || {};
+                const newShopkeeperBalance = (shopkeeperBalances[request.customerId] || 0) + balanceChange;
+
+                const customerDoc = await getDoc(customerRef);
+                const customerBalances = customerDoc.data()?.balances || {};
+                const newCustomerBalance = (customerBalances[auth.currentUser.uid] || 0) + balanceChange;
+
+                batch.set(shopkeeperRef, { balances: { [request.customerId]: newShopkeeperBalance } }, { merge: true });
+                batch.set(customerRef, { balances: { [auth.currentUser.uid]: newCustomerBalance } }, { merge: true });
+
+                const transactionRef = doc(collection(firestore, 'transactions'));
+                batch.set(transactionRef, {
+                    amount: request.amount,
+                    type: 'credit',
+                    notes: request.notes || `Credit approved by shopkeeper`,
+                    shopkeeperId: auth.currentUser.uid,
+                    customerId: request.customerId,
+                    timestamp: serverTimestamp(),
+                });
+
+                await batch.commit();
+            } else {
+                await updateDoc(requestRef, { status: 'rejected' });
+            }
+        } catch (error) {
+            console.error("Error responding to credit request:", error);
+            alert("An error occurred. Please try again.");
+        }
+    };
+
 
   const handleShareCode = async () => {
     if (!qrCodeDataUrl || !shopkeeperProfile?.shopkeeperCode) return;
@@ -300,6 +358,7 @@ export default function ShopkeeperDashboardPage() {
               shopkeeperName: shopkeeperProfile.displayName,
               status: 'pending',
               createdAt: serverTimestamp(),
+              requestedBy: 'shopkeeper'
           });
           
           setActiveRequest({ id: newRequestRef.id, status: 'pending' });
@@ -475,6 +534,8 @@ export default function ShopkeeperDashboardPage() {
               return renderEnterAmount();
       }
   }
+  
+  const allNotificationsCount = connectionRequests.length + customerCreditRequests.length;
 
   if (loadingProfile) {
     return (
@@ -512,9 +573,9 @@ export default function ShopkeeperDashboardPage() {
             onClick={() => setIsMessageSidebarOpen(true)}
         >
             <MessageSquare size={20} />
-            {connectionRequests.length > 0 && (
+            {allNotificationsCount > 0 && (
             <span style={{ position: 'absolute', top: '-5px', right: '-5px', background: '#ff3b5c', color: 'white', borderRadius: '50%', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 'bold' }}>
-                {connectionRequests.length}
+                {allNotificationsCount}
             </span>
             )}
         </button>
@@ -532,7 +593,7 @@ export default function ShopkeeperDashboardPage() {
               <button className="close-button" onClick={() => setIsMessageSidebarOpen(false)}>&times;</button>
           </div>
           <div className="sidebar-content" style={{overflowY: 'auto', padding: '10px'}}>
-            {connectionRequests.length === 0 ? (
+            {allNotificationsCount === 0 ? (
                 <p style={{color: '#6c7293', textAlign: 'center'}}>
                     You have no new notifications.
                 </p>
@@ -544,11 +605,27 @@ export default function ShopkeeperDashboardPage() {
                                 {req.customerName} wants to connect.
                             </p>
                             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-                                <button className="neu-button" onClick={() => handleReject(req.id)} style={{ margin: 0, width: 'auto', padding: '8px 16px', background: '#e0e5ec', color: '#ff3b5c' }}>
+                                <button className="neu-button" onClick={() => handleRejectConnection(req.id)} style={{ margin: 0, width: 'auto', padding: '8px 16px', background: '#e0e5ec', color: '#ff3b5c' }}>
                                     Reject
                                 </button>
-                                <button className="neu-button" onClick={() => handleAccept(req.id, req.customerId, req.shopkeeperId)} style={{ margin: 0, width: 'auto', padding: '8px 16px', background: '#00c896', color: 'white' }}>
+                                <button className="neu-button" onClick={() => handleAcceptConnection(req.id, req.customerId, req.shopkeeperId)} style={{ margin: 0, width: 'auto', padding: '8px 16px', background: '#00c896', color: 'white' }}>
                                     Accept
+                                </button>
+                            </div>
+                        </li>
+                    ))}
+                     {customerCreditRequests.map(req => (
+                        <li key={req.id} style={{ background: '#e0e5ec', padding: '15px', borderRadius: '15px', boxShadow: '5px 5px 10px #bec3cf, -5px -5px 10px #ffffff' }}>
+                            <p style={{ color: '#3d4468', fontWeight: '600', marginBottom: '5px' }}>
+                                {req.customerName} is requesting a credit of <span style={{color: '#00c896'}}>₹{req.amount}</span>.
+                            </p>
+                            {req.notes && <p style={{color: '#9499b7', fontSize: '13px', fontStyle: 'italic', marginBottom: '10px'}}>" {req.notes} "</p>}
+                            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                                <button className="neu-button" onClick={() => handleCreditRequestResponse(req, 'rejected')} style={{ margin: 0, width: 'auto', padding: '8px 16px', background: '#e0e5ec', color: '#ff3b5c' }}>
+                                    Reject
+                                </button>
+                                <button className="neu-button" onClick={() => handleCreditRequestResponse(req, 'approved')} style={{ margin: 0, width: 'auto', padding: '8px 16px', background: '#00c896', color: 'white' }}>
+                                    Approve
                                 </button>
                             </div>
                         </li>

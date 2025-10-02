@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { QrCode, ArrowLeft, X } from 'lucide-react';
+import { QrCode, ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Html5Qrcode } from 'html5-qrcode';
 import { useFirebase } from '@/firebase/client-provider';
+import { doc, getDoc } from 'firebase/firestore';
 import { sendConnectionRequest } from '@/lib/connections';
 
 export default function CustomerScanQrPage() {
@@ -19,11 +20,9 @@ export default function CustomerScanQrPage() {
   const isProcessingRef = useRef(false);
 
   useEffect(() => {
-    if (readerMounted.current) return;
+    if (readerMounted.current || !auth.currentUser || !firestore) return;
     readerMounted.current = true;
     
-    if (!auth.currentUser || !firestore) return;
-
     const qrScanner = new Html5Qrcode('reader');
     scannerRef.current = qrScanner;
 
@@ -45,18 +44,23 @@ export default function CustomerScanQrPage() {
             await scannerRef.current.stop();
           }
           
-          const result = await sendConnectionRequest(firestore, auth.currentUser!.uid, decodedText.toUpperCase(), auth.currentUser?.displayName || 'A new customer');
-          
-          if (result.status === 'already_connected') {
-            toast({
-                title: "Already Connected",
-                description: `You are already connected to ${result.shopkeeper?.name}. Redirecting...`,
-            });
-             router.push('/customer/dashboard'); // Redirect to dashboard to show modal
+          const customerRef = doc(firestore, 'customers', auth.currentUser!.uid);
+          const customerSnap = await getDoc(customerRef);
+          const customerData = customerSnap.data();
+          const connections = customerData?.connections || [];
+
+          const shopkeeperId = decodedText.toUpperCase(); // Assume QR is the shopkeeper code
+
+          if (connections.includes(shopkeeperId)) {
+            // Already connected, redirect to request credit page
+            router.push(`/customer/request-credit/${shopkeeperId}`);
           } else {
+            // Not connected, send a connection request
+            const result = await sendConnectionRequest(firestore, auth.currentUser!.uid, shopkeeperId, auth.currentUser?.displayName || 'A new customer');
+            
             toast({
-                title: "Request Sent",
-                description: `Connection request sent to the shopkeeper.`,
+                title: "Connection Request Sent",
+                description: `Request sent to the shopkeeper. You'll be able to transact once they approve.`,
             });
             router.push('/customer/dashboard');
           }
@@ -65,7 +69,8 @@ export default function CustomerScanQrPage() {
             const errorMessage = err instanceof Error ? err.message : 'Could not process the QR code.';
             toast({ variant: 'destructive', title: 'Scan Error', description: errorMessage });
             isProcessingRef.current = false;
-            router.back();
+            // Go back to allow retry, as pushing to dashboard might be confusing
+            router.back(); 
         }
       };
 
@@ -99,7 +104,7 @@ export default function CustomerScanQrPage() {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [auth.currentUser, firestore]);
 
   return (
     <div style={{ height: '100vh', background: '#333', display: 'flex', flexDirection: 'column' }}>

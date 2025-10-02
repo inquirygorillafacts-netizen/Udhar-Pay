@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
 import { doc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { ArrowLeft, User, IndianRupee, Send } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 interface ShopkeeperProfile {
   uid: string;
@@ -101,8 +101,10 @@ export default function RequestCreditPage() {
             customerId: auth.currentUser!.uid,
             customerName: customerProfile.displayName,
             shopkeeperId: shopkeeperId,
+            shopkeeperName: shopkeeper?.displayName,
             status: 'pending',
             createdAt: serverTimestamp(),
+            requestedBy: 'customer'
         });
         setSuccess(true);
     } catch (err) {
