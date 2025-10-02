@@ -22,7 +22,6 @@ const SpeechRecognition =
 export default function VoiceAssistantPage() {
     const [status, setStatus] = useState<Status>('greeting');
     const [isAssistantOn, setIsAssistantOn] = useState(false);
-    const [isGreetingComplete, setIsGreetingComplete] = useState(false);
     const [aiResponse, setAiResponse] = useState('');
     const [isTextModalOpen, setIsTextModalOpen] = useState(false);
     const [currentVoiceIndex, setCurrentVoiceIndex] = useState(0);
@@ -30,9 +29,10 @@ export default function VoiceAssistantPage() {
 
     const recognitionRef = useRef<any>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
+    const effectRan = useRef(false);
 
     const currentVoiceId = availableVoices[currentVoiceIndex].voiceId;
-    
+
     const processQuery = useCallback(async (text: string) => {
         setStatus('thinking');
         setAiResponse('');
@@ -53,21 +53,41 @@ export default function VoiceAssistantPage() {
             setStatus('speaking');
 
             audioRef.current.onended = () => {
-                setStatus('idle');
+                // After speaking, automatically start listening again if the assistant is on
+                if(isAssistantOn) {
+                    startListening();
+                } else {
+                    setStatus('idle');
+                }
             };
             audioRef.current.onerror = (e) => {
                 console.error("Error playing AI response audio.", e);
-                setStatus('idle');
+                // If there's an error, go back to listening
+                 if(isAssistantOn) {
+                    startListening();
+                } else {
+                    setStatus('idle');
+                }
             }
           } else {
-            setStatus('idle');
+             // If no audio, go back to listening
+             if(isAssistantOn) {
+                startListening();
+            } else {
+                setStatus('idle');
+            }
           }
         } catch (error) {
           console.error('Error with AI Assistant:', error);
-          setAiResponse("Sorry, I encountered an error. Please try again.");
-          setStatus('idle');
+          setAiResponse("माफ़ कीजिए, कोई त्रुटि हुई। कृपया फिर प्रयास करें।");
+          // If there's an error, go back to listening
+          if(isAssistantOn) {
+            startListening();
+          } else {
+            setStatus('idle');
+          }
         }
-    }, [currentVoiceId]);
+    }, [currentVoiceId, isAssistantOn]);
     
     const stopListening = () => {
         if (recognitionRef.current) {
@@ -79,19 +99,19 @@ export default function VoiceAssistantPage() {
 
     const startListening = useCallback(() => {
         if (!SpeechRecognition) {
-            alert("Sorry, your browser does not support voice recognition.");
+            alert("माफ़ कीजिए, आपका ब्राउज़र वॉइस रिकग्निशन का समर्थन नहीं करता है।");
             setStatus('off');
             setIsAssistantOn(false);
             return;
         }
         if (recognitionRef.current) {
-          return;
+          recognitionRef.current.stop();
         }
     
         const recognition = new SpeechRecognition();
         recognition.continuous = false;
         recognition.interimResults = false;
-        recognition.lang = 'en-US';
+        recognition.lang = 'hi-IN';
     
         recognition.onstart = () => {
           setStatus('listening');
@@ -106,19 +126,21 @@ export default function VoiceAssistantPage() {
         };
     
         recognition.onerror = (event: any) => {
-          if (event.error !== 'no-speech' && event.error !== 'aborted') {
+           if (event.error !== 'aborted' && event.error !== 'no-speech') {
             console.error('Speech recognition error:', event.error);
-            setAiResponse("Sorry, I didn't catch that. Please try again.");
+            setAiResponse("माफ़ कीजिए, मैं आपकी बात नहीं सुन सका। कृपया फिर प्रयास करें।");
           }
-          setStatus('idle');
+          // If there's an error (like no speech), just go back to listening
+          if (isAssistantOn) {
+            startListening();
+          } else {
+            setStatus('idle');
+          }
         };
     
         recognition.onend = () => {
           recognitionRef.current = null;
-          // Only go to idle if assistant is still supposed to be on
-          if (isAssistantOn) {
-            setStatus('idle');
-          }
+          // Don't automatically go to idle. The flow is now controlled by onended/onerror.
         };
         
         recognition.start();
@@ -126,20 +148,32 @@ export default function VoiceAssistantPage() {
     }, [processQuery, isAssistantOn]);
 
 
+    const playGreetingAndListen = useCallback(() => {
+        setStatus('greeting');
+        const greetingAudio = new Audio("/jarvis.mp3");
+        audioRef.current = greetingAudio;
+        
+        greetingAudio.play().catch(e => {
+            console.error("Greeting audio blocked by browser. Starting to listen directly.", e);
+            // If audio fails, directly go to idle, ready for user to turn on.
+            setStatus('off');
+        });
+
+        greetingAudio.onended = () => {
+            // After greeting, just be ready. Don't start listening.
+            setStatus('off');
+        };
+    }, []);
+
     useEffect(() => {
-        const hasSeenIntro = localStorage.getItem('hasSeenAiIntro');
-        if (hasSeenIntro) {
-            setShowIntroVideo(false);
-            setStatus('greeting');
-            const greetingAudio = new Audio("/jarvis.mp3");
-            audioRef.current = greetingAudio;
-            greetingAudio.play().catch(e => console.log("Greeting audio autoplay blocked by browser."));
-            greetingAudio.onended = () => {
-                setIsGreetingComplete(true);
-                setStatus('off');
-            };
-        } else {
-            setShowIntroVideo(true);
+        if (effectRan.current === false) {
+            const hasSeenIntro = localStorage.getItem('hasSeenAiIntro');
+            if (hasSeenIntro) {
+                setShowIntroVideo(false);
+                playGreetingAndListen();
+            } else {
+                setShowIntroVideo(true);
+            }
         }
         
         return () => {
@@ -150,15 +184,16 @@ export default function VoiceAssistantPage() {
             if (recognitionRef.current) {
                 recognitionRef.current.abort();
             }
+            effectRan.current = true;
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [playGreetingAndListen]);
+
 
     const handleAIToggle = () => {
         const newIsOn = !isAssistantOn;
         setIsAssistantOn(newIsOn);
         if (newIsOn) {
-            setStatus('idle');
             startListening();
         } else {
             stopListening();
@@ -168,14 +203,7 @@ export default function VoiceAssistantPage() {
     const handleVideoEnd = () => {
         localStorage.setItem('hasSeenAiIntro', 'true');
         setShowIntroVideo(false);
-        setStatus('greeting');
-        const greetingAudio = new Audio("/jarvis.mp3");
-        audioRef.current = greetingAudio;
-        greetingAudio.play().catch(e => console.log("Greeting audio autoplay blocked by browser."));
-        greetingAudio.onended = () => {
-            setIsGreetingComplete(true);
-            setStatus('off');
-        };
+        playGreetingAndListen();
     };
 
     const handleVoiceSwitch = () => {
@@ -213,7 +241,7 @@ export default function VoiceAssistantPage() {
         <main className="login-container" style={{ position: 'relative' }}>
              <button onClick={() => setIsTextModalOpen(true)} className="neu-button" style={{ position: 'absolute', top: '25px', right: '25px', width: 'auto', height: 'auto', padding: '12px', margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                 <MessageSquare size={20} />
-                 <span className='hidden sm:inline'>Text Mode</span>
+                <span className='hidden sm:inline'>Text Mode</span>
             </button>
              <button onClick={handleVoiceSwitch} className="neu-button" style={{ position: 'absolute', top: '25px', left: '25px', width: 'auto', height: 'auto', padding: '12px', margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                 <Shuffle size={20} />
@@ -225,7 +253,7 @@ export default function VoiceAssistantPage() {
                         <div className="icon-inner" style={{width: '50px', height: '50px'}}>🤖</div>
                     </div>
                     <h1>Voice Assistant</h1>
-                    <p>{isAssistantOn ? "I'm listening..." : "Assistant is off"}</p>
+                    <p>{isAssistantOn ? "Jarvis is listening..." : "Assistant is off"}</p>
                 </header>
 
                 <div style={{textAlign: 'center', marginBottom: '30px'}}>
@@ -254,8 +282,8 @@ export default function VoiceAssistantPage() {
                     <div className="neu-input" style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '15px 20px'}}>
                         <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}><Bot size={20} style={{color: '#6c7293'}} /><span>AI Assistant</span></div>
                         <div 
-                            className={`neu-toggle-switch ${isAssistantOn ? 'active' : ''} ${!isGreetingComplete ? 'disabled' : ''}`} 
-                            onClick={isGreetingComplete ? handleAIToggle : undefined}
+                            className={`neu-toggle-switch ${isAssistantOn ? 'active' : ''}`} 
+                            onClick={handleAIToggle}
                         >
                             <div className="neu-toggle-handle"></div>
                         </div>

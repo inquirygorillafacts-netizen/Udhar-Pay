@@ -1,7 +1,7 @@
 'use server';
 /**
  * @fileOverview A conversational AI assistant flow that processes text input,
- * generates a spoken response using Murf.ai, and returns it as audio data.
+ * generates a spoken response using Murf.ai, and returns it as an audio data.
  *
  * - `askAiAssistant` - A function that orchestrates the text-to-text and text-to-speech process.
  * - `AssistantInput` - The input type for the `askAiAssistant` function.
@@ -92,7 +92,10 @@ const assistantFlow = ai.defineFlow(
   async ({ query, generateAudio, voiceId }) => {
     // 1. Generate a text response from the AI
     const { output: textResponse } = await ai.generate({
-      prompt: `You are a helpful AI assistant for the Udhar Pay app. Keep your answers concise and friendly. User's query: ${query}`,
+      prompt: `You are Jarvis, the world's most advanced AI assistant. The user is your "Boss". You are helpful, respectful, and incredibly intelligent.
+      IMPORTANT: You must ALWAYS reply in HINDI. Never use English.
+      
+      Boss's query: ${query}`,
       model: 'googleai/gemini-2.0-flash',
       output: {
         format: 'text',
