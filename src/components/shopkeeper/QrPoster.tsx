@@ -44,7 +44,7 @@ export default function QrPoster({ shopkeeperName, shopkeeperCode }: QrPosterPro
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
             display: 'flex',
             flexDirection: 'column',
-            justifyContent: 'space-around',
+            justifyContent: 'space-between',
             position: 'relative',
             overflow: 'hidden'
         }}>
@@ -80,13 +80,13 @@ export default function QrPoster({ shopkeeperName, shopkeeperCode }: QrPosterPro
                 />
             </div>
             
-            <div style={{ zIndex: 1, textAlign: 'center' }}>
+            <div style={{ zIndex: 1, textAlign: 'center', marginTop: 'auto' }}>
                 <h2 style={{ color: '#3d4468', fontSize: '1.75rem', fontWeight: 600, margin: '0 0 5px 0' }}>{shopkeeperName}</h2>
                 <p style={{ color: '#00c896', fontSize: '1.25rem', fontWeight: 'bold', margin: 0, letterSpacing: '2px', background: 'rgba(255,255,255,0.7)', padding: '5px 10px', borderRadius: '10px', display: 'inline-block' }}>
                     {shopkeeperCode}
                 </p>
                  <p style={{color: '#6c7293', marginTop: '15px', fontSize: '15px', fontWeight: 500}}>
-                   उधार लेने या भुगतान करने के लिए स्कैन करें
+                   उधार लेने के लिए QR CODE स्केन करे |
                 </p>
             </div>
         </div>
