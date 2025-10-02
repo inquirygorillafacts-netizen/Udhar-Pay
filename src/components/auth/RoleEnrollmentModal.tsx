@@ -4,9 +4,8 @@ import { useState, useRef } from 'react';
 import { useFirebase } from '@/firebase/client-provider';
 import { doc, setDoc } from 'firebase/firestore';
 import { generateUniqueCustomerCode, generateUniqueShopkeeperCode } from '@/lib/code-helpers';
-import { Camera, User, Phone, Store, ArrowRight, Info, Check } from 'lucide-react';
+import { Camera, User, Phone, Store, ArrowRight, Check, AlertTriangle } from 'lucide-react';
 import axios from 'axios';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 
 interface RoleEnrollmentModalProps {
@@ -26,7 +25,6 @@ export default function RoleEnrollmentModal({ role, onClose, onSuccess }: RoleEn
     const [mobile, setMobile] = useState('');
     const [photoFile, setPhotoFile] = useState<File | null>(null);
     const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-    const [showPhotoAlert, setShowPhotoAlert] = useState(false);
 
     const [error, setError] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
@@ -184,24 +182,32 @@ export default function RoleEnrollmentModal({ role, onClose, onSuccess }: RoleEn
                                 </div>
                             </div>
                             
-                            <div className="form-group">
-                                <div style={{ padding: '10px 15px', background: '#e0e5ec', borderRadius: '15px', boxShadow: 'inset 3px 3px 6px #bec3cf, inset -3px -3px 6px #ffffff', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                    <Info size={20} style={{ color: '#6c7293', flexShrink: 0 }} />
-                                    <p style={{ color: '#6c7293', margin: 0, fontSize: '12px' }}>
-                                        {photoUploadInstruction}
-                                    </p>
+                            <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+                                <div style={{textAlign: 'center'}}>
+                                    <p style={{ color: '#6c7293', fontSize: '12px', marginBottom: '10px', fontWeight: 500 }}>{photoUploadInstruction}</p>
+                                    <div className="neu-icon" style={{ position: 'relative', width: '100px', height: '100px', margin: 'auto', overflow: 'visible' }}>
+                                        {photoPreview ? (
+                                            <img src={photoPreview} alt="Preview" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                                        ) : (
+                                            <div className="icon-inner" style={{width: '60px', height: '60px'}}><User/></div>
+                                        )}
+                                        <button className="neu-button" style={{ position: 'absolute', bottom: 0, right: 0, width: '30px', height: '30px', borderRadius: '50%', padding: 0, margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => fileInputRef.current?.click()}>
+                                            <Camera size={14}/>
+                                        </button>
+                                        <input type="file" ref={fileInputRef} style={{ display: 'none' }} accept="image/*" onChange={handlePhotoChange} />
+                                    </div>
                                 </div>
-                                <div className="neu-icon" style={{ position: 'relative', width: '100px', height: '100px', margin: '20px auto 0', overflow: 'visible' }}>
-                                    {photoPreview ? (
-                                        <img src={photoPreview} alt="Preview" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
-                                    ) : (
-                                        <div className="icon-inner" style={{width: '60px', height: '60px'}}><User/></div>
-                                    )}
-                                    <button className="neu-button" style={{ position: 'absolute', bottom: 0, right: 0, width: '30px', height: '30px', borderRadius: '50%', padding: 0, margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowPhotoAlert(true)}>
-                                        <Camera size={14}/>
-                                    </button>
-                                    <input type="file" ref={fileInputRef} style={{ display: 'none' }} accept="image/*" onChange={handlePhotoChange} />
-                                </div>
+                                {photoPreview && (
+                                    <div style={{ flex: 1, padding: '15px', background: '#e0e5ec', borderRadius: '15px', boxShadow: 'inset 4px 4px 8px #d1e7dd, inset -4px -4px 8px #ffffff' }}>
+                                        <div style={{display: 'flex', alignItems: 'center', gap: '10px', color: '#008a5c'}}>
+                                            <AlertTriangle size={24} />
+                                            <h4 style={{margin: 0, fontSize: '1rem', fontWeight: 600}}>ध्यान दें!</h4>
+                                        </div>
+                                        <p style={{ color: '#008a5c', margin: '10px 0 0 0', fontSize: '13px', lineHeight: 1.6 }}>
+                                            आप इस फोटो को बाद में सिर्फ एक बार ही बदल पाएँगे। गलत फोटो के कारण आपका अकाउंट रिजेक्ट हो सकता है, इसलिए कृपया सही फोटो ही अपलोड करें।
+                                        </p>
+                                    </div>
+                                )}
                             </div>
 
                             {error && <p className="error-message show" style={{textAlign: 'center', marginLeft: 0}}>{error}</p>}
@@ -214,23 +220,6 @@ export default function RoleEnrollmentModal({ role, onClose, onSuccess }: RoleEn
                     )}
                 </div>
             </div>
-
-            <AlertDialog open={showPhotoAlert} onOpenChange={setShowPhotoAlert}>
-                <AlertDialogContent className="neu-input" style={{maxWidth: '420px', background: '#e0e5ec', borderRadius: '20px'}}>
-                    <AlertDialogHeader>
-                    <AlertDialogTitle style={{color: '#3d4468', fontSize: '1.25rem'}}>फोटो अपलोड करने से पहले ध्यान दें!</AlertDialogTitle>
-                    <AlertDialogDescription style={{color: '#9499b7', fontSize: '14px', lineHeight: 1.6, paddingTop: '10px'}}>
-                        आप इस फोटो को बाद में सिर्फ एक बार ही बदल पाएँगे। गलत फोटो के कारण आपका अकाउंट रिजेक्ट हो सकता है, इसलिए कृपया सही फोटो ही अपलोड करें।
-                    </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter style={{marginTop: '20px'}}>
-                        <AlertDialogCancel className="neu-button" style={{margin: 0}} onClick={() => setShowPhotoAlert(false)}>रद्द करें</AlertDialogCancel>
-                        <AlertDialogAction className="neu-button" style={{margin: 0, background: '#00c896', color: 'white'}} onClick={() => { setShowPhotoAlert(false); fileInputRef.current?.click(); }}>जारी रखें</AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
         </>
     );
 }
-
-    
