@@ -5,9 +5,10 @@ import { useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
 import { doc, onSnapshot, collection, query, where, getDocs, writeBatch } from 'firebase/firestore';
 import Link from 'next/link';
-import { MessageSquare, X, Check, Wallet, ShieldAlert, Users, BookUser, Banknote, User, Search, ArrowLeft, ArrowRight, Copy } from 'lucide-react';
+import { MessageSquare, X, Check, Wallet, ShieldAlert, Users, BookUser, Banknote, User, Search, ArrowLeft, ArrowRight, QrCode, Share2 } from 'lucide-react';
 import { acceptConnectionRequest, rejectConnectionRequest } from '@/lib/connections';
 import CustomerCard from '@/app/shopkeeper/components/CustomerCard';
+import QRCode from "react-qr-code";
 
 
 interface UserProfile {
@@ -52,6 +53,8 @@ export default function ShopkeeperDashboardPage() {
   const [isRequestingCredit, setIsRequestingCredit] = useState(false);
   const [error, setError] = useState('');
   const [loadingCustomers, setLoadingCustomers] = useState(true);
+  
+  const [showQrModal, setShowQrModal] = useState(false);
 
 
   useEffect(() => {
@@ -150,9 +153,14 @@ export default function ShopkeeperDashboardPage() {
       }
   };
 
-  const copyToClipboard = () => {
-    if (shopkeeperProfile?.shopkeeperCode) {
-      navigator.clipboard.writeText(shopkeeperProfile.shopkeeperCode);
+  const handleShareCode = () => {
+    if (navigator.share && shopkeeperProfile?.shopkeeperCode) {
+      navigator.share({
+        title: 'My Shopkeeper Code',
+        text: `Connect with me on Udhar Pay! My code is: ${shopkeeperProfile.shopkeeperCode}`,
+      }).catch((error) => console.log('Error sharing', error));
+    } else {
+      navigator.clipboard.writeText(shopkeeperProfile?.shopkeeperCode || '');
       alert('Shopkeeper code copied to clipboard!');
     }
   };
@@ -379,10 +387,10 @@ export default function ShopkeeperDashboardPage() {
         <div 
             className="token-balance" 
             style={{padding: '10px 15px', height: 'auto', flexDirection: 'row', gap: '10px', justifyContent: 'center', alignItems: 'center', cursor: 'pointer', flexGrow: 1, margin: '0 10px'}}
-            onClick={copyToClipboard}
+            onClick={() => setShowQrModal(true)}
         >
             <span style={{fontSize: '1rem', fontWeight: 'bold', letterSpacing: '1px'}}>{shopkeeperProfile?.shopkeeperCode || '...'}</span>
-            <Copy size={16} style={{color: '#6c7293'}}/>
+            <QrCode size={16} style={{color: '#6c7293'}}/>
         </div>
         <button 
             className="neu-button" 
@@ -437,6 +445,36 @@ export default function ShopkeeperDashboardPage() {
         </div>
       </div>
     )}
+
+    {showQrModal && shopkeeperProfile && (
+        <div className="modal-overlay" onClick={() => setShowQrModal(false)}>
+          <div className="login-card modal-content" style={{maxWidth: '420px', textAlign: 'center'}} onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                  <h2 style={{fontSize: '1.5rem'}}>{shopkeeperProfile.displayName}'s Code</h2>
+                  <button className="close-button" onClick={() => setShowQrModal(false)}>&times;</button>
+              </div>
+              <p style={{color: '#9499b7', marginBottom: '25px'}}>Show this QR to your customers to let them connect with you.</p>
+
+              <div style={{background: 'white', padding: '20px', borderRadius: '20px', boxShadow: 'inset 5px 5px 10px #bec3cf, inset -5px -5px 10px #ffffff', marginBottom: '25px'}}>
+                {shopkeeperProfile.shopkeeperCode ? (
+                    <QRCode
+                        value={shopkeeperProfile.shopkeeperCode}
+                        style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+                        viewBox={`0 0 256 256`}
+                    />
+                ) : (
+                    <p>No code generated yet.</p>
+                )}
+              </div>
+              
+              <p style={{color: '#3d4468', fontWeight: 'bold', fontSize: '1.5rem', letterSpacing: '2px'}}>{shopkeeperProfile.shopkeeperCode}</p>
+
+              <button className="neu-button" onClick={handleShareCode} style={{margin: '25px 0 0 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'}}>
+                  <Share2 size={20}/> Share Code
+              </button>
+          </div>
+        </div>
+      )}
     </>
   );
 }
