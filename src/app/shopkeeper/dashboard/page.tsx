@@ -8,7 +8,8 @@ import Link from 'next/link';
 import { MessageSquare, X, Check, ArrowLeft, ArrowRight, QrCode, Share2, RefreshCw, User as UsersIcon, CheckCircle, XCircle } from 'lucide-react';
 import { acceptConnectionRequest, rejectConnectionRequest } from '@/lib/connections';
 import CustomerCard from '@/app/shopkeeper/components/CustomerCard';
-import QRCode from "react-qr-code";
+import QrPoster from '@/components/shopkeeper/QrPoster';
+import { toPng } from 'html-to-image';
 
 
 interface UserProfile {
@@ -74,8 +75,8 @@ export default function ShopkeeperDashboardPage() {
   const [loadingCustomers, setLoadingCustomers] = useState(true);
   
   const [showQrModal, setShowQrModal] = useState(false);
-  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
-  const qrSvgRef = useRef<HTMLDivElement>(null);
+  const [qrPosterDataUrl, setQrPosterDataUrl] = useState<string | null>(null);
+  const posterRef = useRef<HTMLDivElement>(null);
 
   // Effect for profile, customers, and connection requests
   useEffect(() => {
@@ -90,9 +91,9 @@ export default function ShopkeeperDashboardPage() {
         const profile = { uid: docSnap.id, ...docSnap.data() } as UserProfile;
         setShopkeeperProfile(profile);
 
-        if (!qrCodeDataUrl) {
-          const savedQr = localStorage.getItem('shopkeeperQrCodePng');
-          if (savedQr) setQrCodeDataUrl(savedQr);
+        if (!qrPosterDataUrl) {
+          const savedQr = localStorage.getItem('shopkeeperQrPosterPng');
+          if (savedQr) setQrPosterDataUrl(savedQr);
         }
 
         const customerIds = profile.connections || [];
@@ -153,7 +154,7 @@ export default function ShopkeeperDashboardPage() {
       unsubscribeConnections();
       unsubscribeCreditRequests();
     };
-  }, [auth.currentUser, firestore, qrCodeDataUrl]);
+  }, [auth.currentUser, firestore, qrPosterDataUrl]);
 
   // Separate effect for tracking the active credit request's status
   useEffect(() => {
@@ -186,40 +187,32 @@ export default function ShopkeeperDashboardPage() {
     }
   }, [customerSearchTerm, customers]);
   
-  const generateAndSaveQrCode = () => {
-      setTimeout(() => {
-        if (qrSvgRef.current) {
-            const svgElement = qrSvgRef.current.querySelector('svg');
-            if (svgElement) {
-                const svgData = new XMLSerializer().serializeToString(svgElement);
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                const img = new Image();
-                img.onload = () => {
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    ctx!.drawImage(img, 0, 0);
-                    const pngUrl = canvas.toDataURL('image/png');
-                    setQrCodeDataUrl(pngUrl);
-                    localStorage.setItem('shopkeeperQrCodePng', pngUrl);
-                };
-                img.src = 'data:image/svg+xml;base64,' + btoa(svgData);
-            }
-        }
-    }, 100);
-  }
+  const generateAndSaveQrPoster = () => {
+    setTimeout(() => {
+      if (posterRef.current) {
+        toPng(posterRef.current, { cacheBust: true, quality: 0.95 })
+          .then((dataUrl) => {
+            setQrPosterDataUrl(dataUrl);
+            localStorage.setItem('shopkeeperQrPosterPng', dataUrl);
+          })
+          .catch((err) => {
+            console.error('oops, something went wrong!', err);
+          });
+      }
+    }, 500); // Small delay to ensure the component is fully rendered
+  };
 
   const handleOpenQrModal = () => {
       setShowQrModal(true);
-      if (!qrCodeDataUrl) {
-          generateAndSaveQrCode();
+      if (!qrPosterDataUrl) {
+          generateAndSaveQrPoster();
       }
   }
 
   const handleRegenerateQr = () => {
-      localStorage.removeItem('shopkeeperQrCodePng');
-      setQrCodeDataUrl(null);
-      generateAndSaveQrCode();
+      localStorage.removeItem('shopkeeperQrPosterPng');
+      setQrPosterDataUrl(null);
+      generateAndSaveQrPoster();
   }
 
   const handleAcceptConnection = async (requestId: string, customerId: string, shopkeeperId: string) => {
@@ -288,17 +281,17 @@ export default function ShopkeeperDashboardPage() {
 
 
   const handleShareCode = async () => {
-    if (!qrCodeDataUrl || !shopkeeperProfile?.shopkeeperCode) return;
+    if (!qrPosterDataUrl || !shopkeeperProfile?.shopkeeperCode) return;
 
     try {
-        const response = await fetch(qrCodeDataUrl);
+        const response = await fetch(qrPosterDataUrl);
         const blob = await response.blob();
-        const file = new File([blob], 'qrcode.png', { type: 'image/png' });
+        const file = new File([blob], 'udhar-pay-qr.png', { type: 'image/png' });
 
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
              await navigator.share({
-                title: 'My Shopkeeper Code',
-                text: `Connect with me on Udhar Pay! My code is: ${shopkeeperProfile.shopkeeperCode}`,
+                title: 'My Udhar Pay QR Code',
+                text: `Connect with me on Udhar Pay! My shop code is: ${shopkeeperProfile.shopkeeperCode}`,
                 files: [file],
             });
         } else {
@@ -633,38 +626,40 @@ export default function ShopkeeperDashboardPage() {
     )}
 
     {showQrModal && shopkeeperProfile && (
-        <div className="modal-overlay" onClick={() => setShowQrModal(false)}>
-          <div className="login-card modal-content" style={{maxWidth: '420px', textAlign: 'center'}} onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
-                  <h2 style={{fontSize: '1.5rem'}}>{shopkeeperProfile.displayName}'s Code</h2>
-                  <button className="close-button" onClick={() => setShowQrModal(false)}>&times;</button>
+      <div className="modal-overlay" onClick={() => setShowQrModal(false)}>
+        <div className="login-card modal-content" style={{maxWidth: '420px', textAlign: 'center', background: 'transparent', boxShadow: 'none', padding: 0}} onClick={(e) => e.stopPropagation()}>
+          
+          <div style={{position: 'relative'}}>
+            {qrPosterDataUrl ? (
+                <img src={qrPosterDataUrl} alt="Udhar Pay QR Code Poster" style={{ width: '100%', height: 'auto', borderRadius: '20px' }} />
+            ) : (
+              <div style={{ opacity: 0, position: 'absolute', top: '-9999px', left: '-9999px' }}>
+                  <div ref={posterRef}>
+                      <QrPoster 
+                          shopkeeperName={shopkeeperProfile.displayName} 
+                          shopkeeperCode={shopkeeperProfile.shopkeeperCode || ''}
+                      />
+                  </div>
               </div>
-              <p style={{color: '#9499b7', marginBottom: '25px'}}>Show this QR to your customers to let them connect with you.</p>
-
-              <div style={{background: 'white', padding: '20px', borderRadius: '20px', boxShadow: 'inset 5px 5px 10px #bec3cf, inset -5px -5px 10px #ffffff', marginBottom: '25px', position: 'relative'}}>
-                {qrCodeDataUrl ? (
-                    <img src={qrCodeDataUrl} alt="Shopkeeper QR Code" style={{ width: '100%', height: 'auto', borderRadius: '10px' }} />
-                ) : (
-                    <div ref={qrSvgRef} style={{ opacity: 0, position: 'absolute', top: '-9999px', left: '-9999px' }}>
-                        {shopkeeperProfile.shopkeeperCode && <QRCode value={shopkeeperProfile.shopkeeperCode} />}
-                    </div>
-                )}
-                {!qrCodeDataUrl && <div className="neu-spinner" style={{margin: '40px auto'}}></div>}
+            )}
+            {!qrPosterDataUrl && 
+              <div style={{aspectRatio: '3/4', background: '#e0e5ec', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                <div className="neu-spinner"></div>
               </div>
-              
-              <p style={{color: '#3d4468', fontWeight: 'bold', fontSize: '1.5rem', letterSpacing: '2px'}}>{shopkeeperProfile.shopkeeperCode}</p>
-
-              <div style={{display: 'flex', gap: '15px', marginTop: '25px'}}>
-                 <button className="neu-button" onClick={handleShareCode} style={{margin: 0, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'}}>
-                      <Share2 size={20}/> Share
-                  </button>
-                   <button className="neu-button" onClick={handleRegenerateQr} style={{margin: 0, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'}}>
-                      <RefreshCw size={20}/> Regenerate
-                  </button>
-              </div>
+            }
+          </div>
+          
+          <div style={{display: 'flex', gap: '15px', marginTop: '25px'}}>
+              <button className="neu-button" onClick={handleShareCode} style={{margin: 0, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'}}>
+                  <Share2 size={20}/> Share
+              </button>
+              <button className="neu-button" onClick={handleRegenerateQr} style={{margin: 0, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'}}>
+                  <RefreshCw size={20}/> Regenerate
+              </button>
           </div>
         </div>
-      )}
+      </div>
+    )}
     </>
   );
 }
