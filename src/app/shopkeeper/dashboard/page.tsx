@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
-import { doc, onSnapshot, collection, query, where, getDocs, writeBatch, addDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, onSnapshot, collection, query, where, getDocs, writeBatch, addDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import Link from 'next/link';
 import { MessageSquare, X, Check, ArrowLeft, ArrowRight, QrCode, Share2, RefreshCw, User as UsersIcon } from 'lucide-react';
 import { acceptConnectionRequest, rejectConnectionRequest } from '@/lib/connections';
@@ -117,36 +117,40 @@ export default function ShopkeeperDashboardPage() {
         setLoadingProfile(false);
     });
 
-    // Fetch connection requests
-    const requestsRef = collection(firestore, 'connectionRequests');
-    const qConnections = query(requestsRef, where('shopkeeperId', '==', auth.currentUser.uid));
+    // Fetch connection requests & listen for credit request status changes
+    const requestsRef = collection(firestore, 'creditRequests');
+    const qCreditRequests = query(requestsRef, where('shopkeeperId', '==', auth.currentUser.uid));
+    
+    const unsubscribeCreditRequests = onSnapshot(qCreditRequests, (querySnapshot) => {
+      querySnapshot.docChanges().forEach((change) => {
+        if (change.type === "modified") {
+          const req = change.doc.data();
+          if (req.status === 'approved' || req.status === 'rejected') {
+            const alreadyNotified = notifications.some(n => n.id === change.doc.id);
+            if (!alreadyNotified) {
+              const newNotification = {
+                  id: change.doc.id,
+                  message: `${req.customerName} has ${req.status} your credit request of ₹${req.amount}.`,
+                  type: req.status === 'approved' ? 'success' : 'error',
+                  timestamp: new Date()
+              };
+              setNotifications(prev => [newNotification, ...prev].sort((a,b) => b.timestamp.getTime() - a.timestamp.getTime()));
+            }
+          }
+        }
+      });
+    });
+
+    const connectionsRef = collection(firestore, 'connectionRequests');
+    const qConnections = query(connectionsRef, where('shopkeeperId', '==', auth.currentUser.uid), where('status', '==', 'pending'));
     
     const unsubscribeConnections = onSnapshot(qConnections, (querySnapshot) => {
-        const newNotifications: ShopkeeperNotification[] = [];
-        const newRequests: ConnectionRequest[] = [];
-        querySnapshot.forEach(docSnap => {
-            const req = { id: docSnap.id, ...docSnap.data() } as ConnectionRequest;
-            if (req.status === 'pending') {
-                newRequests.push(req);
-            } else if (req.status === 'approved' || req.status === 'rejected') {
-                // Find if we already notified about this
-                const alreadyNotified = notifications.some(n => n.id === req.id);
-                if (!alreadyNotified) {
-                     newNotifications.push({
-                        id: req.id,
-                        message: `${req.customerName} has ${req.status} your credit request of ₹${(docSnap.data() as any).amount}.`,
-                        type: req.status === 'approved' ? 'success' : 'error',
-                        timestamp: new Date()
-                    });
-                }
-            }
-        });
-
-        setConnectionRequests(newRequests);
-        if(newNotifications.length > 0) {
-            setNotifications(prev => [...newNotifications, ...prev].sort((a,b) => b.timestamp.getTime() - a.timestamp.getTime()));
-        }
-
+      const newRequests: ConnectionRequest[] = [];
+      querySnapshot.forEach(docSnap => {
+          const req = { id: docSnap.id, ...docSnap.data() } as ConnectionRequest;
+          newRequests.push(req);
+      });
+      setConnectionRequests(newRequests);
     }, (error) => {
       console.error("Error fetching connection requests:", error);
     });
@@ -154,8 +158,9 @@ export default function ShopkeeperDashboardPage() {
     return () => {
       unsubscribeProfile();
       unsubscribeConnections();
+      unsubscribeCreditRequests();
     };
-  }, [auth.currentUser, firestore]);
+  }, [auth.currentUser, firestore, notifications]);
 
   // Effect for filtering customers
   useEffect(() => {
