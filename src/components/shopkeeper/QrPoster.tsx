@@ -44,7 +44,7 @@ export default function QrPoster({ shopkeeperName, shopkeeperCode }: QrPosterPro
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
             display: 'flex',
             flexDirection: 'column',
-            justifyContent: 'space-between',
+            justifyContent: 'space-around',
             position: 'relative',
             overflow: 'hidden'
         }}>
@@ -56,7 +56,7 @@ export default function QrPoster({ shopkeeperName, shopkeeperCode }: QrPosterPro
                 </p>
             </div>
 
-            <div style={{ zIndex: 1, textAlign: 'center', marginTop: '-20px' }}>
+            <div style={{ zIndex: 1, textAlign: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
                     <Image src="/logo.png" alt="Udhar Pay Logo" width={40} height={40} style={{ borderRadius: '50%' }} />
                     <h1 style={{ color: '#3d4468', fontSize: '2rem', fontWeight: 'bold', margin: 0 }}>Udhar Pay</h1>
