@@ -31,48 +31,7 @@ export default function VoiceAssistantPage() {
 
     const currentVoiceId = availableVoices[currentVoiceIndex].voiceId;
 
-    const startListening = useCallback(() => {
-        if (!SpeechRecognition) {
-            alert("माफ़ कीजिए, आपका ब्राउज़र वॉइस रिकग्निशन का समर्थन नहीं करता है।");
-            setStatus('idle');
-            setIsAssistantOn(false);
-            return;
-        }
-        if (recognitionRef.current) {
-            recognitionRef.current.stop();
-        }
-
-        const recognition = new SpeechRecognition();
-        recognition.continuous = false;
-        recognition.interimResults = false;
-        recognition.lang = 'hi-IN';
-
-        recognition.onstart = () => {
-            setStatus('listening');
-        };
-
-        recognition.onresult = (event: any) => {
-            const transcript = event.results[0][0].transcript;
-            if (transcript) {
-                processQuery(transcript);
-            }
-        };
-
-        recognition.onerror = (event: any) => {
-            if (event.error === 'no-speech' || event.error === 'aborted') {
-                 setStatus('idle');
-            } else {
-                console.error('Speech recognition error:', event.error);
-                setAiResponse("माफ़ कीजिए, मैं आपकी बात नहीं सुन सका। कृपया फिर प्रयास करें।");
-                setStatus('idle');
-            }
-        };
-        
-        recognition.start();
-        recognitionRef.current = recognition;
-    }, []);
-
-    const processQuery = async (text: string) => {
+    const processQuery = useCallback(async (text: string) => {
         setStatus('thinking');
         try {
             const response = await askAiAssistant({
@@ -112,31 +71,86 @@ export default function VoiceAssistantPage() {
                 setStatus('idle');
             }
         }
-    };
-    
-    useEffect(() => {
-        const greetingAudio = new Audio("/jarvis.mp3");
-        audioRef.current = greetingAudio;
+    }, [currentVoiceId, isAssistantOn]); // Added isAssistantOn dependency
 
-        const playAndListen = () => {
-            greetingAudio.play().then(() => {
-                greetingAudio.onended = () => {
-                    setIsAssistantOn(true);
-                    startListening();
-                };
-            }).catch(e => {
-                if (e.name === 'NotAllowedError') {
-                    console.log("Greeting audio auto-play failed, requires user interaction.");
-                }
-            });
+    const startListening = useCallback(() => {
+        if (!SpeechRecognition) {
+            alert("माफ़ कीजिए, आपका ब्राउज़र वॉइस रिकग्निशन का समर्थन नहीं करता है।");
+            return;
+        }
+
+        if (recognitionRef.current) {
+            recognitionRef.current.stop();
+        }
+
+        const recognition = new SpeechRecognition();
+        recognition.continuous = false; // Process after user stops speaking
+        recognition.interimResults = false;
+        recognition.lang = 'hi-IN';
+
+        recognition.onstart = () => {
+            setStatus('listening');
         };
 
-        playAndListen();
+        recognition.onresult = (event: any) => {
+            const transcript = event.results[0][0].transcript;
+            if (transcript) {
+                processQuery(transcript);
+            }
+        };
+        
+        // This is key for the continuous loop
+        recognition.onend = () => {
+            if (isAssistantOn) {
+                // If the assistant is on, just start listening again.
+                // This handles cases where there was no speech.
+                recognition.start();
+            }
+        };
+
+        recognition.onerror = (event: any) => {
+            // Ignore common, non-critical errors
+            if (event.error === 'no-speech' || event.error === 'aborted') {
+                return;
+            }
+            console.error('Speech recognition error:', event.error);
+            setAiResponse("माफ़ कीजिए, मैं आपकी बात नहीं सुन सका। कृपया फिर प्रयास करें।");
+            setStatus('idle');
+        };
+        
+        recognition.start();
+        recognitionRef.current = recognition;
+    }, [processQuery, isAssistantOn]); // Added isAssistantOn dependency
+    
+    // Initialize and play greeting audio
+    useEffect(() => {
+        // Ensure this runs only once
+        if (!audioRef.current) {
+            audioRef.current = new Audio("/jarvis.mp3");
+        }
+
+        const playGreetingAndListen = () => {
+             if (audioRef.current) {
+                audioRef.current.play().then(() => {
+                    audioRef.current!.onended = () => {
+                        setIsAssistantOn(true); // Turn on the assistant automatically
+                        startListening();       // Start listening
+                    };
+                }).catch(e => {
+                    if (e.name === 'NotAllowedError') {
+                        console.error("Greeting audio blocked by browser. User interaction needed.");
+                        // If audio can't play, we can't auto-start.
+                        // The user will need to use the toggle switch.
+                    }
+                });
+            }
+        };
+
+        playGreetingAndListen();
 
         return () => {
             if (audioRef.current) {
                 audioRef.current.pause();
-                audioRef.current.src = '';
             }
              if (recognitionRef.current) {
                 recognitionRef.current.abort();
@@ -153,7 +167,7 @@ export default function VoiceAssistantPage() {
             startListening();
         } else {
             if (recognitionRef.current) {
-                recognitionRef.current.abort();
+                recognitionRef.current.abort(); // Use abort to prevent onend from restarting
             }
             if (audioRef.current) {
                 audioRef.current.pause();
