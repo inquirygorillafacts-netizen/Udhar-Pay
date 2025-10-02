@@ -75,8 +75,10 @@ export default function CustomerScanQrPage() {
         const customerConnections = customerSnap.data()?.connections || [];
 
         if (customerConnections.includes(shopkeeperId)) {
+          // Already connected, go to request credit page
           router.push(`/customer/request-credit/${shopkeeperId}`);
         } else {
+          // Not connected, show connection request modal
           setScannedData({ shopkeeperId: shopkeeperId, shopkeeperName: shopkeeperData.displayName });
         }
 
@@ -128,7 +130,8 @@ export default function CustomerScanQrPage() {
       try {
           const customerSnap = await getDoc(doc(firestore, 'customers', auth.currentUser.uid));
           const customerName = customerSnap.data()?.displayName || 'A new customer';
-
+          
+          // Use the shopkeeperId from the scanned data
           await sendConnectionRequest(firestore, auth.currentUser.uid, scannedData.shopkeeperId, customerName);
           setModalMessage(`Connection request sent to ${scannedData.shopkeeperName}!`);
 

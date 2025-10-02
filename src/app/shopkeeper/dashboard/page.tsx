@@ -130,6 +130,14 @@ export default function ShopkeeperDashboardPage() {
           newRequests.push(req);
       });
       setConnectionRequests(newRequests);
+
+       // Auto-remove notifications from UI after 1 minute
+      newRequests.forEach(req => {
+        setTimeout(() => {
+            setConnectionRequests(prevReqs => prevReqs.filter(r => r.id !== req.id));
+        }, 60000); // 60 seconds
+      });
+
     }, (error) => {
       console.error("Error fetching connection requests:", error);
     });

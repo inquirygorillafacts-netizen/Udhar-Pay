@@ -6,36 +6,57 @@ interface ConnectionRequestPayload {
   shopkeeperId: string;
 }
 
-export const sendConnectionRequest = async (firestore: Firestore, customerId: string, shopkeeperId: string, customerName: string) => {
+export const sendConnectionRequest = async (firestore: Firestore, customerId: string, shopkeeperIdentifier: string, customerName: string) => {
     // 1. Find shopkeeper by their unique code
     const shopkeepersRef = collection(firestore, 'shopkeepers');
-    const qShopkeeper = query(shopkeepersRef, where('shopkeeperCode', '==', shopkeeperId.toUpperCase()));
-    const shopkeeperSnapshot = await getDocs(qShopkeeper);
+    // The identifier could be the UID from QR scan or the code from manual input
+    const qShopkeeperByCode = query(shopkeepersRef, where('shopkeeperCode', '==', shopkeeperIdentifier.toUpperCase()));
+    
+    let shopkeeperDoc;
+    const shopkeeperSnapshotByCode = await getDocs(qShopkeeperByCode);
 
-    if (shopkeeperSnapshot.empty) {
+    if (!shopkeeperSnapshotByCode.empty) {
+        shopkeeperDoc = shopkeeperSnapshotByCode.docs[0];
+    } else {
+        // If not found by code, try by UID (for cases like QR scanning a UID)
+        try {
+            const shopkeeperRefById = doc(firestore, 'shopkeepers', shopkeeperIdentifier);
+            const shopkeeperSnapshotById = await getDoc(shopkeeperRefById);
+            if (shopkeeperSnapshotById.exists()) {
+                shopkeeperDoc = shopkeeperSnapshotById;
+            }
+        } catch(e) {
+            // Invalid UID format, ignore
+        }
+    }
+
+    if (!shopkeeperDoc) {
         throw new Error('No shopkeeper found with this code. Please check the code and try again.');
     }
-    const shopkeeperDoc = shopkeeperSnapshot.docs[0];
+    
     const actualShopkeeperId = shopkeeperDoc.id;
 
-    // 2. Check if a connection or pending request already exists
+    // 2. Check if already connected
+    const customerDoc = await getDoc(doc(firestore, 'customers', customerId));
+    const customerConnections = customerDoc.data()?.connections || [];
+    if (customerConnections.includes(actualShopkeeperId)) {
+        throw new Error("You are already connected to this shopkeeper.");
+    }
+
+    // 3. Check if a pending request already exists
     const requestsRef = collection(firestore, 'connectionRequests');
     const qExisting = query(requestsRef, 
         where('customerId', '==', customerId), 
         where('shopkeeperId', '==', actualShopkeeperId),
+        where('status', '==', 'pending')
     );
     const existingRequestSnapshot = await getDocs(qExisting);
     
     if (!existingRequestSnapshot.empty) {
-        const existingRequest = existingRequestSnapshot.docs[0].data();
-        if(existingRequest.status === 'pending') {
-            throw new Error("A connection request has already been sent and is pending approval.");
-        } else if (existingRequest.status === 'approved') {
-            throw new Error("You are already connected to this shopkeeper.");
-        }
+        throw new Error("A connection request has already been sent and is pending approval.");
     }
     
-    // 3. Create the new connection request
+    // 4. Create the new connection request
     await addDoc(requestsRef, {
       customerId,
       shopkeeperId: actualShopkeeperId,
