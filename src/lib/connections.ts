@@ -15,30 +15,17 @@ interface ConnectionResult {
 }
 
 export const sendConnectionRequest = async (firestore: Firestore, customerId: string, shopkeeperIdentifier: string, customerName: string): Promise<ConnectionResult> => {
-    // 1. Find shopkeeper by their unique code or UID
+    // 1. Find shopkeeper by their unique shopkeeperCode.
     const shopkeepersRef = collection(firestore, 'shopkeepers');
     const qShopkeeperByCode = query(shopkeepersRef, where('shopkeeperCode', '==', shopkeeperIdentifier.toUpperCase()));
     
-    let shopkeeperDoc;
-    const shopkeeperSnapshotByCode = await getDocs(qShopkeeperByCode);
+    const shopkeeperSnapshot = await getDocs(qShopkeeperByCode);
 
-    if (!shopkeeperSnapshotByCode.empty) {
-        shopkeeperDoc = shopkeeperSnapshotByCode.docs[0];
-    } else {
-        try {
-            // Check if the identifier might be a UID directly
-            const shopkeeperRefById = doc(firestore, 'shopkeepers', shopkeeperIdentifier);
-            const shopkeeperSnapshotById = await getDoc(shopkeeperRefById);
-            if (shopkeeperSnapshotById.exists()) {
-                shopkeeperDoc = shopkeeperSnapshotById;
-            }
-        } catch(e) { /* Invalid UID format, will be handled by the final check */ }
-    }
-
-    if (!shopkeeperDoc) {
+    if (shopkeeperSnapshot.empty) {
         throw new Error('No shopkeeper found with this code. Please check the code and try again.');
     }
     
+    const shopkeeperDoc = shopkeeperSnapshot.docs[0];
     const actualShopkeeperId = shopkeeperDoc.id;
     const shopkeeperData = shopkeeperDoc.data();
 
