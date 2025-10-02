@@ -10,7 +10,7 @@ type Status = 'idle' | 'listening' | 'thinking' | 'speaking';
 const availableVoices = [
     { voiceId: 'it-IT-lorenzo', style: 'Conversational', multiNativeLocale: 'hi-IN' },
     { voiceId: 'hi-IN-kabir', style: 'General' },
-    { voiceId: 'en-UK-hazel', style: 'Conversational', multiNativeLocale: 'hi-IN' },
+    { voiceId: 'en-UK-hazel', style: 'Conversational', multiNativeLocale: 'hi_IN' },
     { voiceId: 'de-DE-josephine', style: 'Conversational', multiNativeLocale: 'hi-IN' },
 ];
 
@@ -31,6 +31,73 @@ export default function VoiceAssistantPage() {
 
     const currentVoiceId = availableVoices[currentVoiceIndex].voiceId;
 
+    const startListening = useCallback(() => {
+        if (!SpeechRecognition) {
+            alert("माफ़ कीजिए, आपका ब्राउज़र वॉइस रिकग्निशन का समर्थन नहीं करता है।");
+            return;
+        }
+
+        if (recognitionRef.current) {
+            recognitionRef.current.stop();
+        }
+
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true; 
+        recognition.interimResults = false;
+        recognition.lang = 'hi-IN';
+        
+        let silenceTimeout: NodeJS.Timeout;
+
+        recognition.onstart = () => {
+            setStatus('listening');
+        };
+
+        recognition.onresult = (event: any) => {
+            clearTimeout(silenceTimeout);
+            const transcript = event.results[event.results.length - 1][0].transcript.trim();
+            if (transcript) {
+                 // Reset timeout whenever speech is detected
+                silenceTimeout = setTimeout(() => {
+                    if (isAssistantOn) {
+                       processQuery(transcript);
+                    }
+                }, 3000); // 3 seconds of silence
+            }
+        };
+        
+        recognition.onend = () => {
+            // If the assistant is still supposed to be on, restart recognition.
+            // This handles cases where the connection drops or the browser stops it.
+            if (isAssistantOn) {
+                try {
+                   if (recognitionRef.current) recognitionRef.current.start();
+                } catch(e) {
+                    console.log("Could not restart recognition, it might have been stopped manually.");
+                }
+            } else {
+                setStatus('idle');
+            }
+        };
+
+        recognition.onerror = (event: any) => {
+            if (event.error === 'no-speech' || event.error === 'aborted') {
+                // These are normal errors, we can just ignore them and let onend handle the restart.
+                return;
+            }
+            console.error('Speech recognition error:', event.error);
+            setAiResponse("माफ़ कीजिए, मैं आपकी बात नहीं सुन सका।");
+            setStatus('idle');
+        };
+        
+        try {
+            recognition.start();
+        } catch (e) {
+             console.error("Could not start recognition: ", e);
+        }
+        recognitionRef.current = recognition;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isAssistantOn]); 
+
      const processQuery = useCallback(async (text: string) => {
         setStatus('thinking');
         try {
@@ -46,18 +113,16 @@ export default function VoiceAssistantPage() {
                 audioRef.current.play();
                 setStatus('speaking');
 
-                // This is the key for the continuous loop
                 audioRef.current.onended = () => {
                     if (isAssistantOn) {
-                        startListening(); // Restart listening after speaking
+                        setStatus('listening'); // Go back to listening status
                     } else {
                         setStatus('idle');
                     }
                 };
             } else {
-                 // If no audio, immediately start listening again if assistant is on
                  if (isAssistantOn) {
-                    startListening();
+                    setStatus('listening');
                 } else {
                     setStatus('idle');
                 }
@@ -66,84 +131,12 @@ export default function VoiceAssistantPage() {
             console.error('Error with AI Assistant:', error);
             setAiResponse("माफ़ कीजिए, कोई त्रुटि हुई। कृपया फिर प्रयास करें।");
              if (isAssistantOn) {
-                startListening();
+                setStatus('listening');
             } else {
                 setStatus('idle');
             }
         }
-    }, [currentVoiceId, isAssistantOn, startListening]);
-
-    const startListening = useCallback(() => {
-        if (!SpeechRecognition) {
-            alert("माफ़ कीजिए, आपका ब्राउज़र वॉइस रिकग्निशन का समर्थन नहीं करता है।");
-            return;
-        }
-
-        if (recognitionRef.current) {
-            recognitionRef.current.stop();
-        }
-
-        const recognition = new SpeechRecognition();
-        recognition.continuous = false; // We manage continuity manually
-        recognition.interimResults = true;
-        recognition.lang = 'hi-IN';
-
-        let final_transcript = '';
-        
-        recognition.onstart = () => {
-            setStatus('listening');
-        };
-
-        recognition.onresult = (event: any) => {
-            let interim_transcript = '';
-            for (let i = event.resultIndex; i < event.results.length; ++i) {
-                if (event.results[i].isFinal) {
-                    final_transcript += event.results[i][0].transcript;
-                } else {
-                    interim_transcript += event.results[i][0].transcript;
-                }
-            }
-        };
-        
-        recognition.onend = () => {
-             // Only process if there's a final transcript
-            if (final_transcript.trim()) {
-                processQuery(final_transcript);
-            } else if (isAssistantOn) {
-                // If recognition ends without a result (e.g., timeout), just restart it
-                try {
-                   if (recognitionRef.current) recognitionRef.current.start();
-                } catch(e) {
-                    // This can happen if the component unmounts, it's safe to ignore.
-                }
-            } else {
-                setStatus('idle');
-            }
-        };
-
-        recognition.onerror = (event: any) => {
-            if (event.error === 'no-speech' || event.error === 'aborted' || event.error === 'network') {
-                if(isAssistantOn) {
-                    try {
-                        if (recognitionRef.current) recognitionRef.current.start();
-                    } catch(e) {
-                         // This can happen if the component unmounts, it's safe to ignore.
-                    }
-                }
-                return;
-            }
-            console.error('Speech recognition error:', event.error);
-            setAiResponse("माफ़ कीजिए, मैं आपकी बात नहीं सुन सका।");
-            setStatus('idle');
-        };
-        
-        try {
-            recognition.start();
-        } catch (e) {
-             console.error("Could not start recognition: ", e);
-        }
-        recognitionRef.current = recognition;
-    }, [isAssistantOn, processQuery]); 
+    }, [currentVoiceId, isAssistantOn]);
     
     // Initialize and play greeting audio, then auto-start the assistant
     useEffect(() => {
