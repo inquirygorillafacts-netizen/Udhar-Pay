@@ -6,6 +6,8 @@ import { doc, setDoc } from 'firebase/firestore';
 import { generateUniqueCustomerCode, generateUniqueShopkeeperCode } from '@/lib/code-helpers';
 import { Camera, User, Phone, Store, ArrowRight, Info, Check } from 'lucide-react';
 import axios from 'axios';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+
 
 interface RoleEnrollmentModalProps {
     role: 'customer' | 'shopkeeper';
@@ -24,6 +26,7 @@ export default function RoleEnrollmentModal({ role, onClose, onSuccess }: RoleEn
     const [mobile, setMobile] = useState('');
     const [photoFile, setPhotoFile] = useState<File | null>(null);
     const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+    const [showPhotoAlert, setShowPhotoAlert] = useState(false);
 
     const [error, setError] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
@@ -123,91 +126,111 @@ export default function RoleEnrollmentModal({ role, onClose, onSuccess }: RoleEn
 
     const roleText = role === 'customer' ? 'ग्राहक' : 'दुकानदार';
     const nameLabel = role === 'customer' ? 'पूरा नाम' : 'दुकान का नाम';
-    const photoLabel = role === 'customer' ? 'प्रोफ़ाइल फोटो' : 'दुकान की फोटो / लोगो';
     const nameIcon = role === 'customer' ? <User /> : <Store />;
     const agreementText = role === 'customer'
         ? "क्या आप ग्राहक बनना चाहते हैं? अगर हाँ, तो आपको ग्राहक के तौर पर अपनी जानकारी देनी होगी और एक नया खाता बनाना होगा। क्या आप अपना ग्राहक खाता बनाने के लिए तैयार हैं?"
         : "क्या आप दुकानदार बनना चाहते हैं? अगर हाँ, तो आपको दुकानदार के तौर पर अपनी दुकान की जानकारी देनी होगी और एक नया खाता बनाना होगा। क्या आप अपना दुकानदार खाता बनाने के लिए तैयार हैं?";
+    const photoUploadInstruction = role === 'customer'
+        ? "अपना साफ़ चेहरे वाला फोटो अपलोड करें।"
+        : "अपनी दुकान का साफ़ फोटो अपलोड करें।";
 
 
     return (
-        <div className="modal-overlay">
-            <div className="login-card modal-content" style={{ maxWidth: '480px' }} onClick={(e) => e.stopPropagation()}>
-                <div className="modal-header">
-                    <h2>{roleText} के रूप में नामांकित करें</h2>
-                    <button className="close-button" onClick={onClose}>&times;</button>
-                </div>
-
-                {step === 1 && (
-                    <div>
-                        <div style={{ padding: '15px 20px', background: '#e0e5ec', borderRadius: '15px', boxShadow: 'inset 5px 5px 10px #bec3cf, inset -5px -5px 10px #ffffff', marginBottom: '30px' }}>
-                            <p style={{ color: '#6c7293', margin: 0, fontSize: '14px', lineHeight: 1.7 }}>
-                               {agreementText}
-                            </p>
-                        </div>
-                        <div className="remember-wrapper" style={{marginBottom: '20px'}}>
-                            <input type="checkbox" id="agree" checked={agreed} onChange={() => setAgreed(!agreed)}/>
-                            <label htmlFor="agree" className="checkbox-label">
-                                <div className="neu-checkbox">
-                                    <Check size={16} strokeWidth={3}/>
-                                </div>
-                                मैं एक नई {roleText} प्रोफाइल बनाने के लिए सहमत हूँ।
-                            </label>
-                        </div>
-                        {error && <p className="error-message show" style={{textAlign: 'center', marginLeft: 0}}>{error}</p>}
-                        <button className="neu-button" onClick={handleNext} disabled={!agreed} style={{marginTop: '10px'}}>
-                            आगे बढ़ें <ArrowRight size={20} style={{display: 'inline', marginLeft: '8px'}}/>
-                        </button>
+        <>
+            <div className="modal-overlay">
+                <div className="login-card modal-content" style={{ maxWidth: '480px' }} onClick={(e) => e.stopPropagation()}>
+                    <div className="modal-header">
+                        <h2>{roleText} के रूप में नामांकित करें</h2>
+                        <button className="close-button" onClick={onClose}>&times;</button>
                     </div>
-                )}
 
-                {step === 2 && (
-                    <div>
-                        <div className="form-group">
-                            <div className="neu-input">
-                                <input type="text" id="name" value={name} onChange={(e) => setName(e.target.value)} required placeholder=" " />
-                                <label htmlFor="name">{nameLabel}</label>
-                                <div className="input-icon">{nameIcon}</div>
-                            </div>
-                        </div>
-                        <div className="form-group">
-                            <div className="neu-input">
-                                <input type="tel" id="mobile" value={mobile} onChange={(e) => setMobile(e.target.value)} required placeholder=" " />
-                                <label htmlFor="mobile">मोबाइल नंबर</label>
-                                <div className="input-icon"><Phone /></div>
-                            </div>
-                        </div>
-                        
-                        <div className="form-group">
-                            <label className="setting-title" style={{fontSize: '14px', borderBottom: 'none', marginBottom: '10px'}}>{photoLabel}</label>
-                            <div className="neu-icon" style={{ position: 'relative', width: '100px', height: '100px', margin: 'auto', overflow: 'visible' }}>
-                                {photoPreview ? (
-                                    <img src={photoPreview} alt="Preview" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
-                                ) : (
-                                    <div className="icon-inner" style={{width: '60px', height: '60px'}}><User/></div>
-                                )}
-                                <button className="neu-button" style={{ position: 'absolute', bottom: 0, right: 0, width: '30px', height: '30px', borderRadius: '50%', padding: 0, margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => fileInputRef.current?.click()}>
-                                    <Camera size={14}/>
-                                </button>
-                                <input type="file" ref={fileInputRef} style={{ display: 'none' }} accept="image/*" onChange={handlePhotoChange} />
-                            </div>
-                             <div style={{ padding: '10px 15px', background: '#e0e5ec', borderRadius: '15px', boxShadow: 'inset 3px 3px 6px #bec3cf, inset -3px -3px 6px #ffffff', marginTop: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <Info size={20} style={{ color: '#6c7293', flexShrink: 0 }} />
-                                <p style={{ color: '#6c7293', margin: 0, fontSize: '12px' }}>
-                                   कृपया एक स्पष्ट फोटो अपलोड करें। आप इसे बाद में केवल कुछ ही बार बदल पाएंगे।
+                    {step === 1 && (
+                        <div>
+                            <div style={{ padding: '15px 20px', background: '#e0e5ec', borderRadius: '15px', boxShadow: 'inset 5px 5px 10px #bec3cf, inset -5px -5px 10px #ffffff', marginBottom: '30px' }}>
+                                <p style={{ color: '#6c7293', margin: 0, fontSize: '14px', lineHeight: 1.7 }}>
+                                {agreementText}
                                 </p>
                             </div>
+                            <div className="remember-wrapper" style={{marginBottom: '20px'}}>
+                                <input type="checkbox" id="agree" checked={agreed} onChange={() => setAgreed(!agreed)}/>
+                                <label htmlFor="agree" className="checkbox-label">
+                                    <div className="neu-checkbox">
+                                        <Check size={16} strokeWidth={3}/>
+                                    </div>
+                                    मैं एक नई {roleText} प्रोफाइल बनाने के लिए सहमत हूँ।
+                                </label>
+                            </div>
+                            {error && <p className="error-message show" style={{textAlign: 'center', marginLeft: 0}}>{error}</p>}
+                            <button className="neu-button" onClick={handleNext} disabled={!agreed} style={{marginTop: '10px'}}>
+                                आगे बढ़ें <ArrowRight size={20} style={{display: 'inline', marginLeft: '8px'}}/>
+                            </button>
                         </div>
+                    )}
 
-                        {error && <p className="error-message show" style={{textAlign: 'center', marginLeft: 0}}>{error}</p>}
-                        
-                        <button type="submit" className={`neu-button ${isProcessing ? 'loading' : ''}`} disabled={isProcessing} onClick={handleSubmit} style={{marginTop: '30px'}}>
-                            <span className="btn-text">{roleText} प्रोफाइल बनाएं</span>
-                            <div className="btn-loader"><div className="neu-spinner"></div></div>
-                        </button>
-                    </div>
-                )}
+                    {step === 2 && (
+                        <div>
+                            <div className="form-group">
+                                <div className="neu-input">
+                                    <input type="text" id="name" value={name} onChange={(e) => setName(e.target.value)} required placeholder=" " />
+                                    <label htmlFor="name">{nameLabel}</label>
+                                    <div className="input-icon">{nameIcon}</div>
+                                </div>
+                            </div>
+                            <div className="form-group">
+                                <div className="neu-input">
+                                    <input type="tel" id="mobile" value={mobile} onChange={(e) => setMobile(e.target.value)} required placeholder=" " />
+                                    <label htmlFor="mobile">मोबाइल नंबर</label>
+                                    <div className="input-icon"><Phone /></div>
+                                </div>
+                            </div>
+                            
+                            <div className="form-group">
+                                <div style={{ padding: '10px 15px', background: '#e0e5ec', borderRadius: '15px', boxShadow: 'inset 3px 3px 6px #bec3cf, inset -3px -3px 6px #ffffff', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <Info size={20} style={{ color: '#6c7293', flexShrink: 0 }} />
+                                    <p style={{ color: '#6c7293', margin: 0, fontSize: '12px' }}>
+                                        {photoUploadInstruction}
+                                    </p>
+                                </div>
+                                <div className="neu-icon" style={{ position: 'relative', width: '100px', height: '100px', margin: '20px auto 0', overflow: 'visible' }}>
+                                    {photoPreview ? (
+                                        <img src={photoPreview} alt="Preview" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                                    ) : (
+                                        <div className="icon-inner" style={{width: '60px', height: '60px'}}><User/></div>
+                                    )}
+                                    <button className="neu-button" style={{ position: 'absolute', bottom: 0, right: 0, width: '30px', height: '30px', borderRadius: '50%', padding: 0, margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowPhotoAlert(true)}>
+                                        <Camera size={14}/>
+                                    </button>
+                                    <input type="file" ref={fileInputRef} style={{ display: 'none' }} accept="image/*" onChange={handlePhotoChange} />
+                                </div>
+                            </div>
+
+                            {error && <p className="error-message show" style={{textAlign: 'center', marginLeft: 0}}>{error}</p>}
+                            
+                            <button type="submit" className={`neu-button ${isProcessing ? 'loading' : ''}`} disabled={isProcessing} onClick={handleSubmit} style={{marginTop: '30px'}}>
+                                <span className="btn-text">{roleText} प्रोफाइल बनाएं</span>
+                                <div className="btn-loader"><div className="neu-spinner"></div></div>
+                            </button>
+                        </div>
+                    )}
+                </div>
             </div>
-        </div>
+
+            <AlertDialog open={showPhotoAlert} onOpenChange={setShowPhotoAlert}>
+                <AlertDialogContent className="neu-input" style={{maxWidth: '420px', background: '#e0e5ec', borderRadius: '20px'}}>
+                    <AlertDialogHeader>
+                    <AlertDialogTitle style={{color: '#3d4468', fontSize: '1.25rem'}}>फोटो अपलोड करने से पहले ध्यान दें!</AlertDialogTitle>
+                    <AlertDialogDescription style={{color: '#9499b7', fontSize: '14px', lineHeight: 1.6, paddingTop: '10px'}}>
+                        आप इस फोटो को बाद में सिर्फ एक बार ही बदल पाएँगे। गलत फोटो के कारण आपका अकाउंट रिजेक्ट हो सकता है, इसलिए कृपया सही फोटो ही अपलोड करें।
+                    </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter style={{marginTop: '20px'}}>
+                        <AlertDialogCancel className="neu-button" style={{margin: 0}} onClick={() => setShowPhotoAlert(false)}>रद्द करें</AlertDialogCancel>
+                        <AlertDialogAction className="neu-button" style={{margin: 0, background: '#00c896', color: 'white'}} onClick={() => { setShowPhotoAlert(false); fileInputRef.current?.click(); }}>जारी रखें</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </>
     );
 }
+
+    
