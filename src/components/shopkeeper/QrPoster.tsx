@@ -80,7 +80,7 @@ export default function QrPoster({ shopkeeperName, shopkeeperCode }: QrPosterPro
                     {shopkeeperCode}
                 </p>
                 <p style={{color: '#6c7293', marginTop: '15px', fontSize: '15px', fontWeight: 500}}>
-                    पैसे हैं तो <span style={{color: '#007BFF', fontWeight: 'bold'}}>PhonePe</span> और अगर नहीं हैं तो भाई हमारा अपना <span style={{color: '#00c896', fontWeight: 'bold', fontSize: '1.2em'}}>Udhar Pay</span>
+                    पैसे हैं तो <span style={{color: '#007BFF', fontWeight: 'bold'}}>PhonePe</span> अगर नहीं है तो <span style={{color: '#00c896', fontWeight: 'bold'}}>Udhar Pay</span>
                 </p>
             </div>
         </div>
