@@ -71,7 +71,7 @@ export default function ShopkeeperDashboardPage() {
   
   const [creditAmount, setCreditAmount] = useState('');
   const [expression, setExpression] = useState('');
-  const [isResultShown, setIsResultShown] = useState(false);
+  const [displayValue, setDisplayValue] = useState('₹ 0');
 
   const [isRequestingCredit, setIsRequestingCredit] = useState(false);
   const [activeRequest, setActiveRequest] = useState<ActiveCreditRequest | null>(null);
@@ -309,65 +309,66 @@ export default function ShopkeeperDashboardPage() {
   };
 
   const evaluateExpression = (expr: string): string => {
-    const sanitizedExpr = expr.replace(/[^\d.+-/*]/g, '').replace(/[*]/g, '*').replace(/[/]/g, '/');
+    // Basic sanitization and evaluation
+    const sanitizedExpr = expr.replace(/[^0-9+\-*/.]/g, '').replace(/×/g, '*').replace(/÷/g, '/');
+    
+    // Avoid evaluation of unsafe or incomplete expressions
     if (!sanitizedExpr || /[+\-*/.]$/.test(sanitizedExpr)) {
-        return '';
+      return '';
     }
+
     try {
-        const result = new Function(`return ${sanitizedExpr}`)();
+      // Using Function constructor for safer evaluation than eval()
+      const result = new Function(`return ${sanitizedExpr}`)();
+      if (typeof result === 'number' && !isNaN(result)) {
         return String(Math.round(result * 100) / 100);
+      }
+      return '';
     } catch (error) {
-        return '';
+      return '';
     }
   };
 
-  const handleKeyPress = (key: string) => {
-    if (isResultShown) {
-        setExpression('');
-        setCreditAmount('');
-        setIsResultShown(false);
-    }
+  const updateDisplay = (currentExpr: string) => {
+    const result = evaluateExpression(currentExpr);
+    const operators = ['+', '-', '*', '/', '×', '÷'];
+    const hasOperator = operators.some(op => currentExpr.includes(op));
 
-    if (creditAmount.length >= 20) return;
+    if (result && hasOperator && !/[+\-*/.]$/.test(currentExpr)) {
+        // If calculation is possible and valid, show the full story
+        setDisplayValue(`${currentExpr.replace(/\*/g, '×').replace(/\//g, '÷')} = ${result}`);
+        setCreditAmount(result);
+    } else {
+        // Otherwise, just show the current expression or 0
+        setDisplayValue(`₹ ${currentExpr || '0'}`);
+        setCreditAmount(currentExpr); // Keep amount in sync for the 'Next' button
+    }
+  };
+  
+  useEffect(() => {
+    updateDisplay(expression);
+  }, [expression]);
+
+  const handleKeyPress = (key: string) => {
+    if (expression.length >= 20) return;
     
     const operators = ['+', '-', '*', '/'];
     const lastChar = expression.slice(-1);
 
     if (operators.includes(lastChar) && operators.includes(key)) {
       setExpression(prev => prev.slice(0, -1) + key);
-    } else if (key === '.' && expression.split(/[+\-*/]/).pop()?.includes('.')) {
-      return;
+    } else if (key === '.' && (expression.split(/[+\-*/]/).pop()?.includes('.') || !expression || operators.includes(lastChar))) {
+      return; 
     } else {
       setExpression(prev => prev + key);
     }
     setError('');
   };
-  
-  useEffect(() => {
-    if (isResultShown) return;
-    const result = evaluateExpression(expression);
-    if (result) {
-        setCreditAmount(result);
-    }
-  }, [expression, isResultShown]);
-
 
   const handleBackspace = () => {
-      if (isResultShown) {
-        setExpression('');
-        setCreditAmount('');
-        setIsResultShown(false);
-      } else {
-        setExpression(prev => prev.slice(0, -1));
-      }
+    setExpression(prev => prev.slice(0, -1));
   };
   
-  const handleShowResult = () => {
-      if (expression && creditAmount) {
-          setIsResultShown(true);
-      }
-  }
-
   const proceedToCustomerSelection = () => {
     const finalAmount = parseFloat(creditAmount);
     if (isNaN(finalAmount) || finalAmount <= 0) {
@@ -418,17 +419,9 @@ export default function ShopkeeperDashboardPage() {
       setSelectedCustomer(null);
       setCreditAmount('');
       setExpression('');
-      setIsResultShown(false);
       setError('');
       setActiveRequest(null);
       setIsRequestingCredit(false);
-  }
-  
-  const getDisplayValue = () => {
-      if (isResultShown) {
-          return `${expression} = ${creditAmount}`;
-      }
-      return `₹ ${expression || '0'}`;
   }
 
   const renderEnterAmount = () => {
@@ -441,7 +434,7 @@ export default function ShopkeeperDashboardPage() {
             <div className="neu-input" style={{ marginBottom: '20px', padding: '0 15px' }}>
                 <input
                     type="text"
-                    value={getDisplayValue()}
+                    value={displayValue}
                     readOnly
                     placeholder="₹ 0"
                     style={{
@@ -449,7 +442,7 @@ export default function ShopkeeperDashboardPage() {
                         border: 'none',
                         outline: 'none',
                         textAlign: 'center',
-                        fontSize: isResultShown ? '1.8rem' : '2.5rem',
+                        fontSize: displayValue.includes('=') ? '1.8rem' : '2.5rem',
                         fontWeight: '700',
                         color: '#3d4468',
                         width: '100%',
@@ -472,7 +465,7 @@ export default function ShopkeeperDashboardPage() {
                     );
                 })}
             </div>
-
+            
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px', marginBottom: '20px' }}>
                 {['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0'].map(key => (
                 <button key={key} className="neu-button" onClick={() => handleKeyPress(key)} style={{ margin: 0, height: '60px' }}>{key}</button>
@@ -483,11 +476,10 @@ export default function ShopkeeperDashboardPage() {
              <div style={{display: 'flex', gap: '15px'}}>
                 <button 
                     className="neu-button"
-                    onClick={handleShowResult}
-                    disabled={isResultShown || !creditAmount}
+                    onClick={resetCreditFlow}
                     style={{ margin: 0, flex: 1, height: '60px' }}
                 >
-                    =
+                    C
                 </button>
                 <button 
                     className="neu-button"
