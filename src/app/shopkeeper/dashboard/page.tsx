@@ -1,33 +1,133 @@
 'use client';
 
-import { useFirebase } from '@/firebase/client-provider';
-import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { useFirebase } from '@/firebase/client-provider';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import CustomerCard from '@/app/shopkeeper/components/CustomerCard';
+import { Search, Users } from 'lucide-react';
+import Link from 'next/link';
+
+interface UserProfile {
+  uid: string;
+  displayName: string;
+  email: string;
+  photoURL?: string | null;
+}
 
 export default function ShopkeeperDashboardPage() {
-  const { auth } = useFirebase();
-  const [user, setUser] = useState<any>(null);
+  const { auth, firestore } = useFirebase();
+  const [allCustomers, setAllCustomers] = useState<UserProfile[]>([]);
+  const [filteredCustomers, setFilteredCustomers] = useState<UserProfile[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [shopkeeperProfile, setShopkeeperProfile] = useState<any>(null);
 
   useEffect(() => {
-    if (auth.currentUser) {
-        setUser(auth.currentUser);
+    if (!auth.currentUser || !firestore) {
+      setLoading(false);
+      return;
     }
-  }, [auth]);
+
+    const fetchShopkeeperAndCustomers = async () => {
+      try {
+        const shopkeeperRef = doc(firestore, 'shopkeepers', auth.currentUser.uid);
+        const shopkeeperSnap = await getDoc(shopkeeperRef);
+
+        if (shopkeeperSnap.exists()) {
+          const shopkeeperData = shopkeeperSnap.data();
+          setShopkeeperProfile(shopkeeperData);
+          const customerIds = shopkeeperData.connections || [];
+          
+          if (customerIds.length > 0) {
+            const customersRef = collection(firestore, 'customers');
+            const q = query(customersRef, where('__name__', 'in', customerIds));
+            const customersSnap = await getDocs(q);
+            
+            const customerProfiles = customersSnap.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile));
+
+            setAllCustomers(customerProfiles);
+            setFilteredCustomers(customerProfiles);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchShopkeeperAndCustomers();
+  }, [auth.currentUser, firestore]);
+
+  useEffect(() => {
+    if (searchTerm === '') {
+      setFilteredCustomers(allCustomers);
+    } else {
+      const lowercasedFilter = searchTerm.toLowerCase();
+      const filtered = allCustomers.filter(customer =>
+        customer.displayName.toLowerCase().includes(lowercasedFilter)
+      );
+      setFilteredCustomers(filtered);
+    }
+  }, [searchTerm, allCustomers]);
 
   return (
-    <div className="dashboard-container">
-      <div className="login-card" style={{marginTop: '2rem'}}>
-        <div className="login-header">
-           <h2 style={{ fontSize: '1.75rem' }}>Welcome, Shopkeeper!</h2>
-           <p>This is your dashboard. You can manage your activities here.</p>
-        </div>
-       
-        <div style={{textAlign: 'center', wordBreak: 'break-all'}}>
-            <p><strong>Email:</strong> {user?.email}</p>
-            <p><strong>UID:</strong> {user?.uid}</p>
-        </div>
+    <main className="dashboard-main-content" style={{padding: '20px'}}>
+        <div className="login-card" style={{ maxWidth: '600px', margin: 'auto', marginBottom: '30px' }}>
+             <div style={{ display: 'flex', gap: '20px', alignItems: 'stretch' }}>
+                <div className="form-group" style={{ flexGrow: 1, margin: 0 }}>
+                    <div className="neu-input">
+                    <input
+                        type="text"
+                        id="search"
+                        placeholder=" "
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                    <label htmlFor="search">Search by Name</label>
+                    <div className="input-icon"><Search /></div>
+                    </div>
+                </div>
 
-      </div>
-    </div>
+                <div className="token-balance" style={{ margin: 0, padding: '10px 20px', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: '100px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Users size={20} />
+                        <span style={{ fontSize: '1.5rem', fontWeight: 700 }}>{allCustomers.length}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+      
+        {loading ? (
+            <div className="loading-container" style={{minHeight: '200px'}}>
+                <div className="neu-spinner"></div>
+                <p style={{marginTop: '20px', color: '#6c7293'}}>Loading customers...</p>
+            </div>
+        ) : allCustomers.length === 0 ? (
+            <div className="login-card" style={{maxWidth: '600px', margin: 'auto', textAlign: 'center'}}>
+                <h2 style={{color: '#3d4468', fontSize: '1.5rem', fontWeight: '600', marginBottom: '15px'}}>No Customers Connected</h2>
+                <p style={{color: '#9499b7', marginBottom: '30px'}}>Share your code with customers to connect with them. Your code is:</p>
+                <div className="token-balance" style={{padding: '15px', height: 'auto', flexDirection: 'column', gap: '5px'}}>
+                    <span style={{fontSize: '1rem', color: '#6c7293', fontWeight: 500}}>Your Code</span>
+                    <span style={{fontSize: '1.75rem', fontWeight: 'bold', letterSpacing: '2px'}}>{shopkeeperProfile?.shopkeeperCode || '...'}</span>
+                </div>
+            </div>
+        ) : filteredCustomers.length === 0 ? (
+            <p style={{ color: '#6c7293', textAlign: 'center', marginTop: '1rem' }}>
+            No customers found matching your search.
+            </p>
+        ) : (
+            <div style={{ maxWidth: '600px', margin: 'auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {filteredCustomers.map(customer => (
+                    <Link key={customer.uid} href={`/shopkeeper/customer/${customer.uid}`} style={{textDecoration: 'none'}}>
+                        <CustomerCard 
+                            customer={customer} 
+                            balance={shopkeeperProfile?.balances?.[customer.uid] || 0}
+                        />
+                    </Link>
+                ))}
+            </div>
+        )}
+    </main>
   );
 }
