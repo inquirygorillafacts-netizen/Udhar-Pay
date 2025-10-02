@@ -667,6 +667,11 @@ body {
     left: 25px;
 }
 
+.neu-toggle-switch.disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
 @keyframes gentleShake {
     0%, 100% { transform: translateX(0); }
     25% { transform: translateX(-3px); }

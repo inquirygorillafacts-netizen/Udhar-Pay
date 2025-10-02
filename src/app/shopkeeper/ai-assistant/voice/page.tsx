@@ -5,7 +5,7 @@ import { Loader, Bot, Volume2, MessageSquare, Waves, Shuffle } from 'lucide-reac
 import { askAiAssistant } from '@/ai/flows/assistant-flow';
 import TextAssistantModal from '@/components/assistant/TextAssistantModal';
 
-type Status = 'greeting' | 'idle' | 'listening' | 'thinking' | 'speaking';
+type Status = 'greeting' | 'idle' | 'listening' | 'thinking' | 'speaking' | 'off';
 
 const availableVoices = [
     { voiceId: 'it-IT-lorenzo', style: 'Conversational', multiNativeLocale: 'hi-IN' },
@@ -21,6 +21,8 @@ const SpeechRecognition =
 
 export default function VoiceAssistantPage() {
     const [status, setStatus] = useState<Status>('greeting');
+    const [isAssistantOn, setIsAssistantOn] = useState(false);
+    const [isGreetingComplete, setIsGreetingComplete] = useState(false);
     const [aiResponse, setAiResponse] = useState('');
     const [isTextModalOpen, setIsTextModalOpen] = useState(false);
     const [currentVoiceIndex, setCurrentVoiceIndex] = useState(0);
@@ -30,7 +32,7 @@ export default function VoiceAssistantPage() {
     const audioRef = useRef<HTMLAudioElement | null>(null);
 
     const currentVoiceId = availableVoices[currentVoiceIndex].voiceId;
-
+    
     const processQuery = useCallback(async (text: string) => {
         setStatus('thinking');
         setAiResponse('');
@@ -66,11 +68,20 @@ export default function VoiceAssistantPage() {
           setStatus('idle');
         }
     }, [currentVoiceId]);
+    
+    const stopListening = () => {
+        if (recognitionRef.current) {
+            recognitionRef.current.stop();
+            recognitionRef.current = null;
+        }
+        setStatus('off');
+    }
 
     const startListening = useCallback(() => {
         if (!SpeechRecognition) {
             alert("Sorry, your browser does not support voice recognition.");
-            setStatus('idle');
+            setStatus('off');
+            setIsAssistantOn(false);
             return;
         }
         if (recognitionRef.current) {
@@ -104,45 +115,33 @@ export default function VoiceAssistantPage() {
     
         recognition.onend = () => {
           recognitionRef.current = null;
-          if (status === 'listening') {
+          // Only go to idle if assistant is still supposed to be on
+          if (isAssistantOn) {
             setStatus('idle');
           }
         };
         
         recognition.start();
         recognitionRef.current = recognition;
-    }, [processQuery, status]);
+    }, [processQuery, isAssistantOn]);
 
-    const playGreetingAndListen = useCallback(() => {
-        setStatus('speaking');
-        const greetingAudio = new Audio("/jarvis.mp3");
-        audioRef.current = greetingAudio;
-
-        greetingAudio.onended = () => {
-            startListening();
-        };
-
-        greetingAudio.play().catch(e => {
-            // This is a common browser restriction. We'll just log it and start listening.
-            if ((e as Error).name === 'NotAllowedError') {
-                console.log("Greeting audio blocked by browser. Starting to listen directly.");
-            } else {
-                console.error("Error playing greeting audio.", e);
-            }
-            // If audio fails to play for any reason, go straight to listening.
-            startListening();
-        });
-    }, [startListening]);
 
     useEffect(() => {
         const hasSeenIntro = localStorage.getItem('hasSeenAiIntro');
-        if (hasSeenIntro === 'true') {
+        if (hasSeenIntro) {
             setShowIntroVideo(false);
-            playGreetingAndListen();
+            setStatus('greeting');
+            const greetingAudio = new Audio("/jarvis.mp3");
+            audioRef.current = greetingAudio;
+            greetingAudio.play().catch(e => console.log("Greeting audio autoplay blocked by browser."));
+            greetingAudio.onended = () => {
+                setIsGreetingComplete(true);
+                setStatus('off');
+            };
         } else {
             setShowIntroVideo(true);
         }
-
+        
         return () => {
             if (audioRef.current) {
                 audioRef.current.pause();
@@ -150,29 +149,46 @@ export default function VoiceAssistantPage() {
             }
             if (recognitionRef.current) {
                 recognitionRef.current.abort();
-                recognitionRef.current = null;
             }
-        };
+        }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [playGreetingAndListen]);
+    }, []);
 
+    const handleAIToggle = () => {
+        const newIsOn = !isAssistantOn;
+        setIsAssistantOn(newIsOn);
+        if (newIsOn) {
+            setStatus('idle');
+            startListening();
+        } else {
+            stopListening();
+        }
+    }
 
     const handleVideoEnd = () => {
         localStorage.setItem('hasSeenAiIntro', 'true');
         setShowIntroVideo(false);
-        playGreetingAndListen();
+        setStatus('greeting');
+        const greetingAudio = new Audio("/jarvis.mp3");
+        audioRef.current = greetingAudio;
+        greetingAudio.play().catch(e => console.log("Greeting audio autoplay blocked by browser."));
+        greetingAudio.onended = () => {
+            setIsGreetingComplete(true);
+            setStatus('off');
+        };
     };
 
     const handleVoiceSwitch = () => {
         setCurrentVoiceIndex((prevIndex) => (prevIndex + 1) % availableVoices.length);
     };
-
+    
     const getStatusIcon = () => {
         switch (status) {
             case 'listening': return <Waves size={24} className="text-blue-500" />;
             case 'thinking': return <Loader size={24} className="animate-spin" />;
             case 'speaking': return <Volume2 size={24} className="text-green-500" />;
             case 'greeting': return <Bot size={24} className="animate-pulse" />;
+            case 'off': return <Bot size={24} className="text-red-500" />;
             case 'idle':
             default: return <Bot size={24} />;
         }
@@ -209,7 +225,7 @@ export default function VoiceAssistantPage() {
                         <div className="icon-inner" style={{width: '50px', height: '50px'}}>🤖</div>
                     </div>
                     <h1>Voice Assistant</h1>
-                    <p>I'm listening...</p>
+                    <p>{isAssistantOn ? "I'm listening..." : "Assistant is off"}</p>
                 </header>
 
                 <div style={{textAlign: 'center', marginBottom: '30px'}}>
@@ -233,6 +249,18 @@ export default function VoiceAssistantPage() {
                         <span>{status}</span>
                     </div>
                 </div>
+
+                <div className="setting-section" style={{marginBottom: '30px'}}>
+                    <div className="neu-input" style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '15px 20px'}}>
+                        <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}><Bot size={20} style={{color: '#6c7293'}} /><span>AI Assistant</span></div>
+                        <div 
+                            className={`neu-toggle-switch ${isAssistantOn ? 'active' : ''} ${!isGreetingComplete ? 'disabled' : ''}`} 
+                            onClick={isGreetingComplete ? handleAIToggle : undefined}
+                        >
+                            <div className="neu-toggle-handle"></div>
+                        </div>
+                    </div>
+                </div>
                 
                  {aiResponse && (
                     <div style={{marginBottom: '30px', padding: '20px', background: '#e0e5ec', borderRadius: '15px', boxShadow: 'inset 5px 5px 10px #bec3cf, inset -5px -5px 10px #ffffff'}}>
@@ -244,10 +272,6 @@ export default function VoiceAssistantPage() {
                         </div>
                     </div>
                  )}
-
-                 <div style={{display: 'flex', justifyContent: 'center', marginBottom: '10px', minHeight: '80px'}}>
-                    {/* The microphone button is removed for automatic operation */}
-                </div>
             </div>
         </main>
 
