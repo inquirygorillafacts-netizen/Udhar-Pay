@@ -86,9 +86,50 @@ export default function CustomerDetailPage() {
     };
 
   }, [customerId, firestore, auth.currentUser, router]);
+
+  const evaluateExpression = (expr: string): string => {
+    // Sanitize the expression: allow numbers, operators, and decimal points.
+    const sanitizedExpr = expr.replace(/[^0-9+\-*/.]/g, '');
+    
+    // Avoid evaluation of unsafe expressions
+    if (sanitizedExpr !== expr) {
+      return '';
+    }
+    
+    // Do not evaluate if the expression is empty or ends with an operator
+    if (!sanitizedExpr || /[+\-*/.]$/.test(sanitizedExpr)) {
+      return sanitizedExpr;
+    }
+
+    try {
+      // Using Function constructor is safer than eval()
+      const result = new Function(`return ${sanitizedExpr}`)();
+      if (typeof result === 'number' && !isNaN(result)) {
+        // Round to 2 decimal places if it's a float
+        return String(Math.round(result * 100) / 100);
+      }
+      return sanitizedExpr;
+    } catch (error) {
+      // If there's an error in evaluation, return the original sanitized expression
+      return sanitizedExpr;
+    }
+  };
+
+  const handleAmountChange = (value: string) => {
+    // Allow users to type expressions
+    setAmount(value);
+  };
+  
+  const handleAmountBlur = () => {
+      const evaluatedValue = evaluateExpression(amount);
+      setAmount(evaluatedValue);
+  }
   
   const handleTransaction = async (type: 'credit' | 'payment') => {
-    const transactionAmount = parseFloat(amount);
+    // Ensure the final value is evaluated before processing
+    const finalAmountStr = evaluateExpression(amount);
+    const transactionAmount = parseFloat(finalAmountStr);
+
     if (isNaN(transactionAmount) || transactionAmount <= 0) {
       alert("Please enter a valid amount.");
       return;
@@ -193,13 +234,14 @@ export default function CustomerDetailPage() {
                 <div className="neu-input">
                     <div className="input-icon"><IndianRupee /></div>
                     <input
-                        type="number"
+                        type="text"
                         placeholder=" "
                         value={amount}
-                        onChange={(e) => setAmount(e.target.value)}
+                        onChange={(e) => handleAmountChange(e.target.value)}
+                        onBlur={handleAmountBlur}
                         style={{paddingLeft: '55px', fontSize: '1.2rem'}}
                     />
-                    <label htmlFor="amount">Enter Amount</label>
+                    <label htmlFor="amount">Enter Amount (e.g. 10+25)</label>
                 </div>
             </div>
              <div className="form-group" style={{marginBottom: '30px'}}>
@@ -265,3 +307,4 @@ export default function CustomerDetailPage() {
     </div>
   );
 }
+
