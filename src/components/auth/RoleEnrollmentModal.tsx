@@ -4,7 +4,7 @@ import { useState, useRef } from 'react';
 import { useFirebase } from '@/firebase/client-provider';
 import { doc, setDoc } from 'firebase/firestore';
 import { generateUniqueCustomerCode, generateUniqueShopkeeperCode } from '@/lib/code-helpers';
-import { Camera, User, Phone, Store, ArrowRight, Info, CheckCircle } from 'lucide-react';
+import { Camera, User, Phone, Store, ArrowRight, Info, CheckCircle, Check } from 'lucide-react';
 import axios from 'axios';
 
 interface RoleEnrollmentModalProps {
@@ -138,14 +138,14 @@ export default function RoleEnrollmentModal({ role, onClose, onSuccess }: RoleEn
                     <div>
                         <div style={{ padding: '15px 20px', background: '#e0e5ec', borderRadius: '15px', boxShadow: 'inset 5px 5px 10px #bec3cf, inset -5px -5px 10px #ffffff', marginBottom: '30px' }}>
                             <p style={{ color: '#6c7293', margin: 0, fontSize: '14px', lineHeight: 1.7 }}>
-                                आप एक नई **{roleText} प्रोफाइल** बना रहे हैं। यह आपकी मौजूदा भूमिका से अलग होगी और इसका अपना हिसाब-किताब होगा। आगे बढ़ने के लिए, आपको अपनी नई भूमिका के लिए कुछ जानकारी देनी होगी।
+                                आप एक नई <strong>{roleText} प्रोफाइल</strong> बनाने जा रहे हैं। इसका मतलब है कि आपका एक नया खाता बनेगा जो आपकी मौजूदा भूमिका से बिल्कुल अलग होगा। आगे बढ़ने के लिए हमें आपकी कुछ जानकारी चाहिए होगी।
                             </p>
                         </div>
                         <div className="remember-wrapper" style={{marginBottom: '20px'}}>
                             <input type="checkbox" id="agree" checked={agreed} onChange={() => setAgreed(!agreed)}/>
                             <label htmlFor="agree" className="checkbox-label">
                                 <div className="neu-checkbox">
-                                    <CheckCircle size={16} strokeWidth={3}/>
+                                    <Check size={16} strokeWidth={3}/>
                                 </div>
                                 I understand and agree to create a new {roleText} profile.
                             </label>
