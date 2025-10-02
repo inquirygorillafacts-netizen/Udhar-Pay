@@ -199,7 +199,7 @@ export default function CustomerDashboardPage() {
     try {
         const result = await sendConnectionRequest(firestore, auth.currentUser.uid, shopkeeperCode.toUpperCase(), userProfile.displayName);
         
-        if (result.status === 'already_connected') {
+        if (result.status === 'already_connected' && result.shopkeeper) {
              const balance = userProfile.balances?.[result.shopkeeper.id] || 0;
              setModalInfo({
                 type: 'already_connected',
@@ -284,9 +284,11 @@ export default function CustomerDashboardPage() {
                                 ₹{Math.abs(modalInfo.data.balance)}
                              </p>
                              <p style={{fontSize: '0.9rem', color: '#6c7293', margin: 0, fontWeight: 500}}>Current Balance</p>
-                             <button className="neu-button" onClick={() => router.push(`/customer/payment/${modalInfo.data.id}`)} style={{marginTop: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'}}>
-                               Go to Transactions <ArrowRight size={18}/>
-                            </button>
+                            <Link href={`/customer/payment/${modalInfo.data.id}`}>
+                                <button className="neu-button" style={{marginTop: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'}}>
+                                    Go to Transactions <ArrowRight size={18}/>
+                                </button>
+                            </Link>
                         </div>
                     )}
                     <button className="neu-button" style={{width: '100%', margin: 0}} onClick={() => setModalInfo(null)}>
@@ -366,11 +368,13 @@ export default function CustomerDashboardPage() {
                     </h2>
                      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                           {connectedShopkeepers.map(shopkeeper => (
-                            <Link key={shopkeeper.uid} href={`/customer/payment/${shopkeeper.uid}`}>
-                              <ShopkeeperCard 
-                                shopkeeper={shopkeeper}
-                                balance={userProfile.balances?.[shopkeeper.uid] || 0}
-                              />
+                            <Link key={shopkeeper.uid} href={`/customer/payment/${shopkeeper.uid}`} legacyBehavior>
+                              <a style={{textDecoration: 'none'}}>
+                                <ShopkeeperCard 
+                                  shopkeeper={shopkeeper}
+                                  balance={userProfile.balances?.[shopkeeper.uid] || 0}
+                                />
+                              </a>
                             </Link>
                           ))}
                       </div>
