@@ -1,4 +1,4 @@
-import { doc, writeBatch, type Firestore, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc, getDoc } from 'firebase/firestore';
+import { doc, writeBatch, type Firestore, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc, getDoc, arrayUnion } from 'firebase/firestore';
 
 interface ConnectionRequestPayload {
   requestId: string;
@@ -7,13 +7,24 @@ interface ConnectionRequestPayload {
 }
 
 export const sendConnectionRequest = async (firestore: Firestore, customerId: string, shopkeeperId: string, customerName: string) => {
-    // Check if a pending or approved request already exists
+    // 1. Find shopkeeper by their unique code
+    const shopkeepersRef = collection(firestore, 'shopkeepers');
+    const qShopkeeper = query(shopkeepersRef, where('shopkeeperCode', '==', shopkeeperId.toUpperCase()));
+    const shopkeeperSnapshot = await getDocs(qShopkeeper);
+
+    if (shopkeeperSnapshot.empty) {
+        throw new Error('No shopkeeper found with this code. Please check the code and try again.');
+    }
+    const shopkeeperDoc = shopkeeperSnapshot.docs[0];
+    const actualShopkeeperId = shopkeeperDoc.id;
+
+    // 2. Check if a connection or pending request already exists
     const requestsRef = collection(firestore, 'connectionRequests');
-    const q = query(requestsRef, 
+    const qExisting = query(requestsRef, 
         where('customerId', '==', customerId), 
-        where('shopkeeperId', '==', shopkeeperId),
+        where('shopkeeperId', '==', actualShopkeeperId),
     );
-    const existingRequestSnapshot = await getDocs(q);
+    const existingRequestSnapshot = await getDocs(qExisting);
     
     if (!existingRequestSnapshot.empty) {
         const existingRequest = existingRequestSnapshot.docs[0].data();
@@ -24,9 +35,10 @@ export const sendConnectionRequest = async (firestore: Firestore, customerId: st
         }
     }
     
+    // 3. Create the new connection request
     await addDoc(requestsRef, {
       customerId,
-      shopkeeperId,
+      shopkeeperId: actualShopkeeperId,
       customerName: customerName || 'A new customer',
       status: 'pending',
       createdAt: serverTimestamp()
@@ -45,23 +57,16 @@ export const acceptConnectionRequest = async (firestore: Firestore, payload: Con
 
   // Add customerId to shopkeeper's connections array
   const shopkeeperRef = doc(firestore, 'shopkeepers', shopkeeperId);
-  const shopkeeperDoc = await getDoc(shopkeeperRef);
-  const shopkeeperConnections = shopkeeperDoc.data()?.connections || [];
-  if (!shopkeeperConnections.includes(customerId)) {
-    batch.update(shopkeeperRef, {
-        connections: [...shopkeeperConnections, customerId]
-    });
-  }
+  batch.update(shopkeeperRef, {
+      connections: arrayUnion(customerId)
+  });
+
 
   // Add shopkeeperId to customer's connections array
   const customerRef = doc(firestore, 'customers', customerId);
-  const customerDoc = await getDoc(customerRef);
-  const customerConnections = customerDoc.data()?.connections || [];
-   if (!customerConnections.includes(shopkeeperId)) {
-      batch.update(customerRef, {
-        connections: [...customerConnections, shopkeeperId]
-      });
-   }
+  batch.update(customerRef, {
+      connections: arrayUnion(shopkeeperId)
+  });
 
   await batch.commit();
 };

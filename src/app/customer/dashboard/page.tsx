@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
-import { doc, onSnapshot, collection, query, where, getDocs, writeBatch, updateDoc, getDoc } from 'firebase/firestore';
+import { doc, onSnapshot, collection, query, where, getDocs, writeBatch, updateDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import Link from 'next/link';
 import { Paperclip, X, User, Check, AlertCircle, Send } from 'lucide-react';
 import ShopkeeperCard from '@/app/customer/components/ShopkeeperCard';
@@ -154,7 +154,7 @@ export default function CustomerDashboardPage() {
                   notes: `Credit approved by customer`,
                   shopkeeperId: request.shopkeeperId,
                   customerId: auth.currentUser.uid,
-                  timestamp: new Date(),
+                  timestamp: serverTimestamp(),
               });
               
               await batch.commit();
@@ -185,30 +185,8 @@ export default function CustomerDashboardPage() {
 
     setIsConnecting(true);
     try {
-        const shopkeepersRef = collection(firestore, 'shopkeepers');
-        const q = query(shopkeepersRef, where('shopkeeperCode', '==', shopkeeperCode.toUpperCase()));
-        const querySnapshot = await getDocs(q);
-
-        if (querySnapshot.empty) {
-            setModalMessage('No shopkeeper found with this code. Please check the code and try again.');
-            setIsConnecting(false);
-            return;
-        }
-
-        const shopkeeperDoc = querySnapshot.docs[0];
-        const shopkeeperId = shopkeeperDoc.id;
-        const shopkeeperName = shopkeeperDoc.data().displayName;
-
-        if (userProfile.connections?.includes(shopkeeperId)) {
-            setModalMessage(`You are already connected to ${shopkeeperName}.`);
-            setIsConnecting(false);
-            setShopkeeperCode('');
-            return;
-        }
-
-        await sendConnectionRequest(firestore, auth.currentUser.uid, shopkeeperId, userProfile.displayName);
-        
-        setModalMessage(`Connection request sent to ${shopkeeperName}! You will be notified upon approval.`);
+        await sendConnectionRequest(firestore, auth.currentUser.uid, shopkeeperCode.toUpperCase(), userProfile.displayName);
+        setModalMessage(`Connection request sent! You will be notified upon approval.`);
         setShopkeeperCode('');
 
     } catch (error: any) {

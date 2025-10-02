@@ -149,9 +149,6 @@ export default function ShopkeeperDashboardPage() {
       if (docSnap.exists()) {
         setActiveRequest({ id: docSnap.id, ...docSnap.data() });
       } else {
-        // The document might have been deleted or the component is re-rendering
-        // after a rejection/approval that clears activeRequest.
-        // To be safe, we can clear it here too.
         setActiveRequest(null);
       }
     });
