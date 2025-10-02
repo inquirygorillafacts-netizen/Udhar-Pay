@@ -330,10 +330,9 @@ export default function ShopkeeperDashboardPage() {
   }
 
   const handleKeyPress = (key: string) => {
-    if (creditAmount.length >= 10) return;
+    if (creditAmount.length >= 15) return; // Increased limit
     if (key === '.' && creditAmount.includes('.')) return;
     
-    // Check if the last char is an operator
     const lastChar = creditAmount.slice(-1);
     const operators = ['+', '-', '*', '/'];
 
@@ -345,13 +344,6 @@ export default function ShopkeeperDashboardPage() {
     }
     setError('');
   };
-  
-  const handleQuickAdd = (amountToAdd: number) => {
-      const currentAmount = parseFloat(evaluateExpression(creditAmount)) || 0;
-      const newAmount = currentAmount + amountToAdd;
-      setCreditAmount(String(newAmount));
-  }
-
 
   const handleBackspace = () => {
       setCreditAmount(prev => prev.slice(0, -1));
@@ -444,11 +436,15 @@ export default function ShopkeeperDashboardPage() {
             {error && <p style={{ color: '#ff3b5c', textAlign: 'center', marginBottom: '15px', animation: 'gentleShake 0.5s' }}>{error}</p>}
             
             <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
-                {[10, 20, 50, 100].map(amount => (
-                    <button key={amount} className="neu-button" onClick={() => handleQuickAdd(amount)} style={{ margin: 0, padding: '10px', height: 'auto', flex: 1, fontSize: '14px' }}>
-                        +{amount}
-                    </button>
-                ))}
+                {['+', '-', '×', '÷'].map((op, index) => {
+                    const operatorMap: { [key: string]: string } = { '×': '*', '÷': '/' };
+                    const actualOperator = operatorMap[op] || op;
+                    return (
+                        <button key={op} className="neu-button" onClick={() => handleKeyPress(actualOperator)} style={{ margin: 0, padding: '10px', height: 'auto', flex: 1, fontSize: '18px', fontWeight: 'bold' }}>
+                            {op}
+                        </button>
+                    );
+                })}
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px', marginBottom: '20px' }}>
