@@ -56,11 +56,13 @@ export default function ConnectPage() {
   }, [shopkeeperId, firestore, auth.currentUser, router, toast]);
 
   const handleSendRequest = async () => {
-    if (isProcessing || !auth.currentUser || !firestore) return;
+    if (isProcessing || !auth.currentUser || !firestore || !shopkeeper) return;
     setIsProcessing(true);
 
     try {
         const requestsRef = collection(firestore, 'connectionRequests');
+        
+        // This query checks for any existing pending requests between the two users.
         const qExisting = query(requestsRef, 
             where('customerId', '==', auth.currentUser.uid), 
             where('shopkeeperId', '==', shopkeeperId),
@@ -70,10 +72,12 @@ export default function ConnectPage() {
         
         if (!existingRequestSnapshot.empty) {
             toast({ title: "Request Already Sent", description: "A connection request is already pending approval." });
-            setRequestSent(true);
+            setRequestSent(true); // Visually confirm that a request is pending.
             return;
         }
 
+        // Create the new connection request.
+        // This request object is IDENTICAL to the one created via manual code entry.
         await addDoc(requestsRef, {
             customerId: auth.currentUser.uid,
             shopkeeperId: shopkeeperId,
@@ -85,6 +89,7 @@ export default function ConnectPage() {
         setRequestSent(true);
         toast({ title: "Request Sent!", description: `Your connection request has been sent to ${shopkeeper?.displayName}.` });
 
+        // Redirect user to dashboard after a short delay
         setTimeout(() => {
             router.push('/customer/dashboard');
         }, 2000);
