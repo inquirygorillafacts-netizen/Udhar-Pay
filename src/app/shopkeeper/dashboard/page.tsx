@@ -3,9 +3,9 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
-import { doc, onSnapshot, collection, query, where, getDocs, writeBatch, addDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { doc, onSnapshot, collection, query, where, getDocs, addDoc, serverTimestamp, DocumentData } from 'firebase/firestore';
 import Link from 'next/link';
-import { MessageSquare, X, Check, ArrowLeft, ArrowRight, QrCode, Share2, RefreshCw, User as UsersIcon } from 'lucide-react';
+import { MessageSquare, X, Check, ArrowLeft, ArrowRight, QrCode, Share2, RefreshCw, User as UsersIcon, CheckCircle, XCircle } from 'lucide-react';
 import { acceptConnectionRequest, rejectConnectionRequest } from '@/lib/connections';
 import CustomerCard from '@/app/shopkeeper/components/CustomerCard';
 import QRCode from "react-qr-code";
@@ -37,10 +37,17 @@ interface ShopkeeperNotification {
     timestamp: Date;
 }
 
-// Redefined for this page's context
 interface CustomerForSelection extends UserProfile {
     balance: number;
 }
+
+type CreditRequestStatus = 'pending' | 'approved' | 'rejected';
+
+interface ActiveCreditRequest extends DocumentData {
+    id: string;
+    status: CreditRequestStatus;
+}
+
 
 export default function ShopkeeperDashboardPage() {
   const { auth, firestore } = useFirebase();
@@ -61,6 +68,7 @@ export default function ShopkeeperDashboardPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerForSelection | null>(null);
   const [creditAmount, setCreditAmount] = useState('');
   const [isRequestingCredit, setIsRequestingCredit] = useState(false);
+  const [activeRequest, setActiveRequest] = useState<ActiveCreditRequest | null>(null);
   const [error, setError] = useState('');
   const [loadingCustomers, setLoadingCustomers] = useState(true);
   
@@ -117,30 +125,6 @@ export default function ShopkeeperDashboardPage() {
         setLoadingProfile(false);
     });
 
-    // Fetch connection requests & listen for credit request status changes
-    const requestsRef = collection(firestore, 'creditRequests');
-    const qCreditRequests = query(requestsRef, where('shopkeeperId', '==', auth.currentUser.uid));
-    
-    const unsubscribeCreditRequests = onSnapshot(qCreditRequests, (querySnapshot) => {
-      querySnapshot.docChanges().forEach((change) => {
-        if (change.type === "modified") {
-          const req = change.doc.data();
-          if (req.status === 'approved' || req.status === 'rejected') {
-            const alreadyNotified = notifications.some(n => n.id === change.doc.id);
-            if (!alreadyNotified) {
-              const newNotification = {
-                  id: change.doc.id,
-                  message: `${req.customerName} has ${req.status} your credit request of ₹${req.amount}.`,
-                  type: req.status === 'approved' ? 'success' : 'error',
-                  timestamp: new Date()
-              };
-              setNotifications(prev => [newNotification, ...prev].sort((a,b) => b.timestamp.getTime() - a.timestamp.getTime()));
-            }
-          }
-        }
-      });
-    });
-
     const connectionsRef = collection(firestore, 'connectionRequests');
     const qConnections = query(connectionsRef, where('shopkeeperId', '==', auth.currentUser.uid), where('status', '==', 'pending'));
     
@@ -158,9 +142,45 @@ export default function ShopkeeperDashboardPage() {
     return () => {
       unsubscribeProfile();
       unsubscribeConnections();
-      unsubscribeCreditRequests();
     };
-  }, [auth.currentUser, firestore, notifications]);
+  }, [auth.currentUser, firestore]);
+
+  // Separate effect for credit request notifications and active request tracking
+  useEffect(() => {
+    if (!auth.currentUser || !firestore) return;
+    
+    const qCreditRequests = query(collection(firestore, 'creditRequests'), where('shopkeeperId', '==', auth.currentUser.uid));
+    const unsubscribeCreditRequests = onSnapshot(qCreditRequests, (querySnapshot) => {
+        querySnapshot.docChanges().forEach((change) => {
+            if (change.type === "modified") {
+                const req = change.doc.data();
+                
+                // Update active request status for real-time tracking modal
+                if (activeRequest && activeRequest.id === change.doc.id) {
+                    setActiveRequest({ id: change.doc.id, ...req });
+                }
+
+                // Add to notifications list
+                if (req.status === 'approved' || req.status === 'rejected') {
+                    const alreadyNotified = notifications.some(n => n.id === change.doc.id);
+                    if (!alreadyNotified) {
+                        const newNotification = {
+                            id: change.doc.id,
+                            message: `${req.customerName} has ${req.status} your credit request of ₹${req.amount}.`,
+                            type: req.status === 'approved' ? 'success' : 'error' as 'success' | 'error',
+                            timestamp: new Date()
+                        };
+                        setNotifications(prev => [newNotification, ...prev].sort((a,b) => b.timestamp.getTime() - a.timestamp.getTime()));
+                    }
+                }
+            }
+        });
+    });
+
+    return () => unsubscribeCreditRequests();
+
+  }, [auth.currentUser, firestore, notifications, activeRequest]);
+
 
   // Effect for filtering customers
   useEffect(() => {
@@ -293,7 +313,7 @@ export default function ShopkeeperDashboardPage() {
 
       try {
           const creditRequestsRef = collection(firestore, 'creditRequests');
-          await addDoc(creditRequestsRef, {
+          const newRequestRef = await addDoc(creditRequestsRef, {
               amount: amount,
               customerId: customer.uid,
               customerName: customer.displayName,
@@ -303,6 +323,7 @@ export default function ShopkeeperDashboardPage() {
               createdAt: serverTimestamp(),
           });
           
+          setActiveRequest({ id: newRequestRef.id, status: 'pending' });
           setStep('success');
 
       } catch (error) {
@@ -318,6 +339,7 @@ export default function ShopkeeperDashboardPage() {
       setSelectedCustomer(null);
       setCreditAmount('');
       setError('');
+      setActiveRequest(null);
       setIsRequestingCredit(false);
   }
 
@@ -413,19 +435,59 @@ export default function ShopkeeperDashboardPage() {
   );
 
   const renderSuccess = () => {
-    if (!selectedCustomer) return null;
+    if (!selectedCustomer || !activeRequest) return null;
+
+    const getStatusColor = (status: CreditRequestStatus) => {
+        if (status === 'approved') return '#00c896'; // green
+        if (status === 'rejected') return '#ff3b5c'; // red
+        return '#6c7293'; // grey
+    }
+    
+    const status = activeRequest.status;
+    const isPending = status === 'pending';
+    const isApproved = status === 'approved';
+    const isRejected = status === 'rejected';
+
     return (
-        <div className="login-card" style={{ maxWidth: '450px', margin: 'auto', textAlign: 'center' }}>
-            <div className="neu-icon" style={{background: '#00c896', color: 'white', boxShadow: '8px 8px 20px #b0f0df, -8px -8px 20px #ffffff', marginBottom: '30px', width: '100px', height: '100px'}}>
-                <Check size={50} />
+        <div className="modal-overlay">
+            <div className="login-card modal-content" style={{maxWidth: '480px'}} onClick={(e) => e.stopPropagation()}>
+                <div className="modal-header" style={{flexDirection: 'column', textAlign: 'center'}}>
+                    <h2 style={{fontSize: '1.5rem', marginBottom: '15px'}}>Request Status</h2>
+                    <div style={{width: '100%', textAlign: 'left', background: '#e0e5ec', padding: '15px 20px', borderRadius: '20px', boxShadow: 'inset 5px 5px 10px #bec3cf, inset -5px -5px 10px #ffffff'}}>
+                        <p style={{color: '#9499b7', fontSize: '13px', margin: 0}}>To: <strong style={{color: '#3d4468'}}>{selectedCustomer.displayName}</strong></p>
+                        <p style={{color: '#9499b7', fontSize: '13px', margin: 0}}>Amount: <strong style={{color: '#3d4468'}}>₹{parseFloat(creditAmount)}</strong></p>
+                    </div>
+                </div>
+
+                {/* Status Pipeline */}
+                <div style={{ padding: '30px 0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {/* Step 1: Sent */}
+                    <div style={{textAlign: 'center'}}>
+                         <div className="neu-icon" style={{width: '40px', height: '40px', margin: '0 auto 5px', background: '#00c896', color: 'white'}}><Check size={20}/></div>
+                         <p style={{fontSize: '12px', color: '#3d4468', fontWeight: 600}}>Sent</p>
+                    </div>
+                    {/* Line 1 */}
+                    <div style={{flex: 1, height: '3px', background: isPending ? '#d1d9e6' : getStatusColor(status), margin: '0 10px -15px 10px', transition: 'background 0.3s ease'}}></div>
+                    
+                    {/* Step 2: Pending */}
+                    <div style={{textAlign: 'center'}}>
+                         <div className="neu-icon" style={{width: '40px', height: '40px', margin: '0 auto 5px', background: isPending ? '#e0e5ec' : getStatusColor(status), color: isPending ? '#6c7293' : 'white', transition: 'background 0.3s ease'}}>
+                           {isPending ? <div className="neu-spinner" style={{width: '16px', height: '16px'}}></div> : isApproved ? <Check size={20}/> : <X size={20}/>}
+                         </div>
+                         <p style={{fontSize: '12px', color: '#3d4468', fontWeight: 600}}>Responded</p>
+                    </div>
+                </div>
+
+                <div style={{textAlign: 'center', minHeight: '40px'}}>
+                    {isPending && <p style={{color: '#6c7293'}}>Waiting for customer to respond...</p>}
+                    {isApproved && <p style={{color: '#00c896', fontWeight: 600}}>Customer has approved the request.</p>}
+                    {isRejected && <p style={{color: '#ff3b5c', fontWeight: 600}}>Customer has rejected the request.</p>}
+                </div>
+
+                <button className="neu-button" onClick={resetCreditFlow} style={{marginTop: '20px', width: '100%', margin: 0}}>
+                    Close
+                </button>
             </div>
-            <h2 style={{color: '#3d4468', fontSize: '1.75rem', marginBottom: '15px'}}>Request Sent!</h2>
-            <p style={{color: '#6c7293', marginBottom: '30px', fontSize: '1.1rem'}}>
-                Your credit request for <strong>₹{parseFloat(creditAmount)}</strong> has been sent to <strong>{selectedCustomer.displayName}</strong>.
-            </p>
-            <button className="neu-button" onClick={resetCreditFlow} style={{margin: 0}}>
-                Send Another Request
-            </button>
         </div>
     );
   };
