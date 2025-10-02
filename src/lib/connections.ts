@@ -15,7 +15,7 @@ interface ConnectionResult {
 }
 
 export const sendConnectionRequest = async (firestore: Firestore, customerId: string, shopkeeperIdentifier: string, customerName: string): Promise<ConnectionResult> => {
-    // 1. Find shopkeeper by their unique shopkeeperCode.
+    // 1. Find shopkeeper by their unique shopkeeperCode. The code is always stored in uppercase.
     const shopkeepersRef = collection(firestore, 'shopkeepers');
     const qShopkeeperByCode = query(shopkeepersRef, where('shopkeeperCode', '==', shopkeeperIdentifier.toUpperCase()));
     
