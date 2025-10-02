@@ -18,7 +18,7 @@ export default function InitialRoutingPage() {
     const hasSeenOnboarding = localStorage.getItem('hasSeenOnboarding');
 
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
-      if (activeRole && user) {
+      if (user && activeRole) {
         const validRoles = ['customer', 'shopkeeper', 'owner'];
         if (validRoles.includes(activeRole)) {
           try {
@@ -26,23 +26,49 @@ export default function InitialRoutingPage() {
             const userDocRef = doc(firestore, collectionName, user.uid);
             const userDoc = await getDoc(userDocRef);
 
-            if (userDoc.exists() && userDoc.data().pinEnabled && userDoc.data().pin) {
-              // User has a PIN lock enabled
-              setPinCheckData({ role: activeRole, correctPin: userDoc.data().pin });
-              setShowPinLock(true);
-              setLoading(false);
+            if (userDoc.exists()) {
+                if (userDoc.data().pinEnabled && userDoc.data().pin) {
+                    // User has a PIN lock enabled for the active role
+                    setPinCheckData({ role: activeRole, correctPin: userDoc.data().pin });
+                    setShowPinLock(true);
+                    setLoading(false);
+                } else {
+                    // No PIN lock, redirect to dashboard
+                    router.replace(`/${activeRole}/dashboard`);
+                }
             } else {
-              // No PIN lock, redirect to dashboard
-              router.replace(`/${activeRole}/dashboard`);
+                // User document for this role doesn't exist, something is wrong.
+                // Clear the bad role and send to auth.
+                localStorage.removeItem('activeRole');
+                router.replace('/auth');
             }
           } catch (error) {
             console.error("Error checking for PIN:", error);
-            // Fallback: if check fails, go to dashboard
-            router.replace(`/${activeRole}/dashboard`);
+            // Fallback: if check fails, go to dashboard but clear role first to be safe
+            localStorage.removeItem('activeRole');
+            router.replace('/auth');
           }
         } else {
+          // Invalid role in storage
           localStorage.removeItem('activeRole');
           router.replace('/auth');
+        }
+      } else if (user) {
+        // User is logged in but has no active role selected.
+        // This can happen on first login on a new device.
+        // We'll default them to the customer role if they are one, otherwise shopkeeper, else auth.
+        const customerDoc = await getDoc(doc(firestore, 'customers', user.uid));
+        if (customerDoc.exists()) {
+            localStorage.setItem('activeRole', 'customer');
+            router.replace('/customer/dashboard');
+        } else {
+            const shopkeeperDoc = await getDoc(doc(firestore, 'shopkeepers', user.uid));
+             if (shopkeeperDoc.exists()) {
+                localStorage.setItem('activeRole', 'shopkeeper');
+                router.replace('/shopkeeper/dashboard');
+             } else {
+                 router.replace('/auth');
+             }
         }
       } else if (hasSeenOnboarding) {
         router.replace('/auth');

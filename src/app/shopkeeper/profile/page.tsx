@@ -5,10 +5,9 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
-import { Camera, User, Phone, LogOut, Settings, Lock, ShieldOff, KeyRound, Store, CheckCircle, QrCode } from 'lucide-react';
+import { Camera, User, Phone, LogOut, Settings, Lock, ShieldOff, KeyRound, Store, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 import { generateUniqueCustomerCode } from '@/lib/code-helpers';
-import QRCode from 'react-qr-code';
 
 interface UserProfile {
   uid: string;
@@ -116,7 +115,6 @@ export default function ShopkeeperProfilePage() {
       
       localStorage.setItem('activeRole', newRole);
       router.push(`/${newRole}/dashboard`);
-      router.refresh(); // Refresh to load the new role's data
   };
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -289,7 +287,7 @@ export default function ShopkeeperProfilePage() {
                       <div className={`neu-button ${activeRole === 'customer' ? 'active' : ''}`} style={{flex: 1, flexDirection: 'column', height: 'auto', padding: '20px', margin: 0, border: roles.customer ? '2px solid #00c896' : '2px solid transparent'}}>
                           <User size={30} style={{marginBottom: '10px'}}/>
                           <h4 style={{fontSize: '1rem', fontWeight: 600}}>Customer</h4>
-                          {roles.customer && activeRole === 'customer' && <CheckCircle size={20} style={{color: 'white', marginTop: '10px'}} />}
+                           {activeRole === 'customer' && <CheckCircle size={20} style={{color: 'white', marginTop: '10px'}} />}
                            {!roles.customer && <p style={{fontSize: '0.7rem', color: '#9499b7', marginTop: '5px'}}>Not Enrolled</p>}
                           {roles.customer && activeRole !== 'customer' && (
                             <button onClick={() => handleRoleSwitch('customer')} className="neu-button" style={{fontSize: '0.8rem', padding: '8px 12px', width: '100%', marginTop: '15px', marginBottom: 0}}>Switch</button>
@@ -299,10 +297,10 @@ export default function ShopkeeperProfilePage() {
                           )}
                       </div>
                       {/* Shopkeeper Role Card */}
-                       <div className={`neu-button ${activeRole === 'shopkeeper' ? 'active' : ''}`} style={{flex: 1, flexDirection: 'column', height: 'auto', padding: '20px', margin: 0, border: roles.shopkeeper ? '2px solid #00c896' : '2px solid transparent'}}>
+                       <div className={`neu-button ${activeRole === 'shopkeeper' ? 'active' : ''}`} style={{flex: 1, flexDirection: 'column', height: 'auto', padding: '20px', margin: 0, border: roles.shopkeeper ? '2px solid #00c896' : '2px solid transparent', opacity: roles.shopkeeper ? 1 : 0.6, pointerEvents: roles.shopkeeper ? 'auto' : 'none' }}>
                           <Store size={30} style={{marginBottom: '10px'}}/>
                           <h4 style={{fontSize: '1rem', fontWeight: 600}}>Shopkeeper</h4>
-                          {roles.shopkeeper && activeRole === 'shopkeeper' && <CheckCircle size={20} style={{color: 'white', marginTop: '10px'}} />}
+                           {activeRole === 'shopkeeper' && <CheckCircle size={20} style={{color: 'white', marginTop: '10px'}} />}
                           {activeRole !== 'shopkeeper' && (
                             <button onClick={() => handleRoleSwitch('shopkeeper')} className="neu-button" style={{fontSize: '0.8rem', padding: '8px 12px', width: '100%', marginTop: '15px', marginBottom: 0}}>Activate</button>
                           )}
