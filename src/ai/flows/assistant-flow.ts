@@ -11,6 +11,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import axios from 'axios';
+import { getHistory, addMessage, ChatMessage } from '@/lib/ai-memory';
 
 const DEFAULT_VOICE_ID = 'hi-IN-kabir';
 
@@ -90,12 +91,22 @@ const assistantFlow = ai.defineFlow(
     outputSchema: AssistantOutputSchema,
   },
   async ({ query, generateAudio, voiceId }) => {
-    // 1. Generate a text response from the AI
+    // 1. Add user's query to memory
+    addMessage({ sender: 'user', text: query });
+
+    // 2. Get the full conversation history
+    const history = getHistory();
+    const historyText = history.map(msg => `${msg.sender === 'user' ? 'Boss' : 'Jarvis'}: ${msg.text}`).join('\n');
+
+    // 3. Generate a text response from the AI with context
     const { output: textResponse } = await ai.generate({
       prompt: `You are Jarvis, the world's most advanced AI assistant. The user is your "Boss". You are helpful, respectful, and incredibly intelligent.
-      IMPORTANT: You must ALWAYS reply in HINDI. Never use English.
+      You will now continue a conversation. Here is the history so far:
+      ${historyText}
       
-      Boss's query: ${query}`,
+      IMPORTANT: You must ALWAYS reply in HINDI. Never use English. Your response should be a direct continuation of the conversation.
+      
+      Your latest response should be to the last message from the Boss.`,
       model: 'googleai/gemini-2.0-flash',
       output: {
         format: 'text',
@@ -107,6 +118,9 @@ const assistantFlow = ai.defineFlow(
     }
     const responseText = textResponse;
 
+    // 4. Add AI's response to memory
+    addMessage({ sender: 'ai', text: responseText });
+
     // If audio generation is disabled, return only the text
     if (!generateAudio) {
         return {
@@ -114,7 +128,7 @@ const assistantFlow = ai.defineFlow(
         };
     }
     
-    // 2. Convert the text response to speech using the dedicated audio flow
+    // 5. Convert the text response to speech using the dedicated audio flow
     const audioData = await generateAudioFlow({ text: responseText, voiceId: voiceId });
 
     return {

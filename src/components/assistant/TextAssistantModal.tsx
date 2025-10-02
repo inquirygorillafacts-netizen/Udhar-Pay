@@ -1,13 +1,9 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Loader, MessageSquare, Send, Bot, User, X } from 'lucide-react';
+import { Loader, MessageSquare, Send, Bot, User, X, Trash2 } from 'lucide-react';
 import { askAiAssistant } from '@/ai/flows/assistant-flow';
-
-interface Message {
-  sender: 'user' | 'ai';
-  text: string;
-}
+import { getHistory, clearHistory, ChatMessage } from '@/lib/ai-memory';
 
 interface TextAssistantModalProps {
     onClose: () => void;
@@ -15,13 +11,18 @@ interface TextAssistantModalProps {
 
 export default function TextAssistantModal({ onClose }: TextAssistantModalProps) {
   const [inputText, setInputText] = useState('');
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [status, setStatus] = useState<'idle' | 'thinking'>('idle');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
+  
+  // Load history on initial render
+  useEffect(() => {
+    setMessages(getHistory());
+  }, []);
 
   useEffect(scrollToBottom, [messages]);
 
@@ -39,7 +40,7 @@ export default function TextAssistantModal({ onClose }: TextAssistantModalProps)
         query: query,
         generateAudio: false, // We only want text
       });
-      setMessages(prev => [...prev, { sender: 'ai', text: response.text }]);
+      setMessages(getHistory()); // Fetch the latest history which now includes the AI's response
     } catch (error) {
       console.error("AI Error:", error);
       setMessages(prev => [...prev, { sender: 'ai', text: "Sorry, something went wrong." }]);
@@ -47,6 +48,11 @@ export default function TextAssistantModal({ onClose }: TextAssistantModalProps)
       setStatus('idle');
     }
   };
+
+  const handleClearChat = () => {
+      clearHistory();
+      setMessages([]);
+  }
 
   return (
     <div className="modal-overlay ai-chat-modal-overlay" onClick={onClose}>
@@ -70,6 +76,9 @@ export default function TextAssistantModal({ onClose }: TextAssistantModalProps)
               <h1 style={{fontSize: '1.5rem', marginBottom: '0'}}>Text Assistant</h1>
               <p style={{fontSize: '0.9rem', margin: 0}}>Chat with the Udhar Pay AI</p>
             </div>
+            <button onClick={handleClearChat} className="neu-button" style={{width: '45px', height: '45px', padding: 0, margin: 0, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                <Trash2 size={20} />
+            </button>
              <button onClick={onClose} className="neu-button" style={{width: '45px', height: '45px', padding: 0, margin: 0, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
               <X size={20} />
             </button>
