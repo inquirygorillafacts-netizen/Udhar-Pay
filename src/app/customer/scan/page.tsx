@@ -76,7 +76,8 @@ export default function CustomerScanQrPage() {
               title: 'Scan Error', 
               description: err.message || 'Could not process the QR code. Please try again.' 
             });
-            router.back(); 
+            // Adding a small delay before going back to allow the user to see the toast
+            setTimeout(() => router.back(), 2000);
         }
       };
 
