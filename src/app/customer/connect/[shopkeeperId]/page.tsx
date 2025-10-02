@@ -85,6 +85,11 @@ export default function ConnectPage() {
         setRequestSent(true);
         toast({ title: "Request Sent!", description: `Your connection request has been sent to ${shopkeeper?.displayName}.` });
 
+        setTimeout(() => {
+            router.push('/customer/dashboard');
+        }, 2000);
+
+
     } catch (err) {
         console.error("Error sending connection request:", err);
         toast({ variant: 'destructive', title: 'Error', description: 'Failed to send request. Please try again.' });
@@ -133,7 +138,7 @@ export default function ConnectPage() {
                     <CheckCircle size={30} className="text-green-500" />
                     <div>
                         <h3 style={{color: '#3d4468', fontWeight: 600, textAlign: 'left'}}>Request Sent</h3>
-                        <p style={{color: '#6c7293', margin: 0, textAlign: 'left', fontSize: '14px'}}>You will be notified upon approval.</p>
+                        <p style={{color: '#6c7293', margin: 0, textAlign: 'left', fontSize: '14px'}}>Redirecting to dashboard...</p>
                     </div>
                 </div>
             ) : (
