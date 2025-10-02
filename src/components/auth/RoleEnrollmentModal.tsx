@@ -4,7 +4,7 @@ import { useState, useRef } from 'react';
 import { useFirebase } from '@/firebase/client-provider';
 import { doc, setDoc } from 'firebase/firestore';
 import { generateUniqueCustomerCode, generateUniqueShopkeeperCode } from '@/lib/code-helpers';
-import { Camera, User, Phone, Store, ArrowRight, Info } from 'lucide-react';
+import { Camera, User, Phone, Store, ArrowRight, Info, CheckCircle } from 'lucide-react';
 import axios from 'axios';
 
 interface RoleEnrollmentModalProps {
