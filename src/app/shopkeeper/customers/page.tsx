@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useFirebase } from '@/firebase/client-provider';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, onSnapshot, collection, query, where, getDocs } from 'firebase/firestore';
 import CustomerCard from '@/app/shopkeeper/components/CustomerCard';
 import { Search, Users } from 'lucide-react';
 import Link from 'next/link';
@@ -13,6 +13,7 @@ interface UserProfile {
   email: string;
   photoURL?: string | null;
   customerCode?: string;
+  balances?: { [key: string]: number };
 }
 
 export default function ShopkeeperCustomersPage() {
@@ -29,35 +30,34 @@ export default function ShopkeeperCustomersPage() {
       return;
     }
 
-    const fetchShopkeeperAndCustomers = async () => {
-      try {
-        const shopkeeperRef = doc(firestore, 'shopkeepers', auth.currentUser.uid);
-        const shopkeeperSnap = await getDoc(shopkeeperRef);
-
+    const shopkeeperRef = doc(firestore, 'shopkeepers', auth.currentUser.uid);
+    const unsubscribe = onSnapshot(shopkeeperRef, async (shopkeeperSnap) => {
         if (shopkeeperSnap.exists()) {
-          const shopkeeperData = shopkeeperSnap.data();
-          setShopkeeperProfile(shopkeeperData);
-          const customerIds = shopkeeperData.connections || [];
-          
-          if (customerIds.length > 0) {
-            const customersRef = collection(firestore, 'customers');
-            const q = query(customersRef, where('__name__', 'in', customerIds));
-            const customersSnap = await getDocs(q);
+            const shopkeeperData = shopkeeperSnap.data();
+            setShopkeeperProfile(shopkeeperData);
+            const customerIds = shopkeeperData.connections || [];
             
-            const customerProfiles = customersSnap.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile));
+            if (customerIds.length > 0) {
+                const customersRef = collection(firestore, 'customers');
+                const q = query(customersRef, where('__name__', 'in', customerIds));
+                const customersSnap = await getDocs(q);
+                
+                const customerProfiles = customersSnap.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile));
 
-            setAllCustomers(customerProfiles);
-            setFilteredCustomers(customerProfiles);
-          }
+                setAllCustomers(customerProfiles);
+                setFilteredCustomers(customerProfiles);
+            } else {
+                setAllCustomers([]);
+                setFilteredCustomers([]);
+            }
         }
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      } finally {
         setLoading(false);
-      }
-    };
-
-    fetchShopkeeperAndCustomers();
+    }, (error) => {
+        console.error("Error fetching data:", error);
+        setLoading(false);
+    });
+    
+    return () => unsubscribe();
   }, [auth.currentUser, firestore]);
 
   useEffect(() => {
@@ -121,7 +121,7 @@ export default function ShopkeeperCustomersPage() {
                     <Link key={customer.uid} href={`/shopkeeper/customer/${customer.uid}`} style={{textDecoration: 'none'}}>
                         <CustomerCard 
                             customer={customer} 
-                            balance={shopkeeperProfile?.balances?.[customer.uid] || 0}
+                            shopkeeperId={auth.currentUser!.uid}
                         />
                     </Link>
                 ))}

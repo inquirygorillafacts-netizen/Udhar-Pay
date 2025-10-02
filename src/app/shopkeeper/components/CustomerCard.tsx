@@ -7,49 +7,54 @@ interface CustomerProfile {
   displayName: string;
   email: string;
   photoURL?: string | null;
+  balances?: { [key: string]: number };
 }
 
-interface CustomerCardProps {
-    customer: CustomerProfile;
-    balance: number;
-}
+// Dummy data for now
+const creditLimit = 1000;
 
-export default function CustomerCard({ customer, balance }: CustomerCardProps) {
-    const isCredit = balance > 0;
-    const balanceColor = isCredit ? '#ff3b5c' : '#00c896';
+const CustomerCard = ({ customer, shopkeeperId }: { customer: CustomerProfile; shopkeeperId: string }) => {
+  // Get the balance specific to this shopkeeper
+  const balance = customer.balances?.[shopkeeperId] || 0;
+  const usedPercentage = creditLimit > 0 ? (balance / creditLimit) * 100 : 0;
 
-    return (
-        <div 
-            className="neu-button" 
-            style={{ 
-                margin: 0, 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'space-between',
-                padding: '20px',
-                height: 'auto',
-                transition: 'transform 0.2s ease, box-shadow 0.2s ease'
-            }}
-            onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-3px)'; }}
-            onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}
-        >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                <div className="neu-icon" style={{width: '50px', height: '50px', margin: 0, flexShrink: 0}}>
-                    {customer.photoURL ? (
-                        <img src={customer.photoURL} alt={customer.displayName} style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%'}} />
-                    ) : (
-                        <div className="icon-inner" style={{width: '24px', height: '24px'}}><User/></div>
-                    )}
-                </div>
-                <div>
-                    <h3 style={{color: '#3d4468', fontWeight: 600, fontSize: '1rem', margin: 0}}>{customer.displayName}</h3>
-                    <p style={{color: '#9499b7', fontSize: '14px', margin: 0}}>{customer.email}</p>
-                </div>
-            </div>
-            <div style={{textAlign: 'right'}}>
-                 <span style={{fontSize: '1.25rem', fontWeight: 'bold', color: balanceColor}}>₹{Math.abs(balance)}</span>
-                 <p style={{fontSize: '12px', color: balanceColor, margin: 0}}>{isCredit ? 'Udhaar' : 'Advance'}</p>
-            </div>
+  return (
+    <div className="neu-input" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px', cursor: 'pointer', boxShadow: '5px 5px 15px #bec3cf, -5px -5px 15px #ffffff' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+        <div className="neu-icon" style={{ width: '50px', height: '50px', margin: 0, flexShrink: 0 }}>
+          {customer.photoURL ? (
+            <img src={customer.photoURL} alt={customer.displayName} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+          ) : (
+            <div className="icon-inner" style={{width: '28px', height: '28px'}}><User/></div>
+          )}
         </div>
-    );
-}
+        <div style={{ flexGrow: 1, overflow: 'hidden' }}>
+          <h3 style={{ color: '#3d4468', fontSize: '1.1rem', fontWeight: '600', margin: 0, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+            {customer.displayName}
+          </h3>
+          <p style={{ color: '#9499b7', fontSize: '13px', margin: 0, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+            {customer.email}
+          </p>
+        </div>
+        <div style={{textAlign: 'right'}}>
+          <p style={{color: '#9499b7', fontSize: '12px', margin: 0, fontWeight: 500}}>Used</p>
+          <p style={{ color: '#3d4468', fontSize: '1.2rem', fontWeight: '700', margin: 0}}>₹{balance}</p>
+        </div>
+      </div>
+      
+      {/* Credit Limit Bar */}
+      <div>
+          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px'}}>
+              <span style={{fontSize: '12px', color: '#6c7293', fontWeight: 500}}>Credit Limit</span>
+              <span style={{fontSize: '12px', color: '#3d4468', fontWeight: 600}}>₹{creditLimit}</span>
+          </div>
+          <div style={{height: '8px', background: '#e0e5ec', borderRadius: '4px', boxShadow: 'inset 2px 2px 4px #bec3cf, inset -2px -2px 4px #ffffff', overflow: 'hidden'}}>
+            <div style={{width: `${usedPercentage}%`, height: '100%', background: balance > creditLimit ? '#ff3b5c' : '#00c896', borderRadius: '4px', transition: 'width 0.5s ease'}}></div>
+          </div>
+      </div>
+
+    </div>
+  );
+};
+
+export default CustomerCard;
