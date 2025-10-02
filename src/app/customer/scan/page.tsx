@@ -25,8 +25,12 @@ export default function CustomerScanQrPage() {
   const [modalMessage, setModalMessage] = useState<string | null>(null);
 
   const scannerRef = useRef<Html5Qrcode | null>(null);
+  const readerMounted = useRef(false);
 
   useEffect(() => {
+    if (readerMounted.current) return;
+    readerMounted.current = true;
+    
     if (!auth.currentUser || !firestore) return;
 
     const qrScanner = new Html5Qrcode('reader');
@@ -42,12 +46,15 @@ export default function CustomerScanQrPage() {
     };
 
     const qrCodeSuccessCallback = async (decodedText: string) => {
-      if (isProcessing || scannedData) return; // Prevent multiple scans
+      if (isProcessing || scannedData) return;
 
       setIsProcessing(true);
       
       try {
-        // Assuming decodedText is the shopkeeper's unique code
+        if (scannerRef.current?.isScanning) {
+          await scannerRef.current.stop();
+        }
+        
         const shopkeepersRef = collection(firestore, 'shopkeepers');
         const q = query(shopkeepersRef, where('shopkeeperCode', '==', decodedText.toUpperCase()));
         const querySnapshot = await getDocs(q);
@@ -55,6 +62,7 @@ export default function CustomerScanQrPage() {
         if (querySnapshot.empty) {
           toast({ variant: 'destructive', title: 'Invalid QR Code', description: 'No shopkeeper found with this code.' });
           setIsProcessing(false);
+          router.back();
           return;
         }
 
@@ -62,20 +70,13 @@ export default function CustomerScanQrPage() {
         const shopkeeperId = shopkeeperDoc.id;
         const shopkeeperData = shopkeeperDoc.data();
         
-        // Stop scanning
-        if (scannerRef.current?.isScanning) {
-            scannerRef.current.stop();
-        }
-
         const customerRef = doc(firestore, 'customers', auth.currentUser!.uid);
         const customerSnap = await getDoc(customerRef);
         const customerConnections = customerSnap.data()?.connections || [];
 
         if (customerConnections.includes(shopkeeperId)) {
-          // Already connected -> go to request credit page
           router.push(`/customer/request-credit/${shopkeeperId}`);
         } else {
-          // Not connected -> show connection request modal
           setScannedData({ shopkeeperId: shopkeeperId, shopkeeperName: shopkeeperData.displayName });
         }
 
@@ -87,7 +88,7 @@ export default function CustomerScanQrPage() {
     };
 
     const qrCodeErrorCallback = (errorMessage: string) => {
-      // We can ignore 'QR code not found' errors.
+      // We can ignore 'QR code not found' errors, which are common.
     };
 
     const startScanning = async () => {
@@ -110,10 +111,13 @@ export default function CustomerScanQrPage() {
 
     return () => {
       if (scannerRef.current && scannerRef.current.isScanning) {
-        scannerRef.current.stop().catch(err => console.error("Scanner stop error:", err));
+        scannerRef.current.stop().catch(err => {
+          console.error("QR Scanner stop error:", err);
+        });
       }
     };
-  }, [router, toast, auth.currentUser, firestore, isProcessing, scannedData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   
   const handleSendConnectionRequest = async () => {
       if (!scannedData || !auth.currentUser || !firestore) return;
