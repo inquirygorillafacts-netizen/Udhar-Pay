@@ -5,7 +5,7 @@ import { Loader, Bot, Volume2, MessageSquare, Waves, Shuffle } from 'lucide-reac
 import { askAiAssistant } from '@/ai/flows/assistant-flow';
 import TextAssistantModal from '@/components/assistant/TextAssistantModal';
 
-type Status = 'greeting' | 'idle' | 'listening' | 'thinking' | 'speaking' | 'off';
+type Status = 'idle' | 'listening' | 'thinking' | 'speaking';
 
 const availableVoices = [
     { voiceId: 'it-IT-lorenzo', style: 'Conversational', multiNativeLocale: 'hi-IN' },
@@ -20,184 +20,141 @@ const SpeechRecognition =
     : undefined;
 
 export default function VoiceAssistantPage() {
-    const [status, setStatus] = useState<Status>('greeting');
+    const [status, setStatus] = useState<Status>('idle');
     const [isAssistantOn, setIsAssistantOn] = useState(false);
     const [aiResponse, setAiResponse] = useState('');
     const [isTextModalOpen, setIsTextModalOpen] = useState(false);
     const [currentVoiceIndex, setCurrentVoiceIndex] = useState(0);
-    const [showIntroVideo, setShowIntroVideo] = useState(true);
 
     const recognitionRef = useRef<any>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
-    const effectRan = useRef(false);
 
     const currentVoiceId = availableVoices[currentVoiceIndex].voiceId;
 
+    // This function will be called to start the listening process
     const startListening = useCallback(() => {
         if (!SpeechRecognition) {
             alert("माफ़ कीजिए, आपका ब्राउज़र वॉइस रिकग्निशन का समर्थन नहीं करता है।");
-            setStatus('off');
+            setStatus('idle');
             setIsAssistantOn(false);
             return;
         }
         if (recognitionRef.current) {
-          recognitionRef.current.stop();
+            recognitionRef.current.stop();
         }
-    
+
         const recognition = new SpeechRecognition();
         recognition.continuous = false;
         recognition.interimResults = false;
         recognition.lang = 'hi-IN';
-    
+
         recognition.onstart = () => {
-          setStatus('listening');
-          setAiResponse('');
+            setStatus('listening');
         };
-    
+
         recognition.onresult = (event: any) => {
-          const transcript = event.results[0][0].transcript;
-          if (transcript) {
-            processQuery(transcript);
-          }
+            const transcript = event.results[0][0].transcript;
+            if (transcript) {
+                processQuery(transcript);
+            }
         };
-    
+
         recognition.onerror = (event: any) => {
-           if (event.error !== 'aborted' && event.error !== 'no-speech') {
-            console.error('Speech recognition error:', event.error);
-            setAiResponse("माफ़ कीजिए, मैं आपकी बात नहीं सुन सका। कृपया फिर प्रयास करें।");
-          }
-          if (isAssistantOn) {
-            startListening();
-          } else {
-            setStatus('idle');
-          }
-        };
-    
-        recognition.onend = () => {
-          recognitionRef.current = null;
+            if (event.error !== 'no-speech' && event.error !== 'aborted') {
+                console.error('Speech recognition error:', event.error);
+                setAiResponse("माफ़ कीजिए, मैं आपकी बात नहीं सुन सका। कृपया फिर प्रयास करें।");
+                setStatus('idle');
+            } else if (isAssistantOn) {
+                 startListening();
+            } else {
+                setStatus('idle');
+            }
         };
         
         recognition.start();
         recognitionRef.current = recognition;
     }, [isAssistantOn]);
 
-
-    const processQuery = useCallback(async (text: string) => {
+    const processQuery = async (text: string) => {
         setStatus('thinking');
-        setAiResponse('');
         try {
-          const response = await askAiAssistant({ 
-            query: text,
-            generateAudio: true,
-            voiceId: currentVoiceId,
-          });
-          
-          setAiResponse(response.text);
-    
-          if (response.audio) {
-            if (!audioRef.current) audioRef.current = new Audio();
-            
-            audioRef.current.src = response.audio;
-            audioRef.current.play();
-            setStatus('speaking');
+            const response = await askAiAssistant({
+                query: text,
+                generateAudio: true,
+                voiceId: currentVoiceId,
+            });
+            setAiResponse(response.text);
 
-            audioRef.current.onended = () => {
-                if(isAssistantOn) {
-                    startListening();
-                } else {
-                    setStatus('idle');
+            if (response.audio) {
+                if (audioRef.current) {
+                    audioRef.current.src = response.audio;
+                    audioRef.current.play();
+                    setStatus('speaking');
+
+                    audioRef.current.onended = () => {
+                        // After speaking, if the assistant is still on, listen again.
+                        if (isAssistantOn) {
+                            startListening();
+                        } else {
+                            setStatus('idle');
+                        }
+                    };
                 }
-            };
-            audioRef.current.onerror = (e) => {
-                console.error("Error playing AI response audio.", e);
-                 if(isAssistantOn) {
+            } else {
+                // If no audio, and assistant is on, listen again.
+                if (isAssistantOn) {
                     startListening();
                 } else {
                     setStatus('idle');
                 }
             }
-          } else {
-             if(isAssistantOn) {
+        } catch (error) {
+            console.error('Error with AI Assistant:', error);
+            setAiResponse("माफ़ कीजिए, कोई त्रुटि हुई। कृपया फिर प्रयास करें।");
+            if (isAssistantOn) {
                 startListening();
             } else {
                 setStatus('idle');
             }
-          }
-        } catch (error) {
-          console.error('Error with AI Assistant:', error);
-          setAiResponse("माफ़ कीजिए, कोई त्रुटि हुई। कृपया फिर प्रयास करें।");
-          if(isAssistantOn) {
-            startListening();
-          } else {
-            setStatus('idle');
-          }
         }
-    }, [currentVoiceId, isAssistantOn, startListening]);
+    };
 
-     const stopListening = () => {
-        if (recognitionRef.current) {
-            recognitionRef.current.stop();
-            recognitionRef.current = null;
-        }
-        setStatus('off');
-    }
-
-    const playGreetingAndListen = useCallback(() => {
-        setStatus('greeting');
-        const greetingAudio = new Audio("/jarvis.mp3");
-        audioRef.current = greetingAudio;
-        
-        greetingAudio.play().catch(e => {
-            console.error("Greeting audio blocked by browser.", e);
-            setStatus('off');
+    // Play greeting audio on initial load
+    useEffect(() => {
+        audioRef.current = new Audio("/jarvis.mp3");
+        audioRef.current.play().catch(e => {
+            // This error is expected if user hasn't interacted with the page yet.
+            console.log("Greeting audio auto-play failed, requires user interaction.", e.name);
         });
 
-        greetingAudio.onended = () => {
-            setStatus('off');
-        };
-    }, []);
-
-    useEffect(() => {
-        if (effectRan.current === false) {
-            const hasSeenIntro = localStorage.getItem('hasSeenAiIntro');
-            if (hasSeenIntro) {
-                setShowIntroVideo(false);
-                playGreetingAndListen();
-            } else {
-                setShowIntroVideo(true);
-            }
-        }
-        
         return () => {
             if (audioRef.current) {
                 audioRef.current.pause();
                 audioRef.current.src = '';
             }
-            if (recognitionRef.current) {
-                recognitionRef.current.abort();
-            }
-            effectRan.current = true;
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [playGreetingAndListen]);
-
+    }, []);
 
     const handleAIToggle = () => {
         const newIsOn = !isAssistantOn;
         setIsAssistantOn(newIsOn);
+
         if (newIsOn) {
+            // When turning ON, start listening.
             startListening();
         } else {
-            stopListening();
+            // When turning OFF, stop everything.
+            if (recognitionRef.current) {
+                recognitionRef.current.abort();
+                recognitionRef.current = null;
+            }
+            if (audioRef.current) {
+                audioRef.current.pause();
+            }
+            setStatus('idle');
         }
-    }
-
-    const handleVideoEnd = () => {
-        localStorage.setItem('hasSeenAiIntro', 'true');
-        setShowIntroVideo(false);
-        playGreetingAndListen();
     };
-
+    
     const handleVoiceSwitch = () => {
         setCurrentVoiceIndex((prevIndex) => (prevIndex + 1) % availableVoices.length);
     };
@@ -207,26 +164,12 @@ export default function VoiceAssistantPage() {
             case 'listening': return <Waves size={24} className="text-blue-500" />;
             case 'thinking': return <Loader size={24} className="animate-spin" />;
             case 'speaking': return <Volume2 size={24} className="text-green-500" />;
-            case 'greeting': return <Bot size={24} className="animate-pulse" />;
-            case 'off': return <Bot size={24} className="text-red-500" />;
             case 'idle':
-            default: return <Bot size={24} />;
+            default:
+                if (isAssistantOn) return <Bot size={24} className="animate-pulse" />;
+                return <Bot size={24} className="text-red-500" />;
         }
     };
-    
-    if (showIntroVideo) {
-        return (
-            <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'black', zIndex: 9999 }}>
-                <video
-                    src="/jarvis.mp4"
-                    autoPlay
-                    playsInline
-                    onEnded={handleVideoEnd}
-                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                />
-            </div>
-        );
-    }
 
     return (
       <>
@@ -245,7 +188,7 @@ export default function VoiceAssistantPage() {
                         <div className="icon-inner" style={{width: '50px', height: '50px'}}>🤖</div>
                     </div>
                     <h1>Voice Assistant</h1>
-                    <p>{isAssistantOn ? "Jarvis is listening..." : "Assistant is off"}</p>
+                    <p>{isAssistantOn ? (status === 'listening' ? "मैं सुन रहा हूँ..." : (status === 'thinking' ? "सोच रहा हूँ..." : "बोल रहा हूँ...")) : "असिस्टेंट बंद है"}</p>
                 </header>
 
                 <div style={{textAlign: 'center', marginBottom: '30px'}}>
@@ -266,7 +209,7 @@ export default function VoiceAssistantPage() {
                         }}
                     >
                         {getStatusIcon()}
-                        <span>{status}</span>
+                        <span>{isAssistantOn ? status : "Off"}</span>
                     </div>
                 </div>
 
