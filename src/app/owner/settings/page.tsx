@@ -32,7 +32,7 @@ export default function OwnerSettingsPage() {
   const [isChangingPin, setIsChangingPin] = useState(false);
   
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
+    const unsubscribe = auth.onAuthStateChanged(async (currentUser: any) => {
       if (currentUser) {
         setUser(currentUser);
         const userRef = doc(firestore, 'owners', currentUser.uid);

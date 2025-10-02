@@ -68,8 +68,8 @@ export default function CustomerCreditCardsPage() {
                                 <Image 
                                     src={card.imageUrl} 
                                     alt={card.name} 
-                                    layout="fill" 
-                                    objectFit="cover"
+                                    fill
+                                    style={{objectFit: 'cover'}}
                                     data-ai-hint={card.imageHint}
                                 />
                             </div>

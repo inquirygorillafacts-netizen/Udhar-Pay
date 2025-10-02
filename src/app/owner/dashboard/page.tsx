@@ -15,7 +15,7 @@ export default function OwnerDashboardPage() {
   }, [auth]);
 
   return (
-    <div className="dashboard-container">
+    <div className="dashboard-container" style={{padding: '20px 0'}}>
       <div className="login-card" style={{marginTop: '2rem'}}>
         <div className="login-header">
            <h2 style={{ fontSize: '1.75rem' }}>Welcome, Owner!</h2>

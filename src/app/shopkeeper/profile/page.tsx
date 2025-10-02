@@ -53,7 +53,7 @@ export default function ShopkeeperProfilePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
+    const unsubscribe = auth.onAuthStateChanged(async (currentUser: any) => {
       if (currentUser) {
         setUser(currentUser);
         const userRef = doc(firestore, 'shopkeepers', currentUser.uid);
