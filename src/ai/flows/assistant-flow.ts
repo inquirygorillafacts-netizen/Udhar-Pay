@@ -126,8 +126,11 @@ const assistantFlow = ai.defineFlow(
         };
     }
     
+    // Clean the text for TTS by removing markdown characters like asterisks
+    const cleanTextForTts = responseText.replace(/\*/g, '');
+    
     // Convert the text response to speech using the dedicated audio flow
-    const { audio } = await generateAudioFlow({ text: responseText, voiceId: voiceId });
+    const { audio } = await generateAudioFlow({ text: cleanTextForTts, voiceId: voiceId });
 
     return {
         text: responseText,
