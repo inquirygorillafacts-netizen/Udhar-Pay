@@ -30,7 +30,7 @@ export default function VoiceAssistantPage() {
     const audioRef = useRef<HTMLAudioElement | null>(null);
 
     const currentVoiceId = availableVoices[currentVoiceIndex].voiceId;
-
+    
     const startListening = useCallback(() => {
         if (!SpeechRecognition) {
             alert("माफ़ कीजिए, आपका ब्राउज़र वॉइस रिकग्निशन का समर्थन नहीं करता है।");
@@ -60,7 +60,6 @@ export default function VoiceAssistantPage() {
 
         recognition.onerror = (event: any) => {
             if (event.error === 'no-speech' || event.error === 'aborted') {
-                // Do nothing, just let it stop listening.
                  setStatus('idle');
             } else {
                 console.error('Speech recognition error:', event.error);
@@ -98,6 +97,7 @@ export default function VoiceAssistantPage() {
                 };
             } else {
                  if (isAssistantOn) {
+                    setStatus('listening');
                     startListening();
                 } else {
                     setStatus('idle');
@@ -116,12 +116,25 @@ export default function VoiceAssistantPage() {
     
     // Initialize and play greeting audio
     useEffect(() => {
-        audioRef.current = new Audio("/jarvis.mp3");
-        audioRef.current.play().catch(e => {
-            if (e.name === 'NotAllowedError') {
-                console.log("Greeting audio auto-play failed, requires user interaction.");
-            }
-        });
+        const greetingAudio = new Audio("/jarvis.mp3");
+        audioRef.current = greetingAudio;
+
+        const playAndListen = () => {
+            greetingAudio.play().then(() => {
+                greetingAudio.onended = () => {
+                    setIsAssistantOn(true);
+                    startListening();
+                };
+            }).catch(e => {
+                if (e.name === 'NotAllowedError') {
+                    console.log("Greeting audio auto-play failed, requires user interaction.");
+                    // If audio can't play, we can't auto-start the assistant.
+                    // The user will need to use the toggle switch.
+                }
+            });
+        };
+
+        playAndListen();
 
         return () => {
             if (audioRef.current) {
@@ -133,17 +146,15 @@ export default function VoiceAssistantPage() {
                 recognitionRef.current = null;
             }
         }
-    }, []);
+    }, [startListening]);
 
     const handleAIToggle = () => {
         const newIsOn = !isAssistantOn;
         setIsAssistantOn(newIsOn);
 
         if (newIsOn) {
-            // When turning ON, start listening.
             startListening();
         } else {
-            // When turning OFF, stop everything.
             if (recognitionRef.current) {
                 recognitionRef.current.abort();
             }
