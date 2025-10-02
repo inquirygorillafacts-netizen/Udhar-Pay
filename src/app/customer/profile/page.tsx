@@ -53,7 +53,7 @@ export default function CustomerProfilePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
+    const unsubscribe = auth.onAuthStateChanged(async (currentUser: any) => {
       if (currentUser) {
         setUser(currentUser);
         const userRef = doc(firestore, 'customers', currentUser.uid);
@@ -115,7 +115,6 @@ export default function CustomerProfilePage() {
       
       localStorage.setItem('activeRole', newRole);
       router.push(`/${newRole}/dashboard`);
-      // No need for router.refresh(), the layout shift will handle it.
   };
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
