@@ -4,7 +4,7 @@ import { useState, useRef } from 'react';
 import { useFirebase } from '@/firebase/client-provider';
 import { doc, setDoc } from 'firebase/firestore';
 import { generateUniqueCustomerCode, generateUniqueShopkeeperCode } from '@/lib/code-helpers';
-import { Camera, User, Phone, Store, ArrowRight, Info, CheckCircle, Check } from 'lucide-react';
+import { Camera, User, Phone, Store, ArrowRight, Info, Check } from 'lucide-react';
 import axios from 'axios';
 
 interface RoleEnrollmentModalProps {
@@ -121,16 +121,20 @@ export default function RoleEnrollmentModal({ role, onClose, onSuccess }: RoleEn
         }
     };
 
-    const roleText = role === 'customer' ? 'Customer' : 'Shopkeeper';
-    const nameLabel = role === 'customer' ? 'Full Name' : 'Shop Name';
-    const photoLabel = role === 'customer' ? 'Profile Photo' : 'Shop Photo / Logo';
+    const roleText = role === 'customer' ? 'ग्राहक' : 'दुकानदार';
+    const nameLabel = role === 'customer' ? 'पूरा नाम' : 'दुकान का नाम';
+    const photoLabel = role === 'customer' ? 'प्रोफ़ाइल फोटो' : 'दुकान की फोटो / लोगो';
     const nameIcon = role === 'customer' ? <User /> : <Store />;
+    const agreementText = role === 'customer'
+        ? "क्या आप ग्राहक बनना चाहते हैं? अगर हाँ, तो आपको ग्राहक के तौर पर अपनी जानकारी देनी होगी और एक नया खाता बनाना होगा। क्या आप अपना ग्राहक खाता बनाने के लिए तैयार हैं?"
+        : "क्या आप दुकानदार बनना चाहते हैं? अगर हाँ, तो आपको दुकानदार के तौर पर अपनी दुकान की जानकारी देनी होगी और एक नया खाता बनाना होगा। क्या आप अपना दुकानदार खाता बनाने के लिए तैयार हैं?";
+
 
     return (
         <div className="modal-overlay">
             <div className="login-card modal-content" style={{ maxWidth: '480px' }} onClick={(e) => e.stopPropagation()}>
                 <div className="modal-header">
-                    <h2>Enroll as a {roleText}</h2>
+                    <h2>{roleText} के रूप में नामांकित करें</h2>
                     <button className="close-button" onClick={onClose}>&times;</button>
                 </div>
 
@@ -138,7 +142,7 @@ export default function RoleEnrollmentModal({ role, onClose, onSuccess }: RoleEn
                     <div>
                         <div style={{ padding: '15px 20px', background: '#e0e5ec', borderRadius: '15px', boxShadow: 'inset 5px 5px 10px #bec3cf, inset -5px -5px 10px #ffffff', marginBottom: '30px' }}>
                             <p style={{ color: '#6c7293', margin: 0, fontSize: '14px', lineHeight: 1.7 }}>
-                                आप एक नई <strong>{roleText} प्रोफाइल</strong> बनाने जा रहे हैं। इसका मतलब है कि आपका एक नया खाता बनेगा जो आपकी मौजूदा भूमिका से बिल्कुल अलग होगा। आगे बढ़ने के लिए हमें आपकी कुछ जानकारी चाहिए होगी।
+                               {agreementText}
                             </p>
                         </div>
                         <div className="remember-wrapper" style={{marginBottom: '20px'}}>
@@ -147,12 +151,12 @@ export default function RoleEnrollmentModal({ role, onClose, onSuccess }: RoleEn
                                 <div className="neu-checkbox">
                                     <Check size={16} strokeWidth={3}/>
                                 </div>
-                                I understand and agree to create a new {roleText} profile.
+                                मैं एक नई {roleText} प्रोफाइल बनाने के लिए सहमत हूँ।
                             </label>
                         </div>
                         {error && <p className="error-message show" style={{textAlign: 'center', marginLeft: 0}}>{error}</p>}
                         <button className="neu-button" onClick={handleNext} disabled={!agreed} style={{marginTop: '10px'}}>
-                            Next <ArrowRight size={20} style={{display: 'inline', marginLeft: '8px'}}/>
+                            आगे बढ़ें <ArrowRight size={20} style={{display: 'inline', marginLeft: '8px'}}/>
                         </button>
                     </div>
                 )}
@@ -169,7 +173,7 @@ export default function RoleEnrollmentModal({ role, onClose, onSuccess }: RoleEn
                         <div className="form-group">
                             <div className="neu-input">
                                 <input type="tel" id="mobile" value={mobile} onChange={(e) => setMobile(e.target.value)} required placeholder=" " />
-                                <label htmlFor="mobile">Mobile Number</label>
+                                <label htmlFor="mobile">मोबाइल नंबर</label>
                                 <div className="input-icon"><Phone /></div>
                             </div>
                         </div>
@@ -198,7 +202,7 @@ export default function RoleEnrollmentModal({ role, onClose, onSuccess }: RoleEn
                         {error && <p className="error-message show" style={{textAlign: 'center', marginLeft: 0}}>{error}</p>}
                         
                         <button type="submit" className={`neu-button ${isProcessing ? 'loading' : ''}`} disabled={isProcessing} onClick={handleSubmit} style={{marginTop: '30px'}}>
-                            <span className="btn-text">Create {roleText} Profile</span>
+                            <span className="btn-text">{roleText} प्रोफाइल बनाएं</span>
                             <div className="btn-loader"><div className="neu-spinner"></div></div>
                         </button>
                     </div>
