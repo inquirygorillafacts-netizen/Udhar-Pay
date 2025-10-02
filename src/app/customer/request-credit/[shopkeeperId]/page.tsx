@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
 import { doc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { ArrowLeft, User, IndianRupee, Send } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
 
 interface ShopkeeperProfile {
   uid: string;
@@ -17,6 +18,7 @@ export default function RequestCreditPage() {
   const router = useRouter();
   const params = useParams();
   const { auth, firestore } = useFirebase();
+  const { toast } = useToast();
   const shopkeeperId = params.shopkeeperId as string;
 
   const [shopkeeper, setShopkeeper] = useState<ShopkeeperProfile | null>(null);
@@ -37,6 +39,22 @@ export default function RequestCreditPage() {
 
     const fetchProfiles = async () => {
       try {
+        // Check if customer is connected to the shopkeeper
+        const customerRef = doc(firestore, 'customers', auth.currentUser!.uid);
+        const customerSnap = await getDoc(customerRef);
+        if (customerSnap.exists()) {
+            const customerData = customerSnap.data();
+            setCustomerProfile(customerData as {displayName: string});
+            const connections = customerData.connections || [];
+            if (!connections.includes(shopkeeperId)) {
+                toast({ variant: 'destructive', title: 'Not Connected', description: "You are not connected to this shopkeeper." });
+                router.push('/customer/dashboard');
+                return;
+            }
+        } else {
+            throw new Error("Customer profile not found.");
+        }
+
         const shopkeeperRef = doc(firestore, 'shopkeepers', shopkeeperId);
         const shopkeeperSnap = await getDoc(shopkeeperRef);
 
@@ -48,13 +66,9 @@ export default function RequestCreditPage() {
           return;
         }
 
-        const customerRef = doc(firestore, 'customers', auth.currentUser!.uid);
-        const customerSnap = await getDoc(customerRef);
-        if (customerSnap.exists()) {
-            setCustomerProfile(customerSnap.data() as {displayName: string});
-        }
       } catch (err) {
         console.error("Error fetching profiles:", err);
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not load data. Please try again.' });
         router.push('/customer/dashboard');
       } finally {
         setLoading(false);
@@ -63,7 +77,7 @@ export default function RequestCreditPage() {
     
     fetchProfiles();
 
-  }, [shopkeeperId, firestore, auth.currentUser, router]);
+  }, [shopkeeperId, firestore, auth.currentUser, router, toast]);
 
   const handleRequestCredit = async () => {
     const creditAmount = parseFloat(amount);

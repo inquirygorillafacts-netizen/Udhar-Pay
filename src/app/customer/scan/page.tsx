@@ -45,19 +45,18 @@ export default function CustomerScanQrPage() {
             await scannerRef.current.stop();
           }
           
-          // Use the connection logic, which now handles all cases
           const result = await sendConnectionRequest(firestore, auth.currentUser!.uid, decodedText.toUpperCase(), auth.currentUser?.displayName || 'A new customer');
           
           if (result.status === 'already_connected') {
-            // Instead of showing a modal here, redirect to dashboard where the modal will be shown
-            router.push('/customer/dashboard'); 
-            // In a more advanced setup, you could pass state via router or a global state manager
-            // to trigger the modal immediately on the dashboard. For now, this is simpler.
+            toast({
+                title: "Already Connected",
+                description: `You are already connected to ${result.shopkeeper?.name}. Redirecting...`,
+            });
+             router.push('/customer/dashboard'); // Redirect to dashboard to show modal
           } else {
-            // New request sent
             toast({
                 title: "Request Sent",
-                description: `Connection request sent to shopkeeper.`,
+                description: `Connection request sent to the shopkeeper.`,
             });
             router.push('/customer/dashboard');
           }
@@ -66,7 +65,6 @@ export default function CustomerScanQrPage() {
             const errorMessage = err instanceof Error ? err.message : 'Could not process the QR code.';
             toast({ variant: 'destructive', title: 'Scan Error', description: errorMessage });
             isProcessingRef.current = false;
-            // Optionally restart scanning or navigate back
             router.back();
         }
       };
