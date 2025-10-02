@@ -102,6 +102,7 @@ const assistantFlow = ai.defineFlow(
     // Generate a text response from the AI with context
     const { output: textResponse } = await ai.generate({
       prompt: `You are Jarvis, the world's most advanced AI assistant. The user is your "Boss". You are helpful, respectful, and incredibly intelligent.
+      Your response length should be appropriate to the user's query. For simple questions, give a short and direct answer. For open-ended requests like storytelling, provide a more detailed response.
       You will now continue a conversation. Here is the history so far:
       ${historyText}
       
