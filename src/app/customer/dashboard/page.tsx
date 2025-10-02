@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
 import { doc, onSnapshot, collection, query, where, getDocs, writeBatch, updateDoc } from 'firebase/firestore';
 import Link from 'next/link';
-import { Paperclip, X, User, Check, AlertCircle } from 'lucide-react';
+import { Paperclip, X, User, Check, AlertCircle, Send } from 'lucide-react';
 import ShopkeeperCard from '@/app/customer/components/ShopkeeperCard';
 import { sendConnectionRequest } from '@/lib/connections';
 
@@ -48,6 +48,8 @@ export default function CustomerDashboardPage() {
   const [loadingShopkeepers, setLoadingShopkeepers] = useState(false);
   
   const [creditRequests, setCreditRequests] = useState<CreditRequest[]>([]);
+  const [activeRequest, setActiveRequest] = useState<CreditRequest | null>(null);
+  const [isProcessingRequest, setIsProcessingRequest] = useState(false);
   
   const totalBalance = userProfile?.balances ? Object.values(userProfile.balances).reduce((sum, bal) => sum + bal, 0) : 0;
 
@@ -97,16 +99,23 @@ export default function CustomerDashboardPage() {
               requests.push({ id: doc.id, ...requestData } as CreditRequest);
           }
           setCreditRequests(requests);
+          if (requests.length > 0 && !activeRequest) {
+            setActiveRequest(requests[0]);
+          } else if (requests.length === 0) {
+            setActiveRequest(null);
+          }
       });
 
       return () => {
           unsubscribe();
           unsubscribeRequests();
       }
-  }, [auth.currentUser, firestore]);
+  }, [auth.currentUser, firestore, activeRequest]);
 
   const handleCreditRequestResponse = async (request: CreditRequest, response: 'approved' | 'rejected') => {
       if (!auth.currentUser || !firestore || !userProfile) return;
+      
+      setIsProcessingRequest(true);
 
       try {
           const requestRef = doc(firestore, 'creditRequests', request.id);
@@ -152,6 +161,10 @@ export default function CustomerDashboardPage() {
       } catch (error) {
           console.error("Error responding to credit request:", error);
           setModalMessage("An error occurred. Please try again.");
+      } finally {
+        setIsProcessingRequest(false);
+        setActiveRequest(null);
+        // The onSnapshot listener will update the list naturally
       }
   }
 
@@ -224,6 +237,32 @@ export default function CustomerDashboardPage() {
   
   return (
     <>
+        {activeRequest && (
+            <div className="modal-overlay">
+                <div className="login-card modal-content" style={{maxWidth: '450px'}} onClick={(e) => e.stopPropagation()}>
+                    <div className="modal-header" style={{flexDirection: 'column', textAlign: 'center'}}>
+                         <div className="neu-icon" style={{width: '70px', height: '70px', background: '#00c896', color: 'white', marginBottom: '20px'}}>
+                            <Send size={30} />
+                        </div>
+                        <h2 style={{fontSize: '1.5rem'}}>Credit Request</h2>
+                        <p style={{color: '#6c7293', marginTop: '10px'}}>
+                            <strong>{activeRequest.shopkeeperName}</strong> sent you a credit request for <strong style={{color: '#3d4468', fontSize: '1.2rem'}}>₹{activeRequest.amount}</strong>.
+                        </p>
+                    </div>
+                     <div style={{ display: 'flex', gap: '20px', marginTop: '30px' }}>
+                        <button className={`neu-button ${isProcessingRequest ? 'loading' : ''}`} onClick={() => handleCreditRequestResponse(activeRequest, 'rejected')} disabled={isProcessingRequest} style={{ margin: 0, flex: 1, background: '#ff3b5c', color: 'white' }}>
+                            <span className="btn-text">Reject</span>
+                            <div className="btn-loader"><div className="neu-spinner"></div></div>
+                        </button>
+                        <button className={`neu-button ${isProcessingRequest ? 'loading' : ''}`} onClick={() => handleCreditRequestResponse(activeRequest, 'approved')} disabled={isProcessingRequest} style={{ margin: 0, flex: 1, background: '#00c896', color: 'white' }}>
+                            <span className="btn-text">Approve</span>
+                            <div className="btn-loader"><div className="neu-spinner"></div></div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+
         {modalMessage && (
             <div className="modal-overlay" onClick={() => setModalMessage('')}>
                 <div className="login-card modal-content" onClick={(e) => e.stopPropagation()}>
@@ -270,28 +309,6 @@ export default function CustomerDashboardPage() {
                     <span style={{fontSize: '1.75rem'}}>₹{totalBalance}</span>
                 </div>
             </div>
-
-            {creditRequests.length > 0 && (
-                <div className="login-card" style={{maxWidth: '600px', margin: '0 auto 40px auto'}}>
-                    <h2 style={{color: '#3d4468', fontSize: '1.5rem', fontWeight: '600', textAlign: 'center', marginBottom: '30px' }}>
-                      Pending Credit Requests
-                    </h2>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                        {creditRequests.map(req => (
-                            <div key={req.id} className="neu-input" style={{padding: '15px', display: 'flex', flexDirection: 'column', gap: '10px'}}>
-                                <p style={{color: '#6c7293', margin: 0}}>
-                                    <strong>{req.shopkeeperName}</strong> sent you a credit request for <strong style={{color: '#3d4468', fontSize: '1.1rem'}}>₹{req.amount}</strong>.
-                                </p>
-                                <div style={{display: 'flex', gap: '15px', justifyContent: 'flex-end'}}>
-                                    <button className="neu-button" onClick={() => handleCreditRequestResponse(req, 'rejected')} style={{margin: 0, padding: '8px 16px', background: '#ff3b5c', color: 'white'}}>Reject</button>
-                                    <button className="neu-button" onClick={() => handleCreditRequestResponse(req, 'approved')} style={{margin: 0, padding: '8px 16px', background: '#00c896', color: 'white'}}>Approve</button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
 
           <div className="login-card" style={{marginBottom: '40px', maxWidth: '600px', margin: 'auto' }}>
                <div>
