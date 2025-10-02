@@ -73,6 +73,7 @@ export default function VoiceAssistantPage() {
         
         recognition.start();
         recognitionRef.current = recognition;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isAssistantOn]);
 
     const processQuery = async (text: string) => {
@@ -92,7 +93,6 @@ export default function VoiceAssistantPage() {
                     setStatus('speaking');
 
                     audioRef.current.onended = () => {
-                        // After speaking, if the assistant is still on, listen again.
                         if (isAssistantOn) {
                             startListening();
                         } else {
@@ -101,7 +101,6 @@ export default function VoiceAssistantPage() {
                     };
                 }
             } else {
-                // If no audio, and assistant is on, listen again.
                 if (isAssistantOn) {
                     startListening();
                 } else {
@@ -123,7 +122,6 @@ export default function VoiceAssistantPage() {
     useEffect(() => {
         audioRef.current = new Audio("/jarvis.mp3");
         audioRef.current.play().catch(e => {
-            // This error is expected if user hasn't interacted with the page yet.
             console.log("Greeting audio auto-play failed, requires user interaction.", e.name);
         });
 
@@ -131,6 +129,10 @@ export default function VoiceAssistantPage() {
             if (audioRef.current) {
                 audioRef.current.pause();
                 audioRef.current.src = '';
+            }
+             if (recognitionRef.current) {
+                recognitionRef.current.abort();
+                recognitionRef.current = null;
             }
         }
     }, []);
