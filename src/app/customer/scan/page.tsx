@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { ArrowLeft, Flashlight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Html5Qrcode } from 'html5-qrcode';
@@ -17,6 +17,39 @@ export default function CustomerScanQrPage() {
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const readerMounted = useRef(false);
   const isProcessingRef = useRef(false);
+  const [isTorchOn, setIsTorchOn] = useState(false);
+
+  // Function to toggle the torch
+  const toggleTorch = async () => {
+    if (scannerRef.current && scannerRef.current.isScanning) {
+        try {
+            const newTorchState = !isTorchOn;
+            const videoTrack = scannerRef.current.getRunningTrackVideo();
+            const capabilities = videoTrack.getCapabilities();
+
+            if (capabilities.torch) {
+                await videoTrack.applyConstraints({
+                    advanced: [{ torch: newTorchState }],
+                });
+                setIsTorchOn(newTorchState);
+            } else {
+                toast({
+                    variant: 'destructive',
+                    title: 'Torch Not Supported',
+                    description: 'Your device does not support flashlight control from the browser.',
+                });
+            }
+        } catch (err) {
+            console.error("Error toggling torch:", err);
+            toast({
+                variant: 'destructive',
+                title: 'Torch Error',
+                description: 'Could not control the flashlight.',
+            });
+        }
+    }
+  };
+
 
   useEffect(() => {
     if (readerMounted.current || !auth.currentUser || !firestore) return;
@@ -45,6 +78,11 @@ export default function CustomerScanQrPage() {
   
         try {
           if (scannerRef.current?.isScanning) {
+            if (isTorchOn) { // Turn off torch if it was on
+                const videoTrack = scannerRef.current.getRunningTrackVideo();
+                await videoTrack.applyConstraints({ advanced: [{ torch: false }] });
+                setIsTorchOn(false);
+            }
             await scannerRef.current.stop();
           }
           
@@ -143,8 +181,23 @@ export default function CustomerScanQrPage() {
         
         <div style={{
                 color: '#6c7293', background: '#e0e5ec', padding: '10px 20px 20px',
-                textAlign: 'center'
+                textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px'
             }}>
+             <button 
+                onClick={toggleTorch} 
+                className={`neu-button ${isTorchOn ? 'active' : ''}`}
+                style={{ 
+                    width: 'auto', 
+                    padding: '12px 25px',
+                    margin: 0,
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '10px'
+                }}
+            >
+                <Flashlight size={20} />
+                <span>{isTorchOn ? 'Torch On' : 'Torch Off'}</span>
+            </button>
             <p style={{margin:0, fontWeight: 500}}>Align QR code within the frame</p>
         </div>
     </div>
