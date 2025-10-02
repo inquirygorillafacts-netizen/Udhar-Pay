@@ -50,7 +50,13 @@ export default function QrPoster({ shopkeeperName, shopkeeperCode }: QrPosterPro
         }}>
             <WavyBackground />
 
-            <div style={{ zIndex: 1, textAlign: 'center' }}>
+             <div style={{ zIndex: 1, textAlign: 'center', padding: '10px', background: 'rgba(255, 255, 255, 0.7)', borderRadius: '15px', border: '2px solid #00c896', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
+                <p style={{color: '#3d4468', margin: 0, fontSize: '15px', fontWeight: 500}}>
+                    पैसे हैं तो <span style={{color: '#007BFF', fontWeight: 'bold'}}>PhonePe</span> अगर नहीं है तो <span style={{color: '#00c896', fontWeight: 'bold'}}>Udhar Pay</span>
+                </p>
+            </div>
+
+            <div style={{ zIndex: 1, textAlign: 'center', marginTop: '-20px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
                     <Image src="/logo.png" alt="Udhar Pay Logo" width={40} height={40} style={{ borderRadius: '50%' }} />
                     <h1 style={{ color: '#3d4468', fontSize: '2rem', fontWeight: 'bold', margin: 0 }}>Udhar Pay</h1>
@@ -79,8 +85,8 @@ export default function QrPoster({ shopkeeperName, shopkeeperCode }: QrPosterPro
                 <p style={{ color: '#00c896', fontSize: '1.25rem', fontWeight: 'bold', margin: 0, letterSpacing: '2px', background: 'rgba(255,255,255,0.7)', padding: '5px 10px', borderRadius: '10px', display: 'inline-block' }}>
                     {shopkeeperCode}
                 </p>
-                <p style={{color: '#6c7293', marginTop: '15px', fontSize: '15px', fontWeight: 500}}>
-                    पैसे हैं तो <span style={{color: '#007BFF', fontWeight: 'bold'}}>PhonePe</span> अगर नहीं है तो <span style={{color: '#00c896', fontWeight: 'bold'}}>Udhar Pay</span>
+                 <p style={{color: '#6c7293', marginTop: '15px', fontSize: '15px', fontWeight: 500}}>
+                   उधार लेने या भुगतान करने के लिए स्कैन करें
                 </p>
             </div>
         </div>
