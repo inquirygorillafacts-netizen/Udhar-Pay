@@ -1,4 +1,4 @@
-import { doc, writeBatch, type Firestore, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc } from 'firebase/firestore';
+import { doc, writeBatch, type Firestore, collection, addDoc, serverTimestamp, query, where, getDocs, updateDoc, getDoc } from 'firebase/firestore';
 
 interface ConnectionRequestPayload {
   requestId: string;
