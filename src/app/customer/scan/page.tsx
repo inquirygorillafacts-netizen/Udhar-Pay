@@ -1,19 +1,17 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { QrCode, ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Html5Qrcode } from 'html5-qrcode';
 import { useFirebase } from '@/firebase/client-provider';
-import { doc, getDoc } from 'firebase/firestore';
 import { sendConnectionRequest } from '@/lib/connections';
 
 export default function CustomerScanQrPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { auth, firestore } = useFirebase();
-  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
   
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const readerMounted = useRef(false);
@@ -44,33 +42,33 @@ export default function CustomerScanQrPage() {
             await scannerRef.current.stop();
           }
           
-          const customerRef = doc(firestore, 'customers', auth.currentUser!.uid);
-          const customerSnap = await getDoc(customerRef);
-          const customerData = customerSnap.data();
-          const connections = customerData?.connections || [];
+          const shopkeeperIdentifier = decodedText; // This is the shopkeeperCode from the QR
 
-          const shopkeeperId = decodedText.toUpperCase(); // Assume QR is the shopkeeper code
-
-          if (connections.includes(shopkeeperId)) {
-            // Already connected, redirect to request credit page
-            router.push(`/customer/request-credit/${shopkeeperId}`);
-          } else {
-            // Not connected, send a connection request
-            const result = await sendConnectionRequest(firestore, auth.currentUser!.uid, shopkeeperId, auth.currentUser?.displayName || 'A new customer');
-            
-            toast({
+          // Use the unified connection logic
+          const result = await sendConnectionRequest(firestore, auth.currentUser!.uid, shopkeeperIdentifier, auth.currentUser?.displayName || 'A new customer');
+          
+          if (result.status === 'already_connected' && result.shopkeeper) {
+              // If already connected, redirect to the page where they can request credit
+              router.push(`/customer/request-credit/${result.shopkeeper.id}`);
+          } else if (result.status === 'request_sent') {
+              // If not connected, a request was sent. Notify the user and go to dashboard.
+              toast({
                 title: "Connection Request Sent",
-                description: `Request sent to the shopkeeper. You'll be able to transact once they approve.`,
-            });
-            router.push('/customer/dashboard');
+                description: `Your request to connect has been sent. You'll be notified upon approval.`,
+              });
+              router.push('/customer/dashboard');
           }
   
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : 'Could not process the QR code.';
-            toast({ variant: 'destructive', title: 'Scan Error', description: errorMessage });
-            isProcessingRef.current = false;
+        } catch (err: any) {
+            toast({ 
+              variant: 'destructive', 
+              title: 'Scan Error', 
+              description: err.message || 'Could not process the QR code. Please try again.' 
+            });
             // Go back to allow retry, as pushing to dashboard might be confusing
             router.back(); 
+        } finally {
+            // No need to set isProcessingRef to false as we are navigating away
         }
       };
 
@@ -81,10 +79,8 @@ export default function CustomerScanQrPage() {
     const startScanning = async () => {
       try {
         await qrScanner.start({ facingMode: 'environment' }, config, qrCodeSuccessCallback, qrCodeErrorCallback);
-        setHasCameraPermission(true);
       } catch (err) {
         console.error("Camera start error:", err);
-        setHasCameraPermission(false);
         toast({
           variant: 'destructive',
           title: 'Camera Access Denied',
@@ -121,17 +117,6 @@ export default function CustomerScanQrPage() {
         <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
             <div id="reader" style={{ width: '100vw', height: '100%' }}></div>
             
-            {hasCameraPermission === false && (
-                <div style={{
-                    position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                    color: 'white', background: 'rgba(0,0,0,0.7)', padding: '20px',
-                    borderRadius: '15px', textAlign: 'center'
-                }}>
-                    <p>Camera permission denied.</p>
-                    <p style={{fontSize: '14px', opacity: 0.8}}>Please enable it in your browser settings.</p>
-                </div>
-            )}
-
             <div style={{
                 position: 'absolute', bottom: '40px', left: '50%', transform: 'translateX(-50%)',
                 color: 'white', background: 'rgba(0,0,0,0.6)', padding: '10px 20px',
