@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Flashlight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode';
 import { useFirebase } from '@/firebase/client-provider';
 import { collection, getDocs, query, where, getDoc, doc } from 'firebase/firestore';
 
@@ -21,30 +21,19 @@ export default function CustomerScanQrPage() {
 
   // Function to toggle the torch
   const toggleTorch = async () => {
-    if (scannerRef.current && scannerRef.current.isScanning) {
+    if (scannerRef.current && scannerRef.current.getState() === Html5QrcodeScannerState.SCANNING) {
         try {
             const newTorchState = !isTorchOn;
-            const videoTrack = scannerRef.current.getRunningTrackVideo();
-            const capabilities = videoTrack.getCapabilities();
-
-            if (capabilities.torch) {
-                await videoTrack.applyConstraints({
-                    advanced: [{ torch: newTorchState }],
-                });
-                setIsTorchOn(newTorchState);
-            } else {
-                toast({
-                    variant: 'destructive',
-                    title: 'Torch Not Supported',
-                    description: 'Your device does not support flashlight control from the browser.',
-                });
-            }
+            await scannerRef.current.applyVideoConstraints({
+                advanced: [{ torch: newTorchState }],
+            });
+            setIsTorchOn(newTorchState);
         } catch (err) {
             console.error("Error toggling torch:", err);
             toast({
                 variant: 'destructive',
-                title: 'Torch Error',
-                description: 'Could not control the flashlight.',
+                title: 'Torch Not Supported',
+                description: 'Your device does not support flashlight control from the browser.',
             });
         }
     }
@@ -77,12 +66,7 @@ export default function CustomerScanQrPage() {
         isProcessingRef.current = true;
   
         try {
-          if (scannerRef.current?.isScanning) {
-            if (isTorchOn) { // Turn off torch if it was on
-                const videoTrack = scannerRef.current.getRunningTrackVideo();
-                await videoTrack.applyConstraints({ advanced: [{ torch: false }] });
-                setIsTorchOn(false);
-            }
+          if (scannerRef.current?.getState() === Html5QrcodeScannerState.SCANNING) {
             await scannerRef.current.stop();
           }
           
@@ -145,7 +129,7 @@ export default function CustomerScanQrPage() {
     startScanning();
 
     return () => {
-      if (scannerRef.current && scannerRef.current.isScanning) {
+       if (scannerRef.current && scannerRef.current.getState() === Html5QrcodeScannerState.SCANNING) {
         scannerRef.current.stop().catch(err => {
           console.error("QR Scanner stop error:", err);
         });
