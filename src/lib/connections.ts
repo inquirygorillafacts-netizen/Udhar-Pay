@@ -26,12 +26,13 @@ export const sendConnectionRequest = async (firestore: Firestore, customerId: st
         shopkeeperDoc = shopkeeperSnapshotByCode.docs[0];
     } else {
         try {
+            // Check if the identifier might be a UID directly
             const shopkeeperRefById = doc(firestore, 'shopkeepers', shopkeeperIdentifier);
             const shopkeeperSnapshotById = await getDoc(shopkeeperRefById);
             if (shopkeeperSnapshotById.exists()) {
                 shopkeeperDoc = shopkeeperSnapshotById;
             }
-        } catch(e) { /* Invalid UID format, ignore */ }
+        } catch(e) { /* Invalid UID format, will be handled by the final check */ }
     }
 
     if (!shopkeeperDoc) {
@@ -41,7 +42,7 @@ export const sendConnectionRequest = async (firestore: Firestore, customerId: st
     const actualShopkeeperId = shopkeeperDoc.id;
     const shopkeeperData = shopkeeperDoc.data();
 
-    // 2. Check if already connected
+    // 2. Check if already connected using the definitive UID
     const customerDoc = await getDoc(doc(firestore, 'customers', customerId));
     const customerConnections = customerDoc.data()?.connections || [];
     if (customerConnections.includes(actualShopkeeperId)) {
@@ -51,7 +52,7 @@ export const sendConnectionRequest = async (firestore: Firestore, customerId: st
         };
     }
 
-    // 3. Check if a pending request already exists
+    // 3. Check if a pending request already exists to prevent duplicates
     const requestsRef = collection(firestore, 'connectionRequests');
     const qExisting = query(requestsRef, 
         where('customerId', '==', customerId), 

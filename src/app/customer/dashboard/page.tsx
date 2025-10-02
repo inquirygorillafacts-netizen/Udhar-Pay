@@ -197,7 +197,7 @@ export default function CustomerDashboardPage() {
 
     setIsConnecting(true);
     try {
-        const result = await sendConnectionRequest(firestore, auth.currentUser.uid, shopkeeperCode.toUpperCase(), userProfile.displayName);
+        const result = await sendConnectionRequest(firestore, auth.currentUser.uid, shopkeeperCode, userProfile.displayName);
         
         if (result.status === 'already_connected' && result.shopkeeper) {
              const balance = userProfile.balances?.[result.shopkeeper.id] || 0;
@@ -339,7 +339,7 @@ export default function CustomerDashboardPage() {
                                 type="text"
                                 placeholder="Enter Shopkeeper's Code"
                                 value={shopkeeperCode}
-                                onChange={(e) => setShopkeeperCode(e.target.value.toUpperCase())}
+                                onChange={(e) => setShopkeeperCode(e.target.value)}
                                 style={{paddingLeft: '55px', textTransform: 'uppercase'}}
                             />
                             <div className="input-icon"><Paperclip /></div>
