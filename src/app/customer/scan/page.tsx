@@ -18,24 +18,35 @@ export default function CustomerScanQrPage() {
   const readerMounted = useRef(false);
   const isProcessingRef = useRef(false);
   const [isTorchOn, setIsTorchOn] = useState(false);
+  const [isTorchAvailable, setIsTorchAvailable] = useState(true);
 
   // Function to toggle the torch
   const toggleTorch = async () => {
     if (scannerRef.current && scannerRef.current.getState() === Html5QrcodeScannerState.SCANNING) {
-        try {
-            const newTorchState = !isTorchOn;
-            await scannerRef.current.applyVideoConstraints({
-                advanced: [{ torch: newTorchState }],
-            });
-            setIsTorchOn(newTorchState);
-        } catch (err) {
-            console.error("Error toggling torch:", err);
-            toast({
-                variant: 'destructive',
-                title: 'Torch Not Supported',
-                description: 'Your device does not support flashlight control from the browser.',
-            });
-        }
+      if (!isTorchAvailable) {
+         toast({
+            variant: 'destructive',
+            title: 'Torch Not Supported',
+            description: 'Your device does not support flashlight control from the browser.',
+        });
+        return;
+      }
+      try {
+        const newTorchState = !isTorchOn;
+        // @ts-ignore - _getRunningTrack() is an internal but useful method
+        const track = scannerRef.current._getRunningTrack(); 
+        await track.applyConstraints({
+            advanced: [{ torch: newTorchState }]
+        });
+        setIsTorchOn(newTorchState);
+      } catch (err) {
+        console.error("Error toggling torch:", err);
+        toast({
+            variant: 'destructive',
+            title: 'Torch Error',
+            description: 'Could not control the flashlight.',
+        });
+      }
     }
   };
 
@@ -114,7 +125,26 @@ export default function CustomerScanQrPage() {
 
     const startScanning = async () => {
       try {
-        await qrScanner.start({ facingMode: 'environment' }, config, qrCodeSuccessCallback, qrCodeErrorCallback);
+        await qrScanner.start(
+          { facingMode: 'environment' }, 
+          config, 
+          qrCodeSuccessCallback, 
+          qrCodeErrorCallback
+        );
+        
+        // After starting, check for torch capability
+        try {
+          // @ts-ignore
+          const track = qrScanner._getRunningTrack();
+          const capabilities = track.getCapabilities();
+          if (!capabilities.torch) {
+            setIsTorchAvailable(false);
+          }
+        } catch (e) {
+          setIsTorchAvailable(false);
+          console.log('Torch capability check failed.', e);
+        }
+
       } catch (err) {
         console.error("Camera start error:", err);
         toast({
@@ -129,7 +159,7 @@ export default function CustomerScanQrPage() {
     startScanning();
 
     return () => {
-       if (scannerRef.current && scannerRef.current.getState() === Html5QrcodeScannerState.SCANNING) {
+       if (scannerRef.current && scannerRef.current.isScanning) {
         scannerRef.current.stop().catch(err => {
           console.error("QR Scanner stop error:", err);
         });
