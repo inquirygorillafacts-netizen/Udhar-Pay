@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { QrCode, ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Html5Qrcode } from 'html5-qrcode';
@@ -27,11 +27,16 @@ export default function CustomerScanQrPage() {
 
     const config = {
       fps: 10,
-      qrbox: {
-        width: 250,
-        height: 250,
+      qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
+        const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+        const qrboxSize = Math.floor(minEdge * 0.7);
+        return {
+            width: qrboxSize,
+            height: qrboxSize,
+        };
       },
-       aspectRatio: 1.0,
+      aspectRatio: 1.0,
+      supportedScanTypes: [],
     };
 
     const qrCodeSuccessCallback = async (decodedText: string) => {
@@ -112,8 +117,8 @@ export default function CustomerScanQrPage() {
   }, [auth.currentUser, firestore]);
 
   return (
-    <div style={{ height: '100vh', background: '#333', display: 'flex', flexDirection: 'column' }}>
-        <header className="dashboard-header" style={{ position: 'sticky', top: 0, zIndex: 10, borderRadius: '0 0 20px 20px', background: 'rgba(224, 229, 236, 0.9)', backdropFilter: 'blur(5px)' }}>
+    <div style={{ height: '100svh', background: '#e0e5ec', display: 'flex', flexDirection: 'column' }}>
+        <header className="dashboard-header" style={{ position: 'sticky', top: 0, zIndex: 10, borderRadius: '0 0 20px 20px' }}>
             <button onClick={() => router.back()} className="neu-button" style={{width: '45px', height: '45px', padding: 0, margin: 0, flexShrink: 0}}>
                 <ArrowLeft size={20} />
             </button>
@@ -123,17 +128,25 @@ export default function CustomerScanQrPage() {
             <div style={{width: '45px', flexShrink: 0}}></div>
         </header>
 
-        <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
-            <div id="reader" style={{ width: '100vw', height: '100%' }}></div>
-            
-            <div style={{
-                position: 'absolute', bottom: '40px', left: '50%', transform: 'translateX(-50%)',
-                color: 'white', background: 'rgba(0,0,0,0.6)', padding: '10px 20px',
-                borderRadius: '15px', textAlign: 'center'
-            }}>
-                <p>Align QR code within the frame</p>
+        <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden', padding: '20px' }}>
+            <div className="qr-scanner-container">
+                <div id="reader" style={{ width: '100%', height: '100%', borderRadius: '25px', overflow: 'hidden' }}></div>
+                <div className="qr-scanner-frame">
+                    <div className="scanner-corner top-left"></div>
+                    <div className="scanner-corner top-right"></div>
+                    <div className="scanner-corner bottom-left"></div>
+                    <div className="scanner-corner bottom-right"></div>
+                    <div className="scanner-line"></div>
+                </div>
             </div>
         </main>
+        
+        <div style={{
+                color: '#6c7293', background: '#e0e5ec', padding: '10px 20px 20px',
+                textAlign: 'center'
+            }}>
+            <p style={{margin:0, fontWeight: 500}}>Align QR code within the frame</p>
+        </div>
     </div>
   );
 }
