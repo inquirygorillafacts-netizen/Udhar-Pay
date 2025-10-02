@@ -79,7 +79,9 @@ export default function QrPoster({ shopkeeperName, shopkeeperCode }: QrPosterPro
                 <p style={{ color: '#00c896', fontSize: '1.25rem', fontWeight: 'bold', margin: 0, letterSpacing: '2px', background: 'rgba(255,255,255,0.7)', padding: '5px 10px', borderRadius: '10px', display: 'inline-block' }}>
                     {shopkeeperCode}
                 </p>
-                <p style={{color: '#6c7293', marginTop: '15px', fontSize: '14px', fontWeight: 500}}>उधार लेने या भुगतान करने के लिए स्कैन करें</p>
+                <p style={{color: '#6c7293', marginTop: '15px', fontSize: '15px', fontWeight: 500}}>
+                    पैसे हैं तो <span style={{color: '#007BFF', fontWeight: 'bold'}}>PhonePe</span> और अगर नहीं हैं तो भाई हमारा अपना <span style={{color: '#00c896', fontWeight: 'bold', fontSize: '1.2em'}}>Udhar Pay</span>
+                </p>
             </div>
         </div>
     );
