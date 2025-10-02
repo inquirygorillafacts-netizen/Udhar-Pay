@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
 import { doc, onSnapshot, collection, query, where, getDocs, writeBatch } from 'firebase/firestore';
 import Link from 'next/link';
-import { MessageSquare, X, Check, ArrowLeft, ArrowRight, QrCode, Share2, RefreshCw, Users as UsersIcon } from 'lucide-react';
+import { MessageSquare, X, Check, ArrowLeft, ArrowRight, QrCode, Share2, RefreshCw, User as UsersIcon } from 'lucide-react';
 import { acceptConnectionRequest, rejectConnectionRequest } from '@/lib/connections';
 import CustomerCard from '@/app/shopkeeper/components/CustomerCard';
 import QRCode from "react-qr-code";
