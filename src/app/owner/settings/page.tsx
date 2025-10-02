@@ -184,7 +184,7 @@ setShowPinModal(false);
               
               <div className="form-group">
                 <div className="neu-input">
-                    <input type="password" id="pin" maxLength={4} value={pin} onChange={(e) => setPin(e.target.value.replace(/\\D/g, ''))} placeholder=" " />
+                    <input type="password" id="pin" maxLength={4} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} placeholder=" " />
                     <label htmlFor="pin">{isChangingPin ? 'Old 4-digit PIN' : 'Enter 4-digit PIN'}</label>
                     <div className="input-icon"><Lock/></div>
                 </div>
@@ -192,7 +192,7 @@ setShowPinModal(false);
               
               <div className="form-group">
                 <div className="neu-input">
-                    <input type="password" id="confirmPin" maxLength={4} value={confirmPin} onChange={(e) => setConfirmPin(e.target.value.replace(/\\D/g, ''))} placeholder=" " />
+                    <input type="password" id="confirmPin" maxLength={4} value={confirmPin} onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ''))} placeholder=" " />
                     <label htmlFor="confirmPin">{isChangingPin ? 'New 4-digit PIN' : 'Confirm PIN'}</label>
                     <div className="input-icon"><KeyRound/></div>
                 </div>
