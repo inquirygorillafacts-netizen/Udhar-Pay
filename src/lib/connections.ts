@@ -52,7 +52,7 @@ export const sendConnectionRequest = async (firestore: Firestore, customerId: st
         throw new Error("A connection request has already been sent and is pending approval.");
     }
     
-    // 4. Create the new connection request
+    // 4. Create the new connection request. This object is generic and contains no method-specific info.
     await addDoc(requestsRef, {
       customerId,
       shopkeeperId: actualShopkeeperId,
@@ -70,26 +70,28 @@ export const acceptConnectionRequest = async (firestore: Firestore, payload: Con
   
   const batch = writeBatch(firestore);
 
-  // Update request status to approved
+  // 1. Update request status to 'approved'. This marks it as handled.
   const requestRef = doc(firestore, 'connectionRequests', requestId);
   batch.update(requestRef, { status: 'approved' });
 
-  // Add customerId to shopkeeper's connections array
+  // 2. Add customerId to shopkeeper's connections array.
   const shopkeeperRef = doc(firestore, 'shopkeepers', shopkeeperId);
   batch.update(shopkeeperRef, {
       connections: arrayUnion(customerId)
   });
 
-  // Add shopkeeperId to customer's connections array
+  // 3. Add shopkeeperId to customer's connections array.
   const customerRef = doc(firestore, 'customers', customerId);
   batch.update(customerRef, {
       connections: arrayUnion(shopkeeperId)
   });
 
+  // Commit all three operations as a single atomic transaction.
   await batch.commit();
 };
 
 export const rejectConnectionRequest = async (firestore: Firestore, requestId: string) => {
   const requestRef = doc(firestore, 'connectionRequests', requestId);
+  // Simply mark the request as 'rejected'. No other data is changed.
   await updateDoc(requestRef, { status: 'rejected' });
 };

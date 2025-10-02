@@ -133,12 +133,6 @@ export default function ShopkeeperDashboardPage() {
       });
       setConnectionRequests(newRequests);
 
-      newRequests.forEach(req => {
-        setTimeout(() => {
-            setConnectionRequests(prevReqs => prevReqs.filter(r => r.id !== req.id));
-        }, 60000);
-      });
-
     }, (error) => {
       console.error("Error fetching connection requests:", error);
     });
