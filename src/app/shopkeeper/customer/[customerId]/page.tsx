@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
-import { doc, getDoc, collection, query, where, onSnapshot, orderBy, writeBatch, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, onSnapshot, orderBy, writeBatch, Timestamp, serverTimestamp } from 'firebase/firestore';
 import { ArrowLeft, User, IndianRupee, Send, PlusCircle, MinusCircle } from 'lucide-react';
 
 interface CustomerProfile {
@@ -107,7 +107,6 @@ export default function CustomerDetailPage() {
         const batch = writeBatch(firestore);
         const shopkeeperId = auth.currentUser.uid;
         
-        // Transaction document
         const transactionRef = doc(collection(firestore, 'transactions'));
         batch.set(transactionRef, {
             amount: transactionAmount,
@@ -115,35 +114,28 @@ export default function CustomerDetailPage() {
             notes: notes,
             shopkeeperId: shopkeeperId,
             customerId: customerId,
-            timestamp: new Date(),
+            timestamp: serverTimestamp(),
         });
         
-        // Calculate balance change
         const balanceChange = type === 'credit' ? transactionAmount : -transactionAmount;
         
-        // Update Shopkeeper's balance for this customer
         const shopkeeperRef = doc(firestore, 'shopkeepers', shopkeeperId);
-        batch.set(shopkeeperRef, {
-            balances: {
-                [customerId]: (shopkeeperBalance || 0) + balanceChange
-            }
-        }, { merge: true });
-
-        // Update Customer's balance for this shopkeeper
         const customerRef = doc(firestore, 'customers', customerId);
+
+        const shopkeeperDoc = await getDoc(shopkeeperRef);
+        const shopkeeperBalances = shopkeeperDoc.data()?.balances || {};
+        const newShopkeeperBalance = (shopkeeperBalances[customerId] || 0) + balanceChange;
+
         const customerDoc = await getDoc(customerRef);
         const customerBalances = customerDoc.data()?.balances || {};
-        const currentCustomerBalance = customerBalances[shopkeeperId] || 0;
+        const newCustomerBalance = (customerBalances[shopkeeperId] || 0) + balanceChange;
         
-        batch.set(customerRef, {
-            balances: {
-                [shopkeeperId]: currentCustomerBalance + balanceChange
-            }
-        }, { merge: true });
+        batch.set(shopkeeperRef, { balances: { [customerId]: newShopkeeperBalance } }, { merge: true });
+        batch.set(customerRef, { balances: { [shopkeeperId]: newCustomerBalance } }, { merge: true });
 
         await batch.commit();
 
-        alert(`Transaction successful! Amount: ₹${transactionAmount}`);
+        alert(`Transaction successful! New balance is ₹${Math.abs(newCustomerBalance)}.`);
         setAmount('');
         setNotes('');
 
