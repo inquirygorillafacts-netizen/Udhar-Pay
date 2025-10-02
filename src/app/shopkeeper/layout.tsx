@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { LayoutDashboard, User, Bot, LifeBuoy, Users, PieChart } from 'lucide-react';
+import { LayoutDashboard, User, LifeBuoy, Users, PieChart, Bot } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
