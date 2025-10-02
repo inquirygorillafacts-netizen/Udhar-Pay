@@ -309,6 +309,7 @@ export default function ShopkeeperDashboardPage() {
     if (sanitizedExpr !== expr) { return ''; }
     if (!sanitizedExpr || /[+\-*/.]$/.test(sanitizedExpr)) { return sanitizedExpr; }
     try {
+      // Using Function constructor is safer than eval()
       const result = new Function(`return ${sanitizedExpr}`)();
       if (typeof result === 'number' && !isNaN(result)) {
         return String(Math.round(result * 100) / 100);
@@ -319,30 +320,44 @@ export default function ShopkeeperDashboardPage() {
     }
   };
 
-  const handleAmountChange = (value: string) => {
-    setCreditAmount(value);
-    setError('');
+  const evaluateAndSetAmount = (newAmount: string) => {
+    const operators = ['+', '-', '*', '/'];
+    const lastChar = newAmount.slice(-1);
+
+    // Don't evaluate if the expression is empty or ends with an operator or a dot
+    if (!newAmount || operators.includes(lastChar) || lastChar === '.') {
+      setCreditAmount(newAmount);
+      return;
+    }
+    
+    // Check if there is an operator in the expression (but not at the end)
+    const hasOperator = operators.some(op => newAmount.slice(0, -1).includes(op));
+
+    if(hasOperator) {
+      const result = evaluateExpression(newAmount);
+      setCreditAmount(result);
+    } else {
+      setCreditAmount(newAmount);
+    }
   };
-  
-  const handleAmountBlur = () => {
-      const evaluatedValue = evaluateExpression(creditAmount);
-      setCreditAmount(evaluatedValue);
-  }
 
   const handleKeyPress = (key: string) => {
-    if (creditAmount.length >= 15) return; // Increased limit
-    if (key === '.' && creditAmount.includes('.')) return;
-    
-    const lastChar = creditAmount.slice(-1);
-    const operators = ['+', '-', '*', '/'];
+    if (creditAmount.length >= 15) return;
+    let newAmount = creditAmount;
 
-    if(operators.includes(lastChar) && operators.includes(key)) {
-        // Replace the last operator with the new one
-        setCreditAmount(prev => prev.slice(0, -1) + key);
+    const operators = ['+', '-', '*', '/'];
+    const lastChar = creditAmount.slice(-1);
+
+    if (operators.includes(lastChar) && operators.includes(key)) {
+      newAmount = creditAmount.slice(0, -1) + key;
+    } else if (key === '.' && creditAmount.split(/[+\-*/]/).pop()?.includes('.')) {
+      // Prevent multiple dots in the same number segment
+      return;
     } else {
-        setCreditAmount(prev => prev + key);
+      newAmount += key;
     }
     setError('');
+    evaluateAndSetAmount(newAmount);
   };
 
   const handleBackspace = () => {
@@ -416,8 +431,7 @@ export default function ShopkeeperDashboardPage() {
                 <input
                     type="text"
                     value={`₹ ${creditAmount}`}
-                    onChange={(e) => handleAmountChange(e.target.value.replace('₹ ', ''))}
-                    onBlur={handleAmountBlur}
+                    readOnly
                     placeholder="₹ 0"
                     style={{
                         background: 'transparent',
@@ -436,7 +450,7 @@ export default function ShopkeeperDashboardPage() {
             {error && <p style={{ color: '#ff3b5c', textAlign: 'center', marginBottom: '15px', animation: 'gentleShake 0.5s' }}>{error}</p>}
             
             <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
-                {['+', '-', '×', '÷'].map((op, index) => {
+                {['+', '-', '×', '÷'].map((op) => {
                     const operatorMap: { [key: string]: string } = { '×': '*', '÷': '/' };
                     const actualOperator = operatorMap[op] || op;
                     return (
