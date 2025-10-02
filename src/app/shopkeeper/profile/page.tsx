@@ -5,9 +5,10 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
-import { Camera, User, Phone, LogOut, Settings, Lock, ShieldOff, KeyRound, Store, CheckCircle } from 'lucide-react';
+import { Camera, User, Phone, LogOut, Settings, Lock, ShieldOff, KeyRound, Store, CheckCircle, QrCode } from 'lucide-react';
 import Link from 'next/link';
 import { generateUniqueCustomerCode } from '@/lib/code-helpers';
+import QRCode from 'react-qr-code';
 
 interface UserProfile {
   uid: string;

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
 import { doc, onSnapshot, collection, query, where, getDocs, writeBatch } from 'firebase/firestore';
 import Link from 'next/link';
-import { MessageSquare, X, Check, Wallet, ShieldAlert, Users, BookUser, Banknote, User, Search, ArrowLeft, ArrowRight, QrCode, Share2 } from 'lucide-react';
+import { MessageSquare, X, Check, Wallet, ShieldAlert, Users, BookUser, Banknote, User, Search, ArrowLeft, ArrowRight, QrCode, Share2, RefreshCw } from 'lucide-react';
 import { acceptConnectionRequest, rejectConnectionRequest } from '@/lib/connections';
 import CustomerCard from '@/app/shopkeeper/components/CustomerCard';
 import QRCode from "react-qr-code";
@@ -55,7 +55,8 @@ export default function ShopkeeperDashboardPage() {
   const [loadingCustomers, setLoadingCustomers] = useState(true);
   
   const [showQrModal, setShowQrModal] = useState(false);
-  const qrCodeRef = useRef<HTMLDivElement>(null);
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
+  const qrSvgRef = useRef<HTMLDivElement>(null);
 
 
   useEffect(() => {
@@ -71,6 +72,12 @@ export default function ShopkeeperDashboardPage() {
         if (docSnap.exists()) {
           const profile = { uid: docSnap.id, ...docSnap.data() } as UserProfile;
           setShopkeeperProfile(profile);
+
+          // Load saved QR from local storage
+           const savedQr = localStorage.getItem('shopkeeperQrCodePng');
+           if (savedQr) {
+               setQrCodeDataUrl(savedQr);
+           }
 
           // Fetch connected customers
           const customerIds = profile.connections || [];
@@ -132,6 +139,42 @@ export default function ShopkeeperDashboardPage() {
         setFilteredCustomers(filtered);
     }
   }, [customerSearchTerm, customers]);
+  
+  const generateAndSaveQrCode = () => {
+      setTimeout(() => {
+        if (qrSvgRef.current) {
+            const svgElement = qrSvgRef.current.querySelector('svg');
+            if (svgElement) {
+                const svgData = new XMLSerializer().serializeToString(svgElement);
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const img = new Image();
+                img.onload = () => {
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx!.drawImage(img, 0, 0);
+                    const pngUrl = canvas.toDataURL('image/png');
+                    setQrCodeDataUrl(pngUrl);
+                    localStorage.setItem('shopkeeperQrCodePng', pngUrl);
+                };
+                img.src = 'data:image/svg+xml;base64,' + btoa(svgData);
+            }
+        }
+    }, 100); // Small delay to ensure SVG is rendered
+  }
+
+  const handleOpenQrModal = () => {
+      setShowQrModal(true);
+      if (!qrCodeDataUrl) {
+          generateAndSaveQrCode();
+      }
+  }
+
+  const handleRegenerateQr = () => {
+      localStorage.removeItem('shopkeeperQrCodePng');
+      setQrCodeDataUrl(null);
+      generateAndSaveQrCode();
+  }
 
 
   const handleAccept = async (requestId: string, customerId: string, shopkeeperId: string) => {
@@ -155,41 +198,27 @@ export default function ShopkeeperDashboardPage() {
   };
 
   const handleShareCode = async () => {
-    if (!qrCodeRef.current || !shopkeeperProfile?.shopkeeperCode) return;
+    if (!qrCodeDataUrl || !shopkeeperProfile?.shopkeeperCode) return;
 
-    // Convert SVG to PNG
-    const svgElement = qrCodeRef.current.querySelector('svg');
-    if (!svgElement) return;
+    try {
+        const response = await fetch(qrCodeDataUrl);
+        const blob = await response.blob();
+        const file = new File([blob], 'qrcode.png', { type: 'image/png' });
 
-    const svgData = new XMLSerializer().serializeToString(svgElement);
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const img = new Image();
-    img.onload = async () => {
-        canvas.width = img.width;
-        canvas.height = img.height;
-        ctx.drawImage(img, 0, 0);
-        canvas.toBlob(async (blob) => {
-            if (blob && navigator.share) {
-                const file = new File([blob], 'qrcode.png', { type: 'image/png' });
-                try {
-                    await navigator.share({
-                        title: 'My Shopkeeper Code',
-                        text: `Connect with me on Udhar Pay! My code is: ${shopkeeperProfile.shopkeeperCode}`,
-                        files: [file],
-                    });
-                } catch (error) {
-                    console.log('Error sharing', error);
-                }
-            } else {
-                 navigator.clipboard.writeText(shopkeeperProfile.shopkeeperCode || '');
-                 alert('Shopkeeper code copied to clipboard! (Image sharing not supported on this browser)');
-            }
-        }, 'image/png');
-    };
-    img.src = 'data:image/svg+xml;base64,' + btoa(svgData);
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+             await navigator.share({
+                title: 'My Shopkeeper Code',
+                text: `Connect with me on Udhar Pay! My code is: ${shopkeeperProfile.shopkeeperCode}`,
+                files: [file],
+            });
+        } else {
+            throw new Error("Sharing not supported or file type not allowed.");
+        }
+    } catch (error) {
+        console.log('Fallback: Could not share image, copying code to clipboard.', error);
+        navigator.clipboard.writeText(shopkeeperProfile.shopkeeperCode || '');
+        alert('Shopkeeper code copied to clipboard! (Image sharing not supported on this browser)');
+    }
   };
 
 
@@ -414,7 +443,7 @@ export default function ShopkeeperDashboardPage() {
         <div 
             className="token-balance" 
             style={{padding: '10px 15px', height: 'auto', flexDirection: 'row', gap: '10px', justifyContent: 'center', alignItems: 'center', cursor: 'pointer', flexGrow: 1, margin: '0 10px'}}
-            onClick={() => setShowQrModal(true)}
+            onClick={handleOpenQrModal}
         >
             <span style={{fontSize: '1rem', fontWeight: 'bold', letterSpacing: '1px'}}>{shopkeeperProfile?.shopkeeperCode || '...'}</span>
             <QrCode size={16} style={{color: '#6c7293'}}/>
@@ -482,23 +511,27 @@ export default function ShopkeeperDashboardPage() {
               </div>
               <p style={{color: '#9499b7', marginBottom: '25px'}}>Show this QR to your customers to let them connect with you.</p>
 
-              <div ref={qrCodeRef} style={{background: 'white', padding: '20px', borderRadius: '20px', boxShadow: 'inset 5px 5px 10px #bec3cf, inset -5px -5px 10px #ffffff', marginBottom: '25px'}}>
-                {shopkeeperProfile.shopkeeperCode ? (
-                    <QRCode
-                        value={shopkeeperProfile.shopkeeperCode}
-                        style={{ height: "auto", maxWidth: "100%", width: "100%" }}
-                        viewBox={`0 0 256 256`}
-                    />
+              <div style={{background: 'white', padding: '20px', borderRadius: '20px', boxShadow: 'inset 5px 5px 10px #bec3cf, inset -5px -5px 10px #ffffff', marginBottom: '25px', position: 'relative'}}>
+                {qrCodeDataUrl ? (
+                    <img src={qrCodeDataUrl} alt="Shopkeeper QR Code" style={{ width: '100%', height: 'auto', borderRadius: '10px' }} />
                 ) : (
-                    <p>No code generated yet.</p>
+                    <div ref={qrSvgRef} style={{ opacity: 0, position: 'absolute', top: '-9999px', left: '-9999px' }}>
+                        {shopkeeperProfile.shopkeeperCode && <QRCode value={shopkeeperProfile.shopkeeperCode} />}
+                    </div>
                 )}
+                {!qrCodeDataUrl && <div className="neu-spinner" style={{margin: '40px auto'}}></div>}
               </div>
               
               <p style={{color: '#3d4468', fontWeight: 'bold', fontSize: '1.5rem', letterSpacing: '2px'}}>{shopkeeperProfile.shopkeeperCode}</p>
 
-              <button className="neu-button" onClick={handleShareCode} style={{margin: '25px 0 0 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'}}>
-                  <Share2 size={20}/> Share Code
-              </button>
+              <div style={{display: 'flex', gap: '15px', marginTop: '25px'}}>
+                 <button className="neu-button" onClick={handleShareCode} style={{margin: 0, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'}}>
+                      <Share2 size={20}/> Share
+                  </button>
+                   <button className="neu-button" onClick={handleRegenerateQr} style={{margin: 0, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'}}>
+                      <RefreshCw size={20}/> Regenerate
+                  </button>
+              </div>
           </div>
         </div>
       )}
