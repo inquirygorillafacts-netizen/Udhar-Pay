@@ -304,8 +304,33 @@ export default function ShopkeeperDashboardPage() {
     }
   };
 
+  const evaluateExpression = (expr: string): string => {
+    const sanitizedExpr = expr.replace(/[^0-9+\-*/.]/g, '');
+    if (sanitizedExpr !== expr) { return ''; }
+    if (!sanitizedExpr || /[+\-*/.]$/.test(sanitizedExpr)) { return sanitizedExpr; }
+    try {
+      const result = new Function(`return ${sanitizedExpr}`)();
+      if (typeof result === 'number' && !isNaN(result)) {
+        return String(Math.round(result * 100) / 100);
+      }
+      return sanitizedExpr;
+    } catch (error) {
+      return sanitizedExpr;
+    }
+  };
+
+  const handleAmountChange = (value: string) => {
+    setCreditAmount(value);
+    setError('');
+  };
+  
+  const handleAmountBlur = () => {
+      const evaluatedValue = evaluateExpression(creditAmount);
+      setCreditAmount(evaluatedValue);
+  }
+
   const handleKeyPress = (key: string) => {
-    if (creditAmount.length >= 7) return;
+    if (creditAmount.length >= 10) return;
     if (key === '.' && creditAmount.includes('.')) return;
     setCreditAmount(prev => prev + key);
     setError('');
@@ -316,11 +341,13 @@ export default function ShopkeeperDashboardPage() {
   };
 
   const proceedToCustomerSelection = () => {
-    const amount = parseFloat(creditAmount);
+    const finalAmountStr = evaluateExpression(creditAmount);
+    const amount = parseFloat(finalAmountStr);
     if (isNaN(amount) || amount <= 0) {
         setError("Please enter a valid amount to give credit.");
         return;
     }
+    setCreditAmount(finalAmountStr);
     setStep('selectCustomer');
     setError('');
   }
@@ -376,8 +403,25 @@ export default function ShopkeeperDashboardPage() {
                 <h2>Give Credit (Udhaar)</h2>
             </div>
             
-            <div className="neu-input" style={{ marginBottom: '20px', textAlign: 'center', fontSize: '2.5rem', fontWeight: '700', color: '#3d4468', padding: '15px' }}>
-                ₹ {creditAmount || '0'}
+            <div className="neu-input" style={{ marginBottom: '20px', padding: '0 15px' }}>
+                <input
+                    type="text"
+                    value={`₹ ${creditAmount}`}
+                    onChange={(e) => handleAmountChange(e.target.value.replace('₹ ', ''))}
+                    onBlur={handleAmountBlur}
+                    placeholder="₹ 0"
+                    style={{
+                        background: 'transparent',
+                        border: 'none',
+                        outline: 'none',
+                        textAlign: 'center',
+                        fontSize: '2.5rem',
+                        fontWeight: '700',
+                        color: '#3d4468',
+                        width: '100%',
+                        padding: '10px 0'
+                    }}
+                />
             </div>
 
             {error && <p style={{ color: '#ff3b5c', textAlign: 'center', marginBottom: '15px', animation: 'gentleShake 0.5s' }}>{error}</p>}
