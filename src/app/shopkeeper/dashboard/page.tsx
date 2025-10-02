@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
 import { doc, onSnapshot, collection, query, where, getDocs, writeBatch } from 'firebase/firestore';
@@ -55,6 +55,7 @@ export default function ShopkeeperDashboardPage() {
   const [loadingCustomers, setLoadingCustomers] = useState(true);
   
   const [showQrModal, setShowQrModal] = useState(false);
+  const qrCodeRef = useRef<HTMLDivElement>(null);
 
 
   useEffect(() => {
@@ -153,16 +154,42 @@ export default function ShopkeeperDashboardPage() {
       }
   };
 
-  const handleShareCode = () => {
-    if (navigator.share && shopkeeperProfile?.shopkeeperCode) {
-      navigator.share({
-        title: 'My Shopkeeper Code',
-        text: `Connect with me on Udhar Pay! My code is: ${shopkeeperProfile.shopkeeperCode}`,
-      }).catch((error) => console.log('Error sharing', error));
-    } else {
-      navigator.clipboard.writeText(shopkeeperProfile?.shopkeeperCode || '');
-      alert('Shopkeeper code copied to clipboard!');
-    }
+  const handleShareCode = async () => {
+    if (!qrCodeRef.current || !shopkeeperProfile?.shopkeeperCode) return;
+
+    // Convert SVG to PNG
+    const svgElement = qrCodeRef.current.querySelector('svg');
+    if (!svgElement) return;
+
+    const svgData = new XMLSerializer().serializeToString(svgElement);
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const img = new Image();
+    img.onload = async () => {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+        canvas.toBlob(async (blob) => {
+            if (blob && navigator.share) {
+                const file = new File([blob], 'qrcode.png', { type: 'image/png' });
+                try {
+                    await navigator.share({
+                        title: 'My Shopkeeper Code',
+                        text: `Connect with me on Udhar Pay! My code is: ${shopkeeperProfile.shopkeeperCode}`,
+                        files: [file],
+                    });
+                } catch (error) {
+                    console.log('Error sharing', error);
+                }
+            } else {
+                 navigator.clipboard.writeText(shopkeeperProfile.shopkeeperCode || '');
+                 alert('Shopkeeper code copied to clipboard! (Image sharing not supported on this browser)');
+            }
+        }, 'image/png');
+    };
+    img.src = 'data:image/svg+xml;base64,' + btoa(svgData);
   };
 
 
@@ -377,7 +404,7 @@ export default function ShopkeeperDashboardPage() {
         <Link href="/shopkeeper/profile">
             <div className="user-avatar neu-icon">
                 {shopkeeperProfile?.photoURL ? (
-                    <img src={shopkeeperProfile.photoURL} alt={shopkeeperProfile.displayName} style={{width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover'}} />
+                    <img src={shopkeeperProfile.photoURL} alt={shopkeeperProfile.displayName || ''} style={{width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover'}} />
                 ) : (
                     <User size={24} />
                 )}
@@ -455,7 +482,7 @@ export default function ShopkeeperDashboardPage() {
               </div>
               <p style={{color: '#9499b7', marginBottom: '25px'}}>Show this QR to your customers to let them connect with you.</p>
 
-              <div style={{background: 'white', padding: '20px', borderRadius: '20px', boxShadow: 'inset 5px 5px 10px #bec3cf, inset -5px -5px 10px #ffffff', marginBottom: '25px'}}>
+              <div ref={qrCodeRef} style={{background: 'white', padding: '20px', borderRadius: '20px', boxShadow: 'inset 5px 5px 10px #bec3cf, inset -5px -5px 10px #ffffff', marginBottom: '25px'}}>
                 {shopkeeperProfile.shopkeeperCode ? (
                     <QRCode
                         value={shopkeeperProfile.shopkeeperCode}
