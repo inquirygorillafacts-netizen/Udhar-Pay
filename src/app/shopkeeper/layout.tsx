@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { LayoutDashboard, User, Bot, LifeBuoy, Users } from 'lucide-react';
+import { LayoutDashboard, User, Bot, LifeBuoy, Users, PieChart } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
@@ -51,6 +51,10 @@ export default function ShopkeeperLayout({
         <Link href="/shopkeeper/customers" className={`admin-nav-item ${isCustomersActive ? 'active' : ''}`}>
           <Users size={24} />
           <span>Customers</span>
+        </Link>
+         <Link href="/shopkeeper/analysis" className={`admin-nav-item ${pathname === '/shopkeeper/analysis' ? 'active' : ''}`}>
+          <PieChart size={24} />
+          <span>Analysis</span>
         </Link>
         <Link href="/shopkeeper/ai-assistant/voice" className={`admin-nav-item ${isAiAssistantActive ? 'active' : ''}`}>
             <Bot size={24} />
