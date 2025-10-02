@@ -68,7 +68,11 @@ export default function ShopkeeperDashboardPage() {
   const [filteredCustomers, setFilteredCustomers] = useState<CustomerForSelection[]>([]);
   const [customerSearchTerm, setCustomerSearchTerm] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerForSelection | null>(null);
+  
   const [creditAmount, setCreditAmount] = useState('');
+  const [expression, setExpression] = useState('');
+  const [isResultShown, setIsResultShown] = useState(false);
+
   const [isRequestingCredit, setIsRequestingCredit] = useState(false);
   const [activeRequest, setActiveRequest] = useState<ActiveCreditRequest | null>(null);
   const [error, setError] = useState('');
@@ -305,73 +309,71 @@ export default function ShopkeeperDashboardPage() {
   };
 
   const evaluateExpression = (expr: string): string => {
-    const sanitizedExpr = expr.replace(/[^0-9+\-*/.]/g, '');
-    if (sanitizedExpr !== expr) { return ''; }
-    if (!sanitizedExpr || /[+\-*/.]$/.test(sanitizedExpr)) { return sanitizedExpr; }
+    const sanitizedExpr = expr.replace(/[^\d.+-/*]/g, '').replace(/[*]/g, '*').replace(/[/]/g, '/');
+    if (!sanitizedExpr || /[+\-*/.]$/.test(sanitizedExpr)) {
+        return '';
+    }
     try {
-      // Using Function constructor is safer than eval()
-      const result = new Function(`return ${sanitizedExpr}`)();
-      if (typeof result === 'number' && !isNaN(result)) {
+        const result = new Function(`return ${sanitizedExpr}`)();
         return String(Math.round(result * 100) / 100);
-      }
-      return sanitizedExpr;
     } catch (error) {
-      return sanitizedExpr;
-    }
-  };
-
-  const evaluateAndSetAmount = (newAmount: string) => {
-    const operators = ['+', '-', '*', '/'];
-    const lastChar = newAmount.slice(-1);
-
-    // Don't evaluate if the expression is empty or ends with an operator or a dot
-    if (!newAmount || operators.includes(lastChar) || lastChar === '.') {
-      setCreditAmount(newAmount);
-      return;
-    }
-    
-    // Check if there is an operator in the expression (but not at the end)
-    const hasOperator = operators.some(op => newAmount.slice(0, -1).includes(op));
-
-    if(hasOperator) {
-      const result = evaluateExpression(newAmount);
-      setCreditAmount(result);
-    } else {
-      setCreditAmount(newAmount);
+        return '';
     }
   };
 
   const handleKeyPress = (key: string) => {
-    if (creditAmount.length >= 15) return;
-    let newAmount = creditAmount;
+    if (isResultShown) {
+        setExpression('');
+        setCreditAmount('');
+        setIsResultShown(false);
+    }
 
+    if (creditAmount.length >= 20) return;
+    
     const operators = ['+', '-', '*', '/'];
-    const lastChar = creditAmount.slice(-1);
+    const lastChar = expression.slice(-1);
 
     if (operators.includes(lastChar) && operators.includes(key)) {
-      newAmount = creditAmount.slice(0, -1) + key;
-    } else if (key === '.' && creditAmount.split(/[+\-*/]/).pop()?.includes('.')) {
-      // Prevent multiple dots in the same number segment
+      setExpression(prev => prev.slice(0, -1) + key);
+    } else if (key === '.' && expression.split(/[+\-*/]/).pop()?.includes('.')) {
       return;
     } else {
-      newAmount += key;
+      setExpression(prev => prev + key);
     }
     setError('');
-    evaluateAndSetAmount(newAmount);
   };
+  
+  useEffect(() => {
+    if (isResultShown) return;
+    const result = evaluateExpression(expression);
+    if (result) {
+        setCreditAmount(result);
+    }
+  }, [expression, isResultShown]);
+
 
   const handleBackspace = () => {
-      setCreditAmount(prev => prev.slice(0, -1));
+      if (isResultShown) {
+        setExpression('');
+        setCreditAmount('');
+        setIsResultShown(false);
+      } else {
+        setExpression(prev => prev.slice(0, -1));
+      }
   };
+  
+  const handleShowResult = () => {
+      if (expression && creditAmount) {
+          setIsResultShown(true);
+      }
+  }
 
   const proceedToCustomerSelection = () => {
-    const finalAmountStr = evaluateExpression(creditAmount);
-    const amount = parseFloat(finalAmountStr);
-    if (isNaN(amount) || amount <= 0) {
+    const finalAmount = parseFloat(creditAmount);
+    if (isNaN(finalAmount) || finalAmount <= 0) {
         setError("Please enter a valid amount to give credit.");
         return;
     }
-    setCreditAmount(finalAmountStr);
     setStep('selectCustomer');
     setError('');
   }
@@ -415,9 +417,18 @@ export default function ShopkeeperDashboardPage() {
       setStep('enterAmount');
       setSelectedCustomer(null);
       setCreditAmount('');
+      setExpression('');
+      setIsResultShown(false);
       setError('');
       setActiveRequest(null);
       setIsRequestingCredit(false);
+  }
+  
+  const getDisplayValue = () => {
+      if (isResultShown) {
+          return `${expression} = ${creditAmount}`;
+      }
+      return `₹ ${expression || '0'}`;
   }
 
   const renderEnterAmount = () => {
@@ -430,7 +441,7 @@ export default function ShopkeeperDashboardPage() {
             <div className="neu-input" style={{ marginBottom: '20px', padding: '0 15px' }}>
                 <input
                     type="text"
-                    value={`₹ ${creditAmount}`}
+                    value={getDisplayValue()}
                     readOnly
                     placeholder="₹ 0"
                     style={{
@@ -438,11 +449,12 @@ export default function ShopkeeperDashboardPage() {
                         border: 'none',
                         outline: 'none',
                         textAlign: 'center',
-                        fontSize: '2.5rem',
+                        fontSize: isResultShown ? '1.8rem' : '2.5rem',
                         fontWeight: '700',
                         color: '#3d4468',
                         width: '100%',
-                        padding: '10px 0'
+                        padding: '10px 0',
+                        transition: 'font-size 0.2s ease-in-out'
                     }}
                 />
             </div>
@@ -468,14 +480,24 @@ export default function ShopkeeperDashboardPage() {
                 <button className="neu-button" onClick={handleBackspace} style={{ margin: 0, height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={24}/></button>
             </div>
             
-            <button 
-                className="neu-button"
-                onClick={proceedToCustomerSelection}
-                disabled={!creditAmount || parseFloat(creditAmount) <= 0}
-                style={{ background: '#00c896', color: 'white', width: '100%', margin: 0 }}
-            >
-                Next: Select Customer <ArrowRight style={{display: 'inline', marginLeft: '8px'}} size={20}/>
-            </button>
+             <div style={{display: 'flex', gap: '15px'}}>
+                <button 
+                    className="neu-button"
+                    onClick={handleShowResult}
+                    disabled={isResultShown || !creditAmount}
+                    style={{ margin: 0, flex: 1, height: '60px' }}
+                >
+                    =
+                </button>
+                <button 
+                    className="neu-button"
+                    onClick={proceedToCustomerSelection}
+                    disabled={!creditAmount || parseFloat(creditAmount) <= 0}
+                    style={{ background: '#00c896', color: 'white', margin: 0, flex: 2, height: '60px' }}
+                >
+                    Next <ArrowRight style={{display: 'inline', marginLeft: '8px'}} size={20}/>
+                </button>
+            </div>
         </div>
     );
   };
@@ -483,7 +505,7 @@ export default function ShopkeeperDashboardPage() {
   const renderSelectCustomer = () => (
     <div className="login-card" style={{ maxWidth: '600px', margin: 'auto' }}>
         <div style={{display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px'}}>
-            <button className="neu-button" onClick={() => setStep('enterAmount')} style={{width: '50px', height: '50px', margin: 0, padding: 0}}>
+            <button className="neu-button" onClick={resetCreditFlow} style={{width: '50px', height: '50px', margin: 0, padding: 0}}>
                 <ArrowLeft/>
             </button>
             <div>
