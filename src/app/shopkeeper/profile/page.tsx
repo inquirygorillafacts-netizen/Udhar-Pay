@@ -7,7 +7,7 @@ import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
 import { Camera, User, Phone, LogOut, Settings, Lock, ShieldOff, KeyRound, Store, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
-import { generateUniqueCustomerCode } from '@/lib/code-helpers';
+import RoleEnrollmentModal from '@/components/auth/RoleEnrollmentModal';
 
 interface UserProfile {
   uid: string;
@@ -32,6 +32,9 @@ export default function ShopkeeperProfilePage() {
   // Role management states
   const [roles, setRoles] = useState({ customer: false, shopkeeper: false });
   const [isCheckingRoles, setIsCheckingRoles] = useState(true);
+  const [showEnrollmentModal, setShowEnrollmentModal] = useState(false);
+  const [enrollmentRole, setEnrollmentRole] = useState<'customer' | 'shopkeeper' | null>(null);
+
 
   // Profile fields
   const [name, setName] = useState('');
@@ -93,28 +96,23 @@ export default function ShopkeeperProfilePage() {
     return () => unsubscribe();
   }, [auth, firestore, router]);
 
-  const handleRoleSwitch = async (newRole: 'customer' | 'shopkeeper') => {
+  const handleRoleSwitch = (newRole: 'customer' | 'shopkeeper') => {
       if (!user) return;
 
-      const userDocRef = doc(firestore, `${newRole}s`, user.uid);
-      const userDoc = await getDoc(userDocRef);
-
-      if (!userDoc.exists()) {
-          if (newRole === 'customer') {
-            const customerCode = await generateUniqueCustomerCode(firestore);
-            await setDoc(userDocRef, {
-                email: user.email,
-                displayName: user.displayName || 'New Customer',
-                photoURL: user.photoURL || '',
-                createdAt: new Date(),
-                role: newRole,
-                customerCode: customerCode,
-            });
-          }
+      if (!roles[newRole]) {
+        setEnrollmentRole(newRole);
+        setShowEnrollmentModal(true);
+      } else {
+        localStorage.setItem('activeRole', newRole);
+        router.push(`/${newRole}/dashboard`);
       }
-      
-      localStorage.setItem('activeRole', newRole);
-      router.push(`/${newRole}/dashboard`);
+  };
+
+  const handleEnrollmentSuccess = (newRole: 'customer' | 'shopkeeper') => {
+    setRoles(prev => ({...prev, [newRole]: true}));
+    setShowEnrollmentModal(false);
+    localStorage.setItem('activeRole', newRole);
+    router.push(`/${newRole}/dashboard`);
   };
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -247,6 +245,13 @@ export default function ShopkeeperProfilePage() {
 
   return (
     <>
+    {showEnrollmentModal && enrollmentRole && (
+        <RoleEnrollmentModal 
+            role={enrollmentRole}
+            onClose={() => setShowEnrollmentModal(false)}
+            onSuccess={() => handleEnrollmentSuccess(enrollmentRole)}
+        />
+    )}
     <div className="login-container" style={{paddingTop: '40px', paddingBottom: '80px', minHeight: 'auto'}}>
       <div className="login-card" style={{ maxWidth: '500px', position: 'relative' }}>
           <div style={{ position: 'absolute', top: '25px', right: '25px', display: 'flex', gap: '10px' }}>
