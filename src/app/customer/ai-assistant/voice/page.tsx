@@ -33,70 +33,6 @@ export default function VoiceAssistantPage() {
 
     const currentVoiceId = availableVoices[currentVoiceIndex].voiceId;
 
-    const processQuery = useCallback(async (text: string) => {
-        setStatus('thinking');
-        setAiResponse('');
-        try {
-          const response = await askAiAssistant({ 
-            query: text,
-            generateAudio: true,
-            voiceId: currentVoiceId,
-          });
-          
-          setAiResponse(response.text);
-    
-          if (response.audio) {
-            if (!audioRef.current) audioRef.current = new Audio();
-            
-            audioRef.current.src = response.audio;
-            audioRef.current.play();
-            setStatus('speaking');
-
-            audioRef.current.onended = () => {
-                // After speaking, automatically start listening again if the assistant is on
-                if(isAssistantOn) {
-                    startListening();
-                } else {
-                    setStatus('idle');
-                }
-            };
-            audioRef.current.onerror = (e) => {
-                console.error("Error playing AI response audio.", e);
-                // If there's an error, go back to listening
-                 if(isAssistantOn) {
-                    startListening();
-                } else {
-                    setStatus('idle');
-                }
-            }
-          } else {
-             // If no audio, go back to listening
-             if(isAssistantOn) {
-                startListening();
-            } else {
-                setStatus('idle');
-            }
-          }
-        } catch (error) {
-          console.error('Error with AI Assistant:', error);
-          setAiResponse("माफ़ कीजिए, कोई त्रुटि हुई। कृपया फिर प्रयास करें।");
-          // If there's an error, go back to listening
-          if(isAssistantOn) {
-            startListening();
-          } else {
-            setStatus('idle');
-          }
-        }
-    }, [currentVoiceId, isAssistantOn]);
-    
-    const stopListening = () => {
-        if (recognitionRef.current) {
-            recognitionRef.current.stop();
-            recognitionRef.current = null;
-        }
-        setStatus('off');
-    }
-
     const startListening = useCallback(() => {
         if (!SpeechRecognition) {
             alert("माफ़ कीजिए, आपका ब्राउज़र वॉइस रिकग्निशन का समर्थन नहीं करता है।");
@@ -130,7 +66,6 @@ export default function VoiceAssistantPage() {
             console.error('Speech recognition error:', event.error);
             setAiResponse("माफ़ कीजिए, मैं आपकी बात नहीं सुन सका। कृपया फिर प्रयास करें।");
           }
-          // If there's an error (like no speech), just go back to listening
           if (isAssistantOn) {
             startListening();
           } else {
@@ -140,13 +75,72 @@ export default function VoiceAssistantPage() {
     
         recognition.onend = () => {
           recognitionRef.current = null;
-          // Don't automatically go to idle. The flow is now controlled by onended/onerror.
         };
         
         recognition.start();
         recognitionRef.current = recognition;
-    }, [processQuery, isAssistantOn]);
+    }, [isAssistantOn]);
 
+
+    const processQuery = useCallback(async (text: string) => {
+        setStatus('thinking');
+        setAiResponse('');
+        try {
+          const response = await askAiAssistant({ 
+            query: text,
+            generateAudio: true,
+            voiceId: currentVoiceId,
+          });
+          
+          setAiResponse(response.text);
+    
+          if (response.audio) {
+            if (!audioRef.current) audioRef.current = new Audio();
+            
+            audioRef.current.src = response.audio;
+            audioRef.current.play();
+            setStatus('speaking');
+
+            audioRef.current.onended = () => {
+                if(isAssistantOn) {
+                    startListening();
+                } else {
+                    setStatus('idle');
+                }
+            };
+            audioRef.current.onerror = (e) => {
+                console.error("Error playing AI response audio.", e);
+                 if(isAssistantOn) {
+                    startListening();
+                } else {
+                    setStatus('idle');
+                }
+            }
+          } else {
+             if(isAssistantOn) {
+                startListening();
+            } else {
+                setStatus('idle');
+            }
+          }
+        } catch (error) {
+          console.error('Error with AI Assistant:', error);
+          setAiResponse("माफ़ कीजिए, कोई त्रुटि हुई। कृपया फिर प्रयास करें।");
+          if(isAssistantOn) {
+            startListening();
+          } else {
+            setStatus('idle');
+          }
+        }
+    }, [currentVoiceId, isAssistantOn, startListening]);
+
+     const stopListening = () => {
+        if (recognitionRef.current) {
+            recognitionRef.current.stop();
+            recognitionRef.current = null;
+        }
+        setStatus('off');
+    }
 
     const playGreetingAndListen = useCallback(() => {
         setStatus('greeting');
@@ -154,13 +148,11 @@ export default function VoiceAssistantPage() {
         audioRef.current = greetingAudio;
         
         greetingAudio.play().catch(e => {
-            console.error("Greeting audio blocked by browser. Starting to listen directly.", e);
-            // If audio fails, directly go to idle, ready for user to turn on.
+            console.error("Greeting audio blocked by browser.", e);
             setStatus('off');
         });
 
         greetingAudio.onended = () => {
-            // After greeting, just be ready. Don't start listening.
             setStatus('off');
         };
     }, []);
