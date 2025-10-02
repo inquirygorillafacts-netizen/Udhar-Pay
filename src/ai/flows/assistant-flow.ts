@@ -108,7 +108,6 @@ const assistantFlow = ai.defineFlow(
       IMPORTANT: You must ALWAYS reply in HINDI. Never use English. Your response should be a direct continuation of the conversation.
       
       Your latest response should be to the last message from the Boss.`,
-      model: 'googleai/gemini-2.0-flash',
       output: {
         format: 'text',
       },
