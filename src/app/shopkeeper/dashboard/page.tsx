@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
-import { doc, onSnapshot, collection, query, where, getDocs, writeBatch } from 'firebase/firestore';
+import { doc, onSnapshot, collection, query, where, getDocs, writeBatch, addDoc, serverTimestamp } from 'firebase/firestore';
 import Link from 'next/link';
 import { MessageSquare, X, Check, ArrowLeft, ArrowRight, QrCode, Share2, RefreshCw, User as UsersIcon } from 'lucide-react';
 import { acceptConnectionRequest, rejectConnectionRequest } from '@/lib/connections';
@@ -30,6 +30,13 @@ interface ConnectionRequest {
   status: string;
 }
 
+interface ShopkeeperNotification {
+    id: string;
+    message: string;
+    type: 'success' | 'error';
+    timestamp: Date;
+}
+
 // Redefined for this page's context
 interface CustomerForSelection extends UserProfile {
     balance: number;
@@ -41,8 +48,10 @@ export default function ShopkeeperDashboardPage() {
   
   const [shopkeeperProfile, setShopkeeperProfile] = useState<UserProfile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
+  
   const [isMessageSidebarOpen, setIsMessageSidebarOpen] = useState(false);
   const [connectionRequests, setConnectionRequests] = useState<ConnectionRequest[]>([]);
+  const [notifications, setNotifications] = useState<ShopkeeperNotification[]>([]);
   
   // --- Give Credit State ---
   const [step, setStep] = useState('enterAmount'); // enterAmount, selectCustomer, success
@@ -110,11 +119,34 @@ export default function ShopkeeperDashboardPage() {
 
     // Fetch connection requests
     const requestsRef = collection(firestore, 'connectionRequests');
-    const qConnections = query(requestsRef, where('shopkeeperId', '==', auth.currentUser.uid), where('status', '==', 'pending'));
+    const qConnections = query(requestsRef, where('shopkeeperId', '==', auth.currentUser.uid));
     
     const unsubscribeConnections = onSnapshot(qConnections, (querySnapshot) => {
-      const requests = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ConnectionRequest));
-      setConnectionRequests(requests);
+        const newNotifications: ShopkeeperNotification[] = [];
+        const newRequests: ConnectionRequest[] = [];
+        querySnapshot.forEach(docSnap => {
+            const req = { id: docSnap.id, ...docSnap.data() } as ConnectionRequest;
+            if (req.status === 'pending') {
+                newRequests.push(req);
+            } else if (req.status === 'approved' || req.status === 'rejected') {
+                // Find if we already notified about this
+                const alreadyNotified = notifications.some(n => n.id === req.id);
+                if (!alreadyNotified) {
+                     newNotifications.push({
+                        id: req.id,
+                        message: `${req.customerName} has ${req.status} your credit request of ₹${(docSnap.data() as any).amount}.`,
+                        type: req.status === 'approved' ? 'success' : 'error',
+                        timestamp: new Date()
+                    });
+                }
+            }
+        });
+
+        setConnectionRequests(newRequests);
+        if(newNotifications.length > 0) {
+            setNotifications(prev => [...newNotifications, ...prev].sort((a,b) => b.timestamp.getTime() - a.timestamp.getTime()));
+        }
+
     }, (error) => {
       console.error("Error fetching connection requests:", error);
     });
@@ -244,44 +276,32 @@ export default function ShopkeeperDashboardPage() {
   }
 
   const handleSendRequest = async (customer: CustomerForSelection) => {
-      setSelectedCustomer(customer); // for success message
+      setSelectedCustomer(customer);
       const amount = parseFloat(creditAmount);
       if (isNaN(amount) || amount <= 0 || !shopkeeperProfile || !firestore) {
           setError("An unexpected error occurred. Please start over.");
           return;
       }
       
-      setIsRequestingCredit(true); // Should disable all customer cards
+      setIsRequestingCredit(true);
       setError('');
 
       try {
-          // This would ideally be a cloud function, but for now, we do it on the client
-          const batch = writeBatch(firestore);
-
-          const shopkeeperRef = doc(firestore, 'shopkeepers', shopkeeperProfile.uid);
-          const customerRef = doc(firestore, 'customers', customer.uid);
-
-          const newShopkeeperBalance = (shopkeeperProfile.balances?.[customer.uid] || 0) + amount;
-          const newCustomerBalance = (customer.balances?.[shopkeeperProfile.uid] || 0) + amount;
-
-          batch.set(shopkeeperRef, { balances: { [customer.uid]: newShopkeeperBalance } }, { merge: true });
-          batch.set(customerRef, { balances: { [shopkeeperProfile.uid]: newCustomerBalance } }, { merge: true });
-          
-          const transactionRef = doc(collection(firestore, 'transactions'));
-          batch.set(transactionRef, {
-              amount,
-              type: 'credit',
-              notes: 'Credit added by shopkeeper',
-              shopkeeperId: shopkeeperProfile.uid,
+          const creditRequestsRef = collection(firestore, 'creditRequests');
+          await addDoc(creditRequestsRef, {
+              amount: amount,
               customerId: customer.uid,
-              timestamp: new Date(),
+              customerName: customer.displayName,
+              shopkeeperId: shopkeeperProfile.uid,
+              shopkeeperName: shopkeeperProfile.displayName,
+              status: 'pending',
+              createdAt: serverTimestamp(),
           });
-
-          await batch.commit();
+          
           setStep('success');
+
       } catch (error) {
-          console.error(error);
-          // Show error on the customer selection screen
+          console.error("Error creating credit request:", error);
           setError("Failed to send request. Please try again.");
       } finally {
           setIsRequestingCredit(false);
@@ -337,7 +357,7 @@ export default function ShopkeeperDashboardPage() {
                 <ArrowLeft/>
             </button>
             <div>
-                <p style={{ color: '#6c7293', margin: 0, fontSize: '14px'}}>Amount to give:</p>
+                <p style={{ color: '#6c7293', margin: 0, fontSize: '14px'}}>Amount to request:</p>
                 <h2 style={{color: '#3d4468', fontSize: '1.5rem', margin: 0}}>₹{parseFloat(creditAmount)}</h2>
             </div>
         </div>
@@ -394,12 +414,12 @@ export default function ShopkeeperDashboardPage() {
             <div className="neu-icon" style={{background: '#00c896', color: 'white', boxShadow: '8px 8px 20px #b0f0df, -8px -8px 20px #ffffff', marginBottom: '30px', width: '100px', height: '100px'}}>
                 <Check size={50} />
             </div>
-            <h2 style={{color: '#3d4468', fontSize: '1.75rem', marginBottom: '15px'}}>Credit Added!</h2>
+            <h2 style={{color: '#3d4468', fontSize: '1.75rem', marginBottom: '15px'}}>Request Sent!</h2>
             <p style={{color: '#6c7293', marginBottom: '30px', fontSize: '1.1rem'}}>
-                <strong>₹{parseFloat(creditAmount)}</strong> has been successfully added to <strong>{selectedCustomer.displayName}</strong>'s account.
+                Your credit request for <strong>₹{parseFloat(creditAmount)}</strong> has been sent to <strong>{selectedCustomer.displayName}</strong>.
             </p>
             <button className="neu-button" onClick={resetCreditFlow} style={{margin: 0}}>
-                Give More Credit
+                Send Another Request
             </button>
         </div>
     );
@@ -425,6 +445,8 @@ export default function ShopkeeperDashboardPage() {
     );
   }
   
+  const totalNotifications = connectionRequests.length + notifications.length;
+
   return (
     <>
     <header className="dashboard-header">
@@ -453,9 +475,9 @@ export default function ShopkeeperDashboardPage() {
             onClick={() => setIsMessageSidebarOpen(true)}
         >
             <MessageSquare size={20} />
-            {connectionRequests.length > 0 && (
+            {totalNotifications > 0 && (
             <span style={{ position: 'absolute', top: '-5px', right: '-5px', background: '#ff3b5c', color: 'white', borderRadius: '50%', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 'bold' }}>
-                {connectionRequests.length}
+                {totalNotifications}
             </span>
             )}
         </button>
@@ -469,13 +491,13 @@ export default function ShopkeeperDashboardPage() {
       <div className="message-sidebar-overlay" onClick={() => setIsMessageSidebarOpen(false)}>
         <div className="message-sidebar" onClick={(e) => e.stopPropagation()}>
           <div className="modal-header">
-              <h2>Connection Requests</h2>
+              <h2>Notifications</h2>
               <button className="close-button" onClick={() => setIsMessageSidebarOpen(false)}>&times;</button>
           </div>
           <div className="sidebar-content" style={{overflowY: 'auto', padding: '10px'}}>
-            {connectionRequests.length === 0 ? (
+            {totalNotifications === 0 ? (
                 <p style={{color: '#6c7293', textAlign: 'center'}}>
-                    You have no new connection requests.
+                    You have no new notifications.
                 </p>
             ) : (
                 <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '15px' }}>
@@ -492,6 +514,16 @@ export default function ShopkeeperDashboardPage() {
                                     Accept
                                 </button>
                             </div>
+                        </li>
+                    ))}
+                    {notifications.map(note => (
+                         <li key={note.id} style={{ background: note.type === 'success' ? '#e6f9f3' : '#ffeef1', padding: '15px', borderRadius: '15px', borderLeft: `4px solid ${note.type === 'success' ? '#00c896' : '#ff3b5c'}` }}>
+                            <p style={{ color: '#3d4468', fontWeight: '500', margin: 0 }}>
+                                {note.message}
+                            </p>
+                            <p style={{fontSize: '12px', color: '#9499b7', marginTop: '5px'}}>
+                                {note.timestamp.toLocaleTimeString()}
+                            </p>
                         </li>
                     ))}
                 </ul>

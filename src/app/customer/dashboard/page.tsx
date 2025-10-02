@@ -3,9 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
-import { doc, onSnapshot, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, onSnapshot, collection, query, where, getDocs, writeBatch, updateDoc } from 'firebase/firestore';
 import Link from 'next/link';
-import { Paperclip, X, User } from 'lucide-react';
+import { Paperclip, X, User, Check, AlertCircle } from 'lucide-react';
 import ShopkeeperCard from '@/app/customer/components/ShopkeeperCard';
 import { sendConnectionRequest } from '@/lib/connections';
 
@@ -26,6 +26,14 @@ interface ShopkeeperProfile {
   photoURL?: string | null;
 }
 
+interface CreditRequest {
+    id: string;
+    shopkeeperId: string;
+    shopkeeperName: string;
+    amount: number;
+    status: 'pending' | 'approved' | 'rejected';
+}
+
 export default function CustomerDashboardPage() {
   const { auth, firestore } = useFirebase();
   const router = useRouter();
@@ -39,10 +47,13 @@ export default function CustomerDashboardPage() {
   const [connectedShopkeepers, setConnectedShopkeepers] = useState<ShopkeeperProfile[]>([]);
   const [loadingShopkeepers, setLoadingShopkeepers] = useState(false);
   
+  const [creditRequests, setCreditRequests] = useState<CreditRequest[]>([]);
+  
   const totalBalance = userProfile?.balances ? Object.values(userProfile.balances).reduce((sum, bal) => sum + bal, 0) : 0;
 
   useEffect(() => {
-    if (auth.currentUser) {
+    if (!auth.currentUser || !firestore) return;
+
       const userRef = doc(firestore, 'customers', auth.currentUser.uid);
       const unsubscribe = onSnapshot(userRef, (docSnap) => {
         if (docSnap.exists()) {
@@ -70,9 +81,80 @@ export default function CustomerDashboardPage() {
           setLoading(false);
       });
       
-      return () => unsubscribe();
-    }
+      // Listener for credit requests
+      const requestsRef = collection(firestore, 'creditRequests');
+      const qRequests = query(requestsRef, where('customerId', '==', auth.currentUser.uid), where('status', '==', 'pending'));
+      
+      const unsubscribeRequests = onSnapshot(qRequests, async (snapshot) => {
+          const requests: CreditRequest[] = [];
+          for (const doc of snapshot.docs) {
+              const requestData = doc.data();
+              // Fetch shopkeeper name if not present
+              if(!requestData.shopkeeperName) {
+                  const shopkeeperDoc = await getDoc(doc(firestore, 'shopkeepers', requestData.shopkeeperId));
+                  requestData.shopkeeperName = shopkeeperDoc.data()?.displayName || 'A Shopkeeper';
+              }
+              requests.push({ id: doc.id, ...requestData } as CreditRequest);
+          }
+          setCreditRequests(requests);
+      });
+
+      return () => {
+          unsubscribe();
+          unsubscribeRequests();
+      }
   }, [auth.currentUser, firestore]);
+
+  const handleCreditRequestResponse = async (request: CreditRequest, response: 'approved' | 'rejected') => {
+      if (!auth.currentUser || !firestore || !userProfile) return;
+
+      try {
+          const requestRef = doc(firestore, 'creditRequests', request.id);
+          
+          if (response === 'approved') {
+              const batch = writeBatch(firestore);
+
+              // Update the request status
+              batch.update(requestRef, { status: 'approved' });
+
+              // Update balances
+              const balanceChange = request.amount;
+              const shopkeeperRef = doc(firestore, 'shopkeepers', request.shopkeeperId);
+              const customerRef = doc(firestore, 'customers', auth.currentUser.uid);
+
+              const shopkeeperDoc = await getDoc(shopkeeperRef);
+              const shopkeeperBalances = shopkeeperDoc.data()?.balances || {};
+              const newShopkeeperBalance = (shopkeeperBalances[userProfile.uid] || 0) + balanceChange;
+
+              const customerBalances = userProfile.balances || {};
+              const newCustomerBalance = (customerBalances[request.shopkeeperId] || 0) + balanceChange;
+              
+              batch.set(shopkeeperRef, { balances: { [userProfile.uid]: newShopkeeperBalance } }, { merge: true });
+              batch.set(customerRef, { balances: { [request.shopkeeperId]: newCustomerBalance } }, { merge: true });
+
+              // Create transaction record
+              const transactionRef = doc(collection(firestore, 'transactions'));
+              batch.set(transactionRef, {
+                  amount: request.amount,
+                  type: 'credit',
+                  notes: `Credit approved by customer`,
+                  shopkeeperId: request.shopkeeperId,
+                  customerId: auth.currentUser.uid,
+                  timestamp: new Date(),
+              });
+              
+              await batch.commit();
+
+          } else { // Rejected
+              await updateDoc(requestRef, { status: 'rejected' });
+          }
+
+      } catch (error) {
+          console.error("Error responding to credit request:", error);
+          setModalMessage("An error occurred. Please try again.");
+      }
+  }
+
 
   const handleConnect = async () => {
     if (!firestore || !auth.currentUser || !userProfile) {
@@ -188,6 +270,27 @@ export default function CustomerDashboardPage() {
                     <span style={{fontSize: '1.75rem'}}>₹{totalBalance}</span>
                 </div>
             </div>
+
+            {creditRequests.length > 0 && (
+                <div className="login-card" style={{maxWidth: '600px', margin: '0 auto 40px auto'}}>
+                    <h2 style={{color: '#3d4468', fontSize: '1.5rem', fontWeight: '600', textAlign: 'center', marginBottom: '30px' }}>
+                      Pending Credit Requests
+                    </h2>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                        {creditRequests.map(req => (
+                            <div key={req.id} className="neu-input" style={{padding: '15px', display: 'flex', flexDirection: 'column', gap: '10px'}}>
+                                <p style={{color: '#6c7293', margin: 0}}>
+                                    <strong>{req.shopkeeperName}</strong> sent you a credit request for <strong style={{color: '#3d4468', fontSize: '1.1rem'}}>₹{req.amount}</strong>.
+                                </p>
+                                <div style={{display: 'flex', gap: '15px', justifyContent: 'flex-end'}}>
+                                    <button className="neu-button" onClick={() => handleCreditRequestResponse(req, 'rejected')} style={{margin: 0, padding: '8px 16px', background: '#ff3b5c', color: 'white'}}>Reject</button>
+                                    <button className="neu-button" onClick={() => handleCreditRequestResponse(req, 'approved')} style={{margin: 0, padding: '8px 16px', background: '#00c896', color: 'white'}}>Approve</button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
 
           <div className="login-card" style={{marginBottom: '40px', maxWidth: '600px', margin: 'auto' }}>
