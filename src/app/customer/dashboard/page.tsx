@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
 import { doc, onSnapshot, collection, query, where, getDocs, writeBatch, updateDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import Link from 'next/link';
-import { Paperclip, X, User, Check, AlertCircle, Send } from 'lucide-react';
+import { Paperclip, X, User, Check, AlertCircle, Send, IndianRupee, ArrowRight } from 'lucide-react';
 import ShopkeeperCard from '@/app/customer/components/ShopkeeperCard';
 import { sendConnectionRequest } from '@/lib/connections';
 
@@ -34,6 +34,14 @@ interface CreditRequest {
     status: 'pending' | 'approved' | 'rejected';
 }
 
+interface ModalInfo {
+    type: 'success' | 'info' | 'already_connected';
+    title: string;
+    message: string;
+    data?: any;
+}
+
+
 export default function CustomerDashboardPage() {
   const { auth, firestore } = useFirebase();
   const router = useRouter();
@@ -42,7 +50,7 @@ export default function CustomerDashboardPage() {
   
   const [shopkeeperCode, setShopkeeperCode] = useState('');
   const [isConnecting, setIsConnecting] = useState(false);
-  const [modalMessage, setModalMessage] = useState('');
+  const [modalInfo, setModalInfo] = useState<ModalInfo | null>(null);
 
   const [connectedShopkeepers, setConnectedShopkeepers] = useState<ShopkeeperProfile[]>([]);
   const [loadingShopkeepers, setLoadingShopkeepers] = useState(false);
@@ -165,7 +173,11 @@ export default function CustomerDashboardPage() {
 
       } catch (error) {
           console.error("Error responding to credit request:", error);
-          setModalMessage("An error occurred. Please try again.");
+          setModalInfo({
+              type: 'info',
+              title: "Error",
+              message: "An error occurred. Please try again."
+          });
       } finally {
         setIsProcessingRequest(false);
         setActiveRequest(null);
@@ -175,23 +187,34 @@ export default function CustomerDashboardPage() {
 
   const handleConnect = async () => {
     if (!firestore || !auth.currentUser || !userProfile) {
-        setModalMessage('Could not connect. Please try again.');
+        setModalInfo({ type: 'info', title: 'Error', message: 'Could not connect. Please try again.' });
         return;
     }
     if (shopkeeperCode.trim().length === 0) {
-        setModalMessage('Please enter a shopkeeper code.');
+        setModalInfo({ type: 'info', title: 'Input Error', message: 'Please enter a shopkeeper code.' });
         return;
     }
 
     setIsConnecting(true);
     try {
-        await sendConnectionRequest(firestore, auth.currentUser.uid, shopkeeperCode.toUpperCase(), userProfile.displayName);
-        setModalMessage(`Connection request sent! You will be notified upon approval.`);
+        const result = await sendConnectionRequest(firestore, auth.currentUser.uid, shopkeeperCode.toUpperCase(), userProfile.displayName);
+        
+        if (result.status === 'already_connected') {
+             const balance = userProfile.balances?.[result.shopkeeper.id] || 0;
+             setModalInfo({
+                type: 'already_connected',
+                title: 'Already Connected',
+                message: `You are already connected to ${result.shopkeeper.name}.`,
+                data: { ...result.shopkeeper, balance }
+            });
+        } else {
+            setModalInfo({ type: 'success', title: 'Request Sent', message: `Connection request sent! You will be notified upon approval.` });
+        }
         setShopkeeperCode('');
 
     } catch (error: any) {
         console.error("Error connecting to shopkeeper:", error);
-        setModalMessage(error.message || 'An error occurred while sending the request. Please try again.');
+        setModalInfo({ type: 'info', title: 'Connection Error', message: error.message || 'An error occurred while sending the request.' });
     } finally {
         setIsConnecting(false);
     }
@@ -245,17 +268,28 @@ export default function CustomerDashboardPage() {
             </div>
         )}
 
-        {modalMessage && (
-            <div className="modal-overlay" onClick={() => setModalMessage('')}>
+        {modalInfo && (
+            <div className="modal-overlay" onClick={() => setModalInfo(null)}>
                 <div className="login-card modal-content" onClick={(e) => e.stopPropagation()}>
                     <div className="modal-header">
-                        <h2>Notification</h2>
-                        <button className="close-button" onClick={() => setModalMessage('')}><X size={24} /></button>
+                        <h2>{modalInfo.title}</h2>
+                        <button className="close-button" onClick={() => setModalInfo(null)}><X size={24} /></button>
                     </div>
                     <p style={{ color: '#6c7293', textAlign: 'center', marginBottom: '30px' }}>
-                        {modalMessage}
+                        {modalInfo.message}
                     </p>
-                    <button className="neu-button" style={{width: '100%', margin: 0}} onClick={() => setModalMessage('')}>
+                    {modalInfo.type === 'already_connected' && modalInfo.data && (
+                        <div style={{textAlign: 'center', marginBottom: '30px'}}>
+                             <p style={{fontSize: '1.5rem', fontWeight: 'bold', margin: '5px 0', color: modalInfo.data.balance > 0 ? '#ff3b5c' : '#00c896'}}>
+                                ₹{Math.abs(modalInfo.data.balance)}
+                             </p>
+                             <p style={{fontSize: '0.9rem', color: '#6c7293', margin: 0, fontWeight: 500}}>Current Balance</p>
+                             <button className="neu-button" onClick={() => router.push(`/customer/payment/${modalInfo.data.id}`)} style={{marginTop: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'}}>
+                               Go to Transactions <ArrowRight size={18}/>
+                            </button>
+                        </div>
+                    )}
+                    <button className="neu-button" style={{width: '100%', margin: 0}} onClick={() => setModalInfo(null)}>
                         Close
                     </button>
                 </div>
