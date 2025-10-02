@@ -570,16 +570,20 @@ body {
     justify-content: center;
     color: #9499b7;
     text-decoration: none;
-    padding: 8px 12px;
+    padding: 8px 5px; /* Adjusted padding for smaller screens */
     border-radius: 15px;
     text-align: center;
     transition: all 0.3s ease;
+    min-width: 0; /* Allow item to shrink */
 }
 
 .admin-nav-item span {
-    font-size: 12px;
+    font-size: 11px; /* Slightly smaller font size */
     font-weight: 500;
     margin-top: 4px;
+    white-space: nowrap; /* Prevent text wrapping */
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .admin-nav-item.active {
