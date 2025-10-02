@@ -169,7 +169,7 @@ export default function VoiceAssistantPage() {
              console.error("Could not start recognition: ", e);
         }
         recognitionRef.current = recognition;
-    }, [isAssistantOn, processQuery]); 
+    }, [isAssistantOn, processQuery, status]); 
 
 
     // Initialize and play greeting audio, then auto-start the assistant
