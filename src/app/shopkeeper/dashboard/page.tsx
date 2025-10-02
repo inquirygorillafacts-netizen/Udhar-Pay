@@ -332,9 +332,26 @@ export default function ShopkeeperDashboardPage() {
   const handleKeyPress = (key: string) => {
     if (creditAmount.length >= 10) return;
     if (key === '.' && creditAmount.includes('.')) return;
-    setCreditAmount(prev => prev + key);
+    
+    // Check if the last char is an operator
+    const lastChar = creditAmount.slice(-1);
+    const operators = ['+', '-', '*', '/'];
+
+    if(operators.includes(lastChar) && operators.includes(key)) {
+        // Replace the last operator with the new one
+        setCreditAmount(prev => prev.slice(0, -1) + key);
+    } else {
+        setCreditAmount(prev => prev + key);
+    }
     setError('');
   };
+  
+  const handleQuickAdd = (amountToAdd: number) => {
+      const currentAmount = parseFloat(evaluateExpression(creditAmount)) || 0;
+      const newAmount = currentAmount + amountToAdd;
+      setCreditAmount(String(newAmount));
+  }
+
 
   const handleBackspace = () => {
       setCreditAmount(prev => prev.slice(0, -1));
@@ -425,6 +442,14 @@ export default function ShopkeeperDashboardPage() {
             </div>
 
             {error && <p style={{ color: '#ff3b5c', textAlign: 'center', marginBottom: '15px', animation: 'gentleShake 0.5s' }}>{error}</p>}
+            
+            <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
+                {[10, 20, 50, 100].map(amount => (
+                    <button key={amount} className="neu-button" onClick={() => handleQuickAdd(amount)} style={{ margin: 0, padding: '10px', height: 'auto', flex: 1, fontSize: '14px' }}>
+                        +{amount}
+                    </button>
+                ))}
+            </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '15px', marginBottom: '20px' }}>
                 {['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0'].map(key => (
