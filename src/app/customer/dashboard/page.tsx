@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
-import { doc, onSnapshot, collection, query, where, getDocs, writeBatch, updateDoc } from 'firebase/firestore';
+import { doc, onSnapshot, collection, query, where, getDocs, writeBatch, updateDoc, getDoc } from 'firebase/firestore';
 import Link from 'next/link';
 import { Paperclip, X, User, Check, AlertCircle, Send } from 'lucide-react';
 import ShopkeeperCard from '@/app/customer/components/ShopkeeperCard';
@@ -83,7 +83,6 @@ export default function CustomerDashboardPage() {
           setLoading(false);
       });
       
-      // Listener for credit requests
       const requestsRef = collection(firestore, 'creditRequests');
       const qRequests = query(requestsRef, where('customerId', '==', auth.currentUser.uid), where('status', '==', 'pending'));
       
@@ -91,26 +90,32 @@ export default function CustomerDashboardPage() {
           const requests: CreditRequest[] = [];
           for (const doc of snapshot.docs) {
               const requestData = doc.data();
-              // Fetch shopkeeper name if not present
               if(!requestData.shopkeeperName) {
-                  const shopkeeperDoc = await getDoc(doc(firestore, 'shopkeepers', requestData.shopkeeperId));
-                  requestData.shopkeeperName = shopkeeperDoc.data()?.displayName || 'A Shopkeeper';
+                  try {
+                    const shopkeeperDoc = await getDoc(doc(firestore, 'shopkeepers', requestData.shopkeeperId));
+                    requestData.shopkeeperName = shopkeeperDoc.data()?.displayName || 'A Shopkeeper';
+                  } catch (e) {
+                     requestData.shopkeeperName = 'A Shopkeeper';
+                  }
               }
               requests.push({ id: doc.id, ...requestData } as CreditRequest);
           }
           setCreditRequests(requests);
-          if (requests.length > 0 && !activeRequest) {
-            setActiveRequest(requests[0]);
-          } else if (requests.length === 0) {
-            setActiveRequest(null);
-          }
       });
 
       return () => {
           unsubscribe();
           unsubscribeRequests();
       }
-  }, [auth.currentUser, firestore, activeRequest]);
+  }, [auth.currentUser, firestore]);
+
+  useEffect(() => {
+    if (creditRequests.length > 0 && !activeRequest) {
+        setActiveRequest(creditRequests[0]);
+    } else if (creditRequests.length === 0) {
+        setActiveRequest(null);
+    }
+  }, [creditRequests, activeRequest]);
 
   const handleCreditRequestResponse = async (request: CreditRequest, response: 'approved' | 'rejected') => {
       if (!auth.currentUser || !firestore || !userProfile) return;
@@ -164,7 +169,6 @@ export default function CustomerDashboardPage() {
       } finally {
         setIsProcessingRequest(false);
         setActiveRequest(null);
-        // The onSnapshot listener will update the list naturally
       }
   }
 

@@ -148,6 +148,11 @@ export default function ShopkeeperDashboardPage() {
     const unsubscribe = onSnapshot(requestRef, (docSnap) => {
       if (docSnap.exists()) {
         setActiveRequest({ id: docSnap.id, ...docSnap.data() });
+      } else {
+        // The document might have been deleted or the component is re-rendering
+        // after a rejection/approval that clears activeRequest.
+        // To be safe, we can clear it here too.
+        setActiveRequest(null);
       }
     });
 
@@ -426,7 +431,6 @@ export default function ShopkeeperDashboardPage() {
                     </div>
                 </div>
 
-                {/* Status Pipeline */}
                 <div style={{ padding: '30px 0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <div style={{textAlign: 'center'}}>
                          <div className="neu-icon" style={{width: '40px', height: '40px', margin: '0 auto 5px', background: '#00c896', color: 'white'}}><Check size={20}/></div>
