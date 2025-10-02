@@ -476,16 +476,9 @@ export default function ShopkeeperDashboardPage() {
              <div style={{display: 'flex', gap: '15px'}}>
                 <button 
                     className="neu-button"
-                    onClick={resetCreditFlow}
-                    style={{ margin: 0, flex: 1, height: '60px' }}
-                >
-                    C
-                </button>
-                <button 
-                    className="neu-button"
                     onClick={proceedToCustomerSelection}
                     disabled={!creditAmount || parseFloat(creditAmount) <= 0}
-                    style={{ background: '#00c896', color: 'white', margin: 0, flex: 2, height: '60px' }}
+                    style={{ background: '#00c896', color: 'white', margin: 0, flex: 1, height: '60px' }}
                 >
                     Next <ArrowRight style={{display: 'inline', marginLeft: '8px'}} size={20}/>
                 </button>
