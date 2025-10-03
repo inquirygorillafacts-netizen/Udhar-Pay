@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
-import { Camera, User, Phone, LogOut, Settings, Lock, ShieldOff, KeyRound, Store, CheckCircle } from 'lucide-react';
+import { Camera, User, Phone, LogOut, Settings, Lock, ShieldOff, KeyRound, Store, CheckCircle, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import RoleEnrollmentModal from '@/components/auth/RoleEnrollmentModal';
 
@@ -18,6 +18,11 @@ interface UserProfile {
   pinEnabled?: boolean;
   pin?: string;
   shopkeeperCode?: string;
+}
+
+interface Notification {
+    type: 'success' | 'error';
+    message: string;
 }
 
 export default function ShopkeeperProfilePage() {
@@ -54,6 +59,8 @@ export default function ShopkeeperProfilePage() {
   
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   
+  const [notification, setNotification] = useState<Notification | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -137,11 +144,11 @@ export default function ShopkeeperProfilePage() {
         
         setUserProfile(prev => prev ? { ...prev, displayName: name, mobileNumber: mobile } : null);
         
-        alert('Profile updated successfully!');
+        setNotification({ type: 'success', message: 'Profile updated successfully!' });
 
     } catch (error) {
         console.error("Error updating profile: ", error);
-        alert('Failed to update profile. Please try again.');
+        setNotification({ type: 'error', message: 'Failed to update profile. Please try again.' });
     } finally {
         setIsSaving(false);
     }
@@ -167,9 +174,9 @@ export default function ShopkeeperProfilePage() {
         await updateDoc(userRef, { pinEnabled: false, pin: "" });
         setIsPinEnabled(false);
         setShowDisablePinModal(false);
-        alert("PIN lock has been disabled.");
+        setNotification({ type: 'success', message: 'PIN lock has been disabled.' });
     } catch(err) {
-        alert("Failed to disable PIN. Please try again.");
+        setNotification({ type: 'error', message: 'Failed to disable PIN. Please try again.' });
     } finally {
         setIsSavingPin(false);
     }
@@ -218,7 +225,7 @@ export default function ShopkeeperProfilePage() {
           setShowPinModal(false);
           setPin('');
           setConfirmPin('');
-          alert(isChangingPin ? "PIN has been changed successfully!" : "PIN has been set successfully!");
+          setNotification({ type: 'success', message: isChangingPin ? "PIN has been changed successfully!" : "PIN has been set successfully!" });
           setUserProfile(prev => prev ? {...prev, pin: newPin, pinEnabled: true} : null);
       } catch (err) {
           setPinError("Failed to save PIN. Please try again.");
@@ -245,6 +252,24 @@ export default function ShopkeeperProfilePage() {
 
   return (
     <>
+    {notification && (
+        <div className="modal-overlay" onClick={() => setNotification(null)}>
+            <div className="login-card modal-content" style={{maxWidth: '450px'}} onClick={(e) => e.stopPropagation()}>
+                <div className="modal-header" style={{alignItems: 'center', gap: '15px'}}>
+                    {notification.type === 'success' ? (
+                        <div className="neu-icon" style={{color: 'white', background: '#00c896', margin: 0, width: '60px', height: '60px'}}><CheckCircle size={30} /></div>
+                    ) : (
+                        <div className="neu-icon" style={{color: 'white', background: '#ff3b5c', margin: 0, width: '60px', height: '60px'}}><AlertTriangle size={30} /></div>
+                    )}
+                    <h2 style={{fontSize: '1.5rem', color: notification.type === 'success' ? '#00c896' : '#ff3b5c'}}>
+                        {notification.type === 'success' ? 'Success' : 'Error'}
+                    </h2>
+                </div>
+                <p style={{color: '#6c7293', textAlign: 'center', marginBottom: '25px'}}>{notification.message}</p>
+                <button className="neu-button" style={{margin: 0}} onClick={() => setNotification(null)}>Close</button>
+            </div>
+        </div>
+    )}
     {showEnrollmentModal && enrollmentRole && (
         <RoleEnrollmentModal 
             role={enrollmentRole}

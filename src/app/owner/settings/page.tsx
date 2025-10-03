@@ -4,13 +4,18 @@ import { useFirebase } from '@/firebase/client-provider';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { LogOut, Lock, ShieldOff, KeyRound } from 'lucide-react';
+import { LogOut, Lock, ShieldOff, KeyRound, CheckCircle, AlertTriangle } from 'lucide-react';
 
 interface UserProfile {
   uid: string;
   email: string;
   pinEnabled?: boolean;
   pin?: string;
+}
+
+interface Notification {
+    type: 'success' | 'error';
+    message: string;
 }
 
 export default function OwnerSettingsPage() {
@@ -31,6 +36,8 @@ export default function OwnerSettingsPage() {
   const [isSavingPin, setIsSavingPin] = useState(false);
   const [isChangingPin, setIsChangingPin] = useState(false);
   
+  const [notification, setNotification] = useState<Notification | null>(null);
+
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (currentUser: any) => {
       if (currentUser) {
@@ -73,9 +80,9 @@ export default function OwnerSettingsPage() {
         await updateDoc(userRef, { pinEnabled: false, pin: "" });
         setIsPinEnabled(false);
         setShowDisablePinModal(false);
-        alert("PIN lock has been disabled.");
+        setNotification({ type: 'success', message: 'PIN lock has been disabled.' });
     } catch(err) {
-        alert("Failed to disable PIN. Please try again.");
+        setNotification({ type: 'error', message: 'Failed to disable PIN. Please try again.' });
     } finally {
         setIsSavingPin(false);
     }
@@ -124,7 +131,7 @@ export default function OwnerSettingsPage() {
 setShowPinModal(false);
           setPin('');
           setConfirmPin('');
-          alert(isChangingPin ? "PIN has been changed successfully!" : "PIN has been set successfully!");
+          setNotification({ type: 'success', message: isChangingPin ? "PIN has been changed successfully!" : "PIN has been set successfully!" });
           setUserProfile(prev => prev ? {...prev, pin: newPin, pinEnabled: true} : null);
       } catch (err) {
           setPinError("Failed to save PIN. Please try again.");
@@ -149,6 +156,24 @@ setShowPinModal(false);
 
   return (
     <>
+    {notification && (
+        <div className="modal-overlay" onClick={() => setNotification(null)}>
+            <div className="login-card modal-content" style={{maxWidth: '450px'}} onClick={(e) => e.stopPropagation()}>
+                <div className="modal-header" style={{alignItems: 'center', gap: '15px'}}>
+                    {notification.type === 'success' ? (
+                        <div className="neu-icon" style={{color: 'white', background: '#00c896', margin: 0, width: '60px', height: '60px'}}><CheckCircle size={30} /></div>
+                    ) : (
+                        <div className="neu-icon" style={{color: 'white', background: '#ff3b5c', margin: 0, width: '60px', height: '60px'}}><AlertTriangle size={30} /></div>
+                    )}
+                    <h2 style={{fontSize: '1.5rem', color: notification.type === 'success' ? '#00c896' : '#ff3b5c'}}>
+                        {notification.type === 'success' ? 'Success' : 'Error'}
+                    </h2>
+                </div>
+                <p style={{color: '#6c7293', textAlign: 'center', marginBottom: '25px'}}>{notification.message}</p>
+                <button className="neu-button" style={{margin: 0}} onClick={() => setNotification(null)}>Close</button>
+            </div>
+        </div>
+    )}
     <div className="login-container" style={{paddingTop: '40px', paddingBottom: '80px', minHeight: 'auto'}}>
       <div className="login-card" style={{ maxWidth: '500px' }}>
         <div className="login-header">
