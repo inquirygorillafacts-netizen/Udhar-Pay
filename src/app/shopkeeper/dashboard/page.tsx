@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
 import { doc, onSnapshot, collection, query, where, getDocs, addDoc, serverTimestamp, DocumentData, writeBatch, updateDoc, getDoc } from 'firebase/firestore';
 import Link from 'next/link';
-import { MessageSquare, X, Check, ArrowLeft, ArrowRight, QrCode, Share2, RefreshCw, User as UsersIcon, CheckCircle, XCircle } from 'lucide-react';
+import { MessageSquare, X, Check, ArrowLeft, ArrowRight, QrCode, Share2, RefreshCw, User as UsersIcon, CheckCircle, XCircle, AlertTriangle, IndianRupee } from 'lucide-react';
 import { acceptConnectionRequest, rejectConnectionRequest } from '@/lib/connections';
 import CustomerCard from '@/app/shopkeeper/components/CustomerCard';
 import QrPoster from '@/components/shopkeeper/QrPoster';
@@ -89,6 +89,14 @@ export default function ShopkeeperDashboardPage() {
   // New state for handling the connection approval modal
   const [showSetLimitModal, setShowSetLimitModal] = useState(false);
   const [activeConnectionRequest, setActiveConnectionRequest] = useState<ConnectionRequest | null>(null);
+  
+  // State for limit modal when giving credit
+  const [showCreditLimitExceededModal, setShowCreditLimitExceededModal] = useState(false);
+  const [limitModalData, setLimitModalData] = useState<{ customer: CustomerForSelection; currentLimit: number } | null>(null);
+  const [newLimit, setNewLimit] = useState('');
+  const [isSavingLimit, setIsSavingLimit] = useState(false);
+  const [limitModalError, setLimitModalError] = useState('');
+
 
   // Effect for profile, customers, and connection requests
   useEffect(() => {
@@ -283,7 +291,7 @@ export default function ShopkeeperDashboardPage() {
                 const customerBalances = customerDoc.data()?.balances || {};
                 const newCustomerBalance = (customerBalances[auth.currentUser.uid] || 0) + balanceChange;
 
-                batch.set(shopkeeperRef, { balances: { [request.customerId]: newShopkeeperBalance } }, { merge: true });
+                batch.set(shopkeeperRef, { balances: { [request.customerId]: newCustomerBalance } }, { merge: true });
                 batch.set(customerRef, { balances: { [auth.currentUser.uid]: newCustomerBalance } }, { merge: true });
 
                 const transactionRef = doc(collection(firestore, 'transactions'));
@@ -415,6 +423,7 @@ export default function ShopkeeperDashboardPage() {
       setError('');
       
       try {
+        // Fetch latest data for shopkeeper and customer right before transaction
         const shopkeeperRef = doc(firestore, 'shopkeepers', auth.currentUser.uid);
         const customerRef = doc(firestore, 'customers', customer.uid);
 
@@ -446,7 +455,8 @@ export default function ShopkeeperDashboardPage() {
         const currentBalance = latestShopkeeper.balances?.[customer.uid] || 0;
         
         if (currentBalance + amount > creditLimit) {
-            alert(`आप इस ग्राहक को और उधार नहीं दे सकते क्योंकि उनकी उधार सीमा (₹${creditLimit}) पार हो जाएगी। या तो उनकी उधार सीमा बढ़ाएँ या उन्हें पुराना उधार चुकाने के लिए कहें।`);
+            setLimitModalData({ customer, currentLimit: creditLimit });
+            setShowCreditLimitExceededModal(true);
             setIsRequestingCredit(false);
             return;
         }
@@ -499,6 +509,38 @@ export default function ShopkeeperDashboardPage() {
       // If settings is undefined, it means credit is enabled by default.
       return settings?.isCreditEnabled ?? true;
   }
+
+  const handleSaveNewLimit = async () => {
+      setLimitModalError('');
+      const limitVal = parseFloat(newLimit);
+      if (isNaN(limitVal) || limitVal <= 0) {
+          setLimitModalError("Please enter a valid positive limit.");
+          return;
+      }
+      if (!auth.currentUser || !limitModalData?.customer) return;
+
+      setIsSavingLimit(true);
+      try {
+          const shopkeeperRef = doc(firestore, 'shopkeepers', auth.currentUser.uid);
+          const existingSettings = shopkeeperProfile?.creditSettings?.[limitModalData.customer.uid] || { isCreditEnabled: true, limitType: 'default', manualLimit: 0};
+          
+          await updateDoc(shopkeeperRef, {
+              [`creditSettings.${limitModalData.customer.uid}`]: {
+                  ...existingSettings,
+                  limitType: 'manual',
+                  manualLimit: limitVal,
+              }
+          });
+
+          setShowCreditLimitExceededModal(false);
+          setNewLimit('');
+          alert(`Credit limit for ${limitModalData.customer.displayName} updated to ₹${limitVal}. You can now try the transaction again.`);
+      } catch (err) {
+          setLimitModalError("Failed to update limit. Please try again.");
+      } finally {
+          setIsSavingLimit(false);
+      }
+  };
 
 
   const renderEnterAmount = () => {
@@ -714,6 +756,38 @@ export default function ShopkeeperDashboardPage() {
             onConfirm={handleConfirmAcceptConnection}
         />
     )}
+    
+    {showCreditLimitExceededModal && limitModalData && (
+        <div className="modal-overlay">
+          <div className="login-card modal-content" style={{maxWidth: '450px'}} onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                  <div className="neu-icon" style={{background: '#ffc107', color: 'white', margin: '0 15px 0 0', width: '60px', height: '60px'}}><AlertTriangle size={30}/></div>
+                  <h2 style={{fontSize: '1.5rem'}}>Credit Limit Reached</h2>
+              </div>
+              <p style={{color: '#6c7293', textAlign: 'center', marginBottom: '25px', lineHeight: 1.7}}>
+                  {limitModalData.customer.displayName} has reached their credit limit of <strong>₹{limitModalData.currentLimit}</strong>. To continue, you can increase their limit.
+              </p>
+
+              <div className="form-group">
+                  <div className="neu-input">
+                      <input type="number" id="new-limit" value={newLimit} onChange={(e) => setNewLimit(e.target.value)} placeholder=" " required />
+                      <label htmlFor="new-limit">New Credit Limit (₹)</label>
+                      <div className="input-icon"><IndianRupee /></div>
+                  </div>
+              </div>
+              {limitModalError && <p className="error-message show" style={{textAlign: 'center', marginLeft: 0}}>{limitModalError}</p>}
+              
+              <div style={{display: 'flex', gap: '20px', marginTop: '20px'}}>
+                  <button className="neu-button" onClick={() => setShowCreditLimitExceededModal(false)} style={{margin:0, flex: 1}}>Cancel</button>
+                  <button className={`neu-button ${isSavingLimit ? 'loading' : ''}`} onClick={handleSaveNewLimit} disabled={isSavingLimit} style={{margin:0, flex: 1, background: '#00c896', color: 'white'}}>
+                      <span className="btn-text">Save New Limit</span>
+                      <div className="btn-loader"><div className="neu-spinner"></div></div>
+                  </button>
+              </div>
+          </div>
+        </div>
+      )}
+
     <header className="dashboard-header">
         <div className="user-menu">
         <Link href="/shopkeeper/profile">

@@ -55,15 +55,15 @@ export default function SetCreditLimitModal({
                     Use Default (₹{defaultLimit})
                 </button>
                  <button 
-                    className={`neu-button role-btn ${limitType === 'custom' ? 'active' : ''}`}
-                    onClick={() => setLimitType('custom')}
+                    className={`neu-button role-btn ${limitType === 'manual' ? 'active' : ''}`}
+                    onClick={() => setLimitType('manual')}
                 >
                     Set Custom
                 </button>
             </div>
         </div>
 
-        {limitType === 'custom' && (
+        {limitType === 'manual' && (
           <div className="form-group" style={{animation: 'fadeIn 0.3s ease'}}>
             <div className="neu-input">
               <input
