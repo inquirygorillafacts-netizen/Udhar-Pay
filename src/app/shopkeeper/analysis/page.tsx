@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useFirebase } from '@/firebase/client-provider';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { Users, BookUser, Banknote, UserCheck } from 'lucide-react';
+import { Users, BookUser, Banknote, UserCheck, IndianRupee } from 'lucide-react';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface ShopkeeperProfile {
   uid: string;
@@ -17,6 +18,19 @@ interface Analytics {
     customersWithZeroBalance: number;
     totalOutstanding: number;
 }
+
+const COLORS = ['#ff3b5c', '#00c896']; // Red for Credit, Green for Settled
+
+const CustomTooltip = ({ active, payload }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="login-card" style={{padding: '10px 15px', margin: 0, boxShadow: '10px 10px 20px #bec3cf, -10px -10px 20px #ffffff'}}>
+        <p style={{color: '#3d4468', fontWeight: 600}}>{`${payload[0].name}: ${payload[0].value}`}</p>
+      </div>
+    );
+  }
+  return null;
+};
 
 export default function ShopkeeperAnalysisPage() {
   const { auth, firestore } = useFirebase();
@@ -69,78 +83,73 @@ export default function ShopkeeperAnalysisPage() {
     return () => unsubscribe();
   }, [auth.currentUser, firestore]);
   
-  const creditCustomerPercentage = analytics.totalCustomers > 0 ? (analytics.customersOnCredit / analytics.totalCustomers) * 100 : 0;
-  const zeroBalanceCustomerPercentage = analytics.totalCustomers > 0 ? (analytics.customersWithZeroBalance / analytics.totalCustomers) * 100 : 0;
-
+  const chartData = [
+    { name: 'Customers on Credit', value: analytics.customersOnCredit },
+    { name: 'Settled Customers', value: analytics.customersWithZeroBalance },
+  ];
 
   return (
     <main className="dashboard-main-content" style={{padding: '20px'}}>
         <div className="login-card" style={{ maxWidth: '800px', margin: 'auto' }}>
-            <h1 style={{ color: '#3d4468', fontSize: '2rem', fontWeight: '600', textAlign: 'center', marginBottom: '40px' }}>
-                Udhaar Analysis
-            </h1>
+            <div className="login-header" style={{marginBottom: '40px'}}>
+                <div className="neu-icon"><div className="icon-inner"><PieChart /></div></div>
+                <h1 style={{ color: '#3d4468', fontSize: '2rem', fontWeight: '600' }}>Udhaar Analysis</h1>
+                <p style={{color: '#9499b7'}}>Your business credit health at a glance.</p>
+            </div>
         
             {loadingAnalytics ? (
-                <div className="loading-container" style={{minHeight: '250px'}}>
+                <div className="loading-container" style={{minHeight: '400px'}}>
                     <div className="neu-spinner"></div>
                     <p style={{marginTop: '20px', color: '#6c7293'}}>Analyzing data...</p>
                 </div>
             ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
-                    
-                    {/* Main Outstanding Credit Card */}
-                    <div style={{ 
-                        background: 'linear-gradient(145deg, #4a5175, #34395a)', 
-                        borderRadius: '25px', 
-                        padding: '30px', 
-                        textAlign: 'center', 
-                        color: 'white',
-                        boxShadow: '15px 15px 30px #b8bdc5, -15px -15px 30px #ffffff'
-                    }}>
-                        <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '15px', opacity: 0.8, marginBottom: '10px'}}>
-                            <Banknote size={20}/>
-                            <h2 style={{ fontSize: '1.2rem', fontWeight: '500', margin: 0 }}>Total Outstanding Credit</h2>
-                        </div>
-                        <p style={{ margin: '0', fontSize: '3.5rem', fontWeight: 'bold' }}>
-                            ₹{analytics.totalOutstanding.toLocaleString('en-IN')}
-                        </p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '20px', gridTemplateRows: 'auto auto' }}>
+
+                    {/* Total Outstanding */}
+                    <div className="login-card" style={{ gridColumn: '1 / -1', margin: 0, padding: '25px', textAlign: 'center', background: '#e0e5ec', boxShadow: '20px 20px 60px #bec3cf, -20px -20px 60px #ffffff' }}>
+                        <p style={{color: '#6c7293', fontSize: '1rem', fontWeight: 500, margin: 0}}>Total Outstanding Credit</p>
+                        <p style={{color: '#3d4468', fontSize: '3rem', fontWeight: 700, margin: '5px 0'}}>₹{analytics.totalOutstanding.toLocaleString('en-IN')}</p>
                     </div>
 
-                    {/* Customer Stats Section */}
-                    <div className="neu-input" style={{ padding: '25px', boxShadow: 'none' }}>
-                         <div style={{display: 'flex', alignItems: 'center', gap: '15px', color: '#3d4468', marginBottom: '20px'}}>
-                            <Users size={24}/>
-                            <h3 style={{fontSize: '1.2rem', fontWeight: 600, margin: 0}}>Customer Overview ({analytics.totalCustomers})</h3>
-                        </div>
-
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                            {/* Customers on Credit */}
-                            <div>
-                                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px'}}>
-                                    <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                                        <BookUser size={16} className="text-red-500"/>
-                                        <span style={{color: '#6c7293', fontSize: '14px'}}>Customers on Credit</span>
-                                    </div>
-                                    <span style={{color: '#3d4468', fontWeight: 600}}>{analytics.customersOnCredit} / {analytics.totalCustomers}</span>
-                                </div>
-                                <div style={{height: '10px', background: '#e0e5ec', borderRadius: '5px', boxShadow: 'inset 2px 2px 4px #bec3cf, inset -2px -2px 4px #ffffff', overflow: 'hidden'}}>
-                                    <div style={{width: `${creditCustomerPercentage}%`, height: '100%', background: '#ff3b5c', borderRadius: '5px', transition: 'width 0.5s ease'}}></div>
-                                </div>
-                            </div>
-                            
-                            {/* Zero Balance Customers */}
+                    {/* Chart */}
+                    <div className="login-card" style={{ gridRow: '2 / 4', margin: 0, padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                         <h3 style={{color: '#3d4468', fontSize: '1.1rem', fontWeight: 600, marginBottom: '20px', textAlign: 'center'}}>Customer Distribution</h3>
+                         <div style={{width: '100%', height: '200px'}}>
+                            <ResponsiveContainer>
+                                <PieChart>
+                                    <Pie data={chartData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={80} fill="#8884d8" paddingAngle={5}>
+                                        {chartData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} style={{outline: 'none'}} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip content={<CustomTooltip />} />
+                                </PieChart>
+                            </ResponsiveContainer>
+                         </div>
+                    </div>
+                    
+                    {/* Other Stats */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                        <div className="neu-input" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '15px' }}>
+                             <div className="neu-icon" style={{width: '45px', height: '45px', margin: 0}}><Users/></div>
                              <div>
-                                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px'}}>
-                                    <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                                        <UserCheck size={16} className="text-green-500"/>
-                                        <span style={{color: '#6c7293', fontSize: '14px'}}>Settled / Zero Balance</span>
-                                    </div>
-                                    <span style={{color: '#3d4468', fontWeight: 600}}>{analytics.customersWithZeroBalance} / {analytics.totalCustomers}</span>
-                                </div>
-                                <div style={{height: '10px', background: '#e0e5ec', borderRadius: '5px', boxShadow: 'inset 2px 2px 4px #bec3cf, inset -2px -2px 4px #ffffff', overflow: 'hidden'}}>
-                                    <div style={{width: `${zeroBalanceCustomerPercentage}%`, height: '100%', background: '#00c896', borderRadius: '5px', transition: 'width 0.5s ease'}}></div>
-                                </div>
-                            </div>
+                                <p style={{color: '#6c7293', fontSize: '14px', fontWeight: 500, margin: 0}}>Total Customers</p>
+                                <p style={{color: '#3d4468', fontSize: '1.75rem', fontWeight: 700, margin: 0}}>{analytics.totalCustomers}</p>
+                             </div>
+                        </div>
+                         <div className="neu-input" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '15px' }}>
+                             <div className="neu-icon" style={{width: '45px', height: '45px', margin: 0}}><BookUser color='#ff3b5c' /></div>
+                             <div>
+                                <p style={{color: '#6c7293', fontSize: '14px', fontWeight: 500, margin: 0}}>Customers on Credit</p>
+                                <p style={{color: '#ff3b5c', fontSize: '1.75rem', fontWeight: 700, margin: 0}}>{analytics.customersOnCredit}</p>
+                             </div>
+                        </div>
+                         <div className="neu-input" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '15px' }}>
+                             <div className="neu-icon" style={{width: '45px', height: '45px', margin: 0}}><UserCheck color='#00c896'/></div>
+                             <div>
+                                <p style={{color: '#6c7293', fontSize: '14px', fontWeight: 500, margin: 0}}>Settled Customers</p>
+                                <p style={{color: '#00c896', fontSize: '1.75rem', fontWeight: 700, margin: 0}}>{analytics.customersWithZeroBalance}</p>
+                             </div>
                         </div>
                     </div>
                 </div>
