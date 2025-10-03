@@ -341,7 +341,10 @@ export default function ShopControlRoomPage() {
                                                     {cust.settings.limitType === 'manual' && (
                                                         <div className="form-group" style={{margin: '0 0 15px 0'}}>
                                                             <div className="neu-input" style={{borderRadius: '10px'}}>
-                                                                <input type="number" value={cust.settings.manualLimit} onChange={(e) => handleCustomerSettingChange(cust.uid, 'manualLimit', parseFloat(e.target.value))} style={{padding: '10px 15px', fontSize: '14px', textAlign: 'center'}} placeholder="Manual Limit (₹)" />
+                                                                <input type="number" value={cust.settings.manualLimit || ''} onChange={(e) => {
+                                                                    const val = parseFloat(e.target.value);
+                                                                    handleCustomerSettingChange(cust.uid, 'manualLimit', isNaN(val) ? 0 : val)
+                                                                }} style={{padding: '10px 15px', fontSize: '14px', textAlign: 'center'}} placeholder="Manual Limit (₹)" />
                                                             </div>
                                                         </div>
                                                     )}
