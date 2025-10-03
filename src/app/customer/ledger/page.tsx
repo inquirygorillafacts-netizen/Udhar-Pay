@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useFirebase } from '@/firebase/client-provider';
 import { collection, query, where, onSnapshot, orderBy, Timestamp, getDocs } from 'firebase/firestore';
 import { ArrowUpCircle, ArrowDownCircle, BookText } from 'lucide-react';
+import Link from 'next/link';
 
 interface Transaction {
   id: string;
@@ -101,34 +102,36 @@ export default function CustomerLedgerPage() {
         ) : transactions.length > 0 ? (
           <div style={{display: 'flex', flexDirection: 'column', gap: '15px'}}>
               {transactions.map(tx => (
-                <div key={tx.id} className="neu-input" style={{display: 'flex', alignItems: 'center', padding: '15px 20px', boxShadow: '5px 5px 10px #d1d9e6, -5px -5px 10px #ffffff' }}>
-                   <div style={{ marginRight: '15px' }}>
-                        {tx.type === 'credit' ? (
-                            <div className="neu-icon" style={{ width: '45px', height: '45px', margin: 0, background: 'rgba(255, 59, 92, 0.1)', boxShadow: 'none' }}>
-                                <ArrowUpCircle size={24} color="#ff3b5c" />
-                            </div>
-                        ) : (
-                            <div className="neu-icon" style={{ width: '45px', height: '45px', margin: 0, background: 'rgba(0, 200, 150, 0.1)', boxShadow: 'none' }}>
-                                <ArrowDownCircle size={24} color="#00c896" />
-                            </div>
-                        )}
-                    </div>
-                    <div style={{flexGrow: 1}}>
-                        <p style={{fontWeight: 600, color: '#3d4468', textTransform: 'capitalize', marginBottom: '2px'}}>
-                            {tx.type === 'credit' ? 'Udhaar Taken' : 'Payment Made'}
-                        </p>
-                        <p style={{fontSize: '14px', color: '#6c7293', fontWeight: 500, margin: '2px 0'}}>
-                            To: {shopkeepers[tx.shopkeeperId]?.displayName || '...'}
-                        </p>
-                        <p style={{fontSize: '12px', color: '#9499b7', margin: 0}}>
-                           {tx.timestamp ? tx.timestamp.toDate().toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : 'Processing...'}
-                        </p>
-                        {tx.notes && <p style={{fontSize: '13px', color: '#6c7293', marginTop: '5px', fontStyle: 'italic'}}>"{tx.notes}"</p>}
-                    </div>
-                    <p style={{fontWeight: 'bold', fontSize: '1.2rem', color: tx.type === 'credit' ? '#ff3b5c' : '#00c896'}}>
-                        ₹{tx.amount}
-                    </p>
-                </div>
+                <Link key={tx.id} href={`/customer/payment/${tx.shopkeeperId}`} style={{ textDecoration: 'none' }}>
+                  <div className="neu-input" style={{display: 'flex', alignItems: 'center', padding: '15px 20px', boxShadow: '5px 5px 10px #d1d9e6, -5px -5px 10px #ffffff', cursor: 'pointer' }}>
+                    <div style={{ marginRight: '15px' }}>
+                          {tx.type === 'credit' ? (
+                              <div className="neu-icon" style={{ width: '45px', height: '45px', margin: 0, background: 'rgba(255, 59, 92, 0.1)', boxShadow: 'none' }}>
+                                  <ArrowUpCircle size={24} color="#ff3b5c" />
+                              </div>
+                          ) : (
+                              <div className="neu-icon" style={{ width: '45px', height: '45px', margin: 0, background: 'rgba(0, 200, 150, 0.1)', boxShadow: 'none' }}>
+                                  <ArrowDownCircle size={24} color="#00c896" />
+                              </div>
+                          )}
+                      </div>
+                      <div style={{flexGrow: 1}}>
+                          <p style={{fontWeight: 600, color: '#3d4468', textTransform: 'capitalize', marginBottom: '2px'}}>
+                              {tx.type === 'credit' ? 'Udhaar Taken' : 'Payment Made'}
+                          </p>
+                          <p style={{fontSize: '14px', color: '#6c7293', fontWeight: 500, margin: '2px 0'}}>
+                              To: {shopkeepers[tx.shopkeeperId]?.displayName || '...'}
+                          </p>
+                          <p style={{fontSize: '12px', color: '#9499b7', margin: 0}}>
+                            {tx.timestamp ? tx.timestamp.toDate().toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : 'Processing...'}
+                          </p>
+                          {tx.notes && <p style={{fontSize: '13px', color: '#6c7293', marginTop: '5px', fontStyle: 'italic'}}>"{tx.notes}"</p>}
+                      </div>
+                      <p style={{fontWeight: 'bold', fontSize: '1.2rem', color: tx.type === 'credit' ? '#ff3b5c' : '#00c896'}}>
+                          ₹{tx.amount}
+                      </p>
+                  </div>
+                </Link>
               ))}
           </div>
         ) : (
