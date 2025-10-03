@@ -107,7 +107,8 @@ export default function RequestCreditPage() {
     }
 
     if (currentBalance + creditAmount > creditLimit) {
-        setError(`यह अनुरोध आपकी उधार सीमा (₹${creditLimit}) से अधिक हो जाएगा। आप केवल ₹${creditLimit - currentBalance} तक का अनुरोध कर सकते हैं।`);
+        const remainingLimit = creditLimit - currentBalance;
+        setError(`यह अनुरोध आपकी उधार सीमा (₹${creditLimit}) से अधिक हो जाएगा। आप केवल ₹${remainingLimit.toFixed(2)} तक का अनुरोध कर सकते हैं।`);
         return;
     }
 
