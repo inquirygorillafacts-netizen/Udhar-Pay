@@ -4,14 +4,19 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
-import { doc, getDoc, collection, query, where, onSnapshot, orderBy, writeBatch, Timestamp, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, onSnapshot, orderBy, writeBatch, Timestamp, serverTimestamp, addDoc } from 'firebase/firestore';
 import { ArrowLeft, User, IndianRupee, Send, PlusCircle, MinusCircle } from 'lucide-react';
+import { sendCreditLimitNotification } from '@/lib/notifications';
 
 interface CustomerProfile {
   uid: string;
   displayName: string;
   email: string;
   photoURL?: string | null;
+}
+
+interface ShopkeeperProfile {
+    defaultCreditLimit?: number;
 }
 
 interface Transaction {
@@ -29,6 +34,7 @@ export default function CustomerDetailPage() {
   const customerId = params.customerId as string;
 
   const [customer, setCustomer] = useState<CustomerProfile | null>(null);
+  const [shopkeeperProfile, setShopkeeperProfile] = useState<ShopkeeperProfile | null>(null);
   const [shopkeeperBalance, setShopkeeperBalance] = useState<number>(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   
@@ -59,7 +65,9 @@ export default function CustomerDetailPage() {
     const shopkeeperRef = doc(firestore, 'shopkeepers', auth.currentUser.uid);
     const unsubscribeBalance = onSnapshot(shopkeeperRef, (docSnap) => {
       if (docSnap.exists()) {
-        const balances = docSnap.data().balances || {};
+        const data = docSnap.data();
+        setShopkeeperProfile(data as ShopkeeperProfile);
+        const balances = data.balances || {};
         setShopkeeperBalance(balances[customerId] || 0);
       }
       setLoading(false);
@@ -134,15 +142,24 @@ export default function CustomerDetailPage() {
       alert("Please enter a valid amount.");
       return;
     }
+    
+    if(!auth.currentUser || !customer) {
+        alert("Authentication error.");
+        return;
+    }
+    
+     if (type === 'credit') {
+        const creditLimit = shopkeeperProfile?.defaultCreditLimit ?? 100;
+        const currentBalance = shopkeeperBalance || 0;
+        if (currentBalance + transactionAmount > creditLimit) {
+            await sendCreditLimitNotification(firestore, auth.currentUser.uid, customer.uid, creditLimit, transactionAmount);
+            alert(`ग्राहक की उधार सीमा (₹${creditLimit}) पूरी हो गई है। आप और उधार नहीं दे सकते।`);
+            return;
+        }
+    }
 
     setTransactionType(type);
     setIsProcessing(true);
-    
-    if(!auth.currentUser) {
-        alert("Authentication error.");
-        setIsProcessing(false);
-        return;
-    }
 
     try {
         const batch = writeBatch(firestore);
@@ -176,7 +193,7 @@ export default function CustomerDetailPage() {
 
         await batch.commit();
 
-        alert(`Transaction successful! New balance is ₹${Math.abs(newCustomerBalance)}.`);
+        alert(`Transaction successful! New balance is ₹${Math.abs(newShopkeeperBalance)}.`);
         setAmount('');
         setNotes('');
 
@@ -307,4 +324,3 @@ export default function CustomerDetailPage() {
     </div>
   );
 }
-

@@ -12,6 +12,13 @@ interface ShopkeeperProfile {
   displayName: string;
   email: string;
   photoURL?: string | null;
+  defaultCreditLimit?: number;
+}
+
+interface CustomerProfile {
+    uid: string;
+    displayName: string;
+    balances?: { [key: string]: number };
 }
 
 export default function RequestCreditPage() {
@@ -22,7 +29,7 @@ export default function RequestCreditPage() {
   const shopkeeperId = params.shopkeeperId as string;
 
   const [shopkeeper, setShopkeeper] = useState<ShopkeeperProfile | null>(null);
-  const [customerProfile, setCustomerProfile] = useState<{displayName: string} | null>(null);
+  const [customerProfile, setCustomerProfile] = useState<CustomerProfile | null>(null);
   const [loading, setLoading] = useState(true);
   
   const [amount, setAmount] = useState('');
@@ -39,12 +46,21 @@ export default function RequestCreditPage() {
 
     const fetchProfiles = async () => {
       try {
-        // Check if customer is connected to the shopkeeper
+        const shopkeeperRef = doc(firestore, 'shopkeepers', shopkeeperId);
+        const shopkeeperSnap = await getDoc(shopkeeperRef);
+        if (shopkeeperSnap.exists()) {
+            setShopkeeper({ uid: shopkeeperId, ...shopkeeperSnap.data() } as ShopkeeperProfile);
+        } else {
+            toast({ variant: 'destructive', title: 'Error', description: 'Shopkeeper not found.' });
+            router.push('/customer/dashboard');
+            return;
+        }
+
         const customerRef = doc(firestore, 'customers', auth.currentUser!.uid);
         const customerSnap = await getDoc(customerRef);
         if (customerSnap.exists()) {
-            const customerData = customerSnap.data();
-            setCustomerProfile(customerData as {displayName: string});
+            const customerData = { uid: customerSnap.id, ...customerSnap.data() } as CustomerProfile;
+            setCustomerProfile(customerData);
             const connections = customerData.connections || [];
             if (!connections.includes(shopkeeperId)) {
                 toast({ variant: 'destructive', title: 'Not Connected', description: "You are not connected to this shopkeeper." });
@@ -53,17 +69,6 @@ export default function RequestCreditPage() {
             }
         } else {
             throw new Error("Customer profile not found.");
-        }
-
-        const shopkeeperRef = doc(firestore, 'shopkeepers', shopkeeperId);
-        const shopkeeperSnap = await getDoc(shopkeeperRef);
-
-        if (shopkeeperSnap.exists()) {
-          setShopkeeper({ uid: shopkeeperId, ...shopkeeperSnap.data() } as ShopkeeperProfile);
-        } else {
-          toast({ variant: 'destructive', title: 'Error', description: 'Shopkeeper not found.' });
-          router.push('/customer/dashboard');
-          return;
         }
 
       } catch (err) {
@@ -85,10 +90,24 @@ export default function RequestCreditPage() {
       setError("Please enter a valid amount.");
       return;
     }
-    if (!customerProfile) {
+    if (!customerProfile || !shopkeeper) {
         setError("Could not find your profile. Please try again.");
         return;
     }
+    
+    const creditLimit = shopkeeper.defaultCreditLimit ?? 100;
+    const currentBalance = customerProfile.balances?.[shopkeeper.uid] || 0;
+
+    if (currentBalance >= creditLimit) {
+        setError(`आपकी उधार सीमा (₹${creditLimit}) पूरी हो गई है। और उधार लेने के लिए, कृपया पहले पुराना उधार चुकाएँ।`);
+        return;
+    }
+
+    if (currentBalance + creditAmount > creditLimit) {
+        setError(`यह अनुरोध आपकी उधार सीमा (₹${creditLimit}) से अधिक हो जाएगा। आप केवल ₹${creditLimit - currentBalance} तक का अनुरोध कर सकते हैं।`);
+        return;
+    }
+
 
     setIsProcessing(true);
     setError('');
