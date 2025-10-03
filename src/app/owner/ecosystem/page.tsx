@@ -164,36 +164,34 @@ export default function EcosystemPage() {
         <main className="dashboard-main-content" style={{ padding: '20px' }}>
         <div className="login-card" style={{ maxWidth: '800px', margin: 'auto' }}>
             <div className="login-header" style={{ marginBottom: '40px' }}>
-            <h1 style={{ color: '#3d4468', fontSize: '2rem', fontWeight: '600' }}>
-                Platform Ecosystem
-            </h1>
-            <p style={{ color: '#6c7293', marginTop: '1rem' }}>
-                Monitor all shopkeepers and their pending settlements.
-            </p>
+                <h1 style={{ color: '#3d4468', fontSize: '2rem', fontWeight: '600' }}>
+                    Platform Ecosystem
+                </h1>
+                <p style={{ color: '#6c7293', marginTop: '1rem' }}>
+                    Monitor all shopkeepers and their pending settlements.
+                </p>
             </div>
             
-            <div className="login-card" style={{ maxWidth: '800px', margin: 'auto', marginBottom: '30px' }}>
-                <div style={{ display: 'flex', gap: '20px', alignItems: 'stretch' }}>
-                    <div className="form-group" style={{ flexGrow: 1, margin: 0 }}>
-                        <div className="neu-input">
-                        <input
-                            type="text"
-                            id="search"
-                            placeholder=" "
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                        <label htmlFor="search">Search by Name or Code</label>
-                        <div className="input-icon"><Search /></div>
-                        </div>
+            <div style={{ display: 'flex', gap: '20px', alignItems: 'stretch', marginBottom: '30px', maxWidth: '800px', margin: 'auto' }}>
+                <div className="form-group" style={{ flexGrow: 1, margin: 0 }}>
+                    <div className="neu-input">
+                    <input
+                        type="text"
+                        id="search"
+                        placeholder=" "
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                    <label htmlFor="search">Search by Name or Code</label>
+                    <div className="input-icon"><Search /></div>
                     </div>
-                    <div className="token-balance" style={{ margin: 0, padding: '10px 20px', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: '100px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <Users size={20} />
-                            <span style={{ fontSize: '1.5rem', fontWeight: 700 }}>{allShopkeepers.length}</span>
-                        </div>
-                        <span style={{ fontSize: '12px', color: '#6c7293', fontWeight: 500, marginTop: '2px' }}>Shopkeepers</span>
+                </div>
+                <div className="token-balance" style={{ margin: 0, padding: '10px 20px', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: '100px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Users size={20} />
+                        <span style={{ fontSize: '1.5rem', fontWeight: 700 }}>{allShopkeepers.length}</span>
                     </div>
+                    <span style={{ fontSize: '12px', color: '#6c7293', fontWeight: 500, marginTop: '2px' }}>Shopkeepers</span>
                 </div>
             </div>
 
