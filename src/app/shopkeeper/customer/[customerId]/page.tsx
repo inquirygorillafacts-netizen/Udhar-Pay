@@ -63,15 +63,17 @@ export default function CustomerTransactionHistoryPage() {
     const q = query(
       transRef,
       where('shopkeeperId', '==', auth.currentUser.uid),
-      where('customerId', '==', customerId),
-      orderBy('timestamp', 'asc')
+      where('customerId', '==', customerId)
+      // Removed orderBy to prevent index error. Sorting will be done in the client.
     );
     const unsubscribeTransactions = onSnapshot(q, (snapshot) => {
       const trans: Transaction[] = [];
       snapshot.forEach(doc => {
         trans.push({ id: doc.id, ...doc.data() } as Transaction);
       });
-      setTransactions(trans.reverse());
+      // Sort transactions by timestamp in descending order (newest first)
+      trans.sort((a, b) => b.timestamp.toMillis() - a.timestamp.toMillis());
+      setTransactions(trans);
     });
 
     return () => {
