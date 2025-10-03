@@ -4,9 +4,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
-import { doc, getDoc, collection, query, where, onSnapshot, orderBy, writeBatch, Timestamp, serverTimestamp, addDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, onSnapshot, orderBy, writeBatch, Timestamp, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { ArrowLeft, User, IndianRupee, Send, PlusCircle, MinusCircle, AlertTriangle } from 'lucide-react';
-import { sendCreditLimitNotification } from '@/lib/notifications';
 
 interface CustomerProfile {
   uid: string;
@@ -19,7 +18,7 @@ interface ShopkeeperProfile {
     uid: string;
     displayName: string;
     defaultCreditLimit?: number;
-    customerLimits?: { [key: string]: number };
+    creditSettings?: { [key: string]: { limitType: 'default' | 'manual', manualLimit: number, isCreditEnabled: boolean } };
 }
 
 interface Transaction {
@@ -76,7 +75,7 @@ export default function CustomerDetailPage() {
       if (docSnap.exists()) {
         const data = { uid: docSnap.id, ...docSnap.data()} as ShopkeeperProfile;
         setShopkeeperProfile(data);
-        const balances = data.balances || {};
+        const balances = (data as any).balances || {};
         setShopkeeperBalance(balances[customerId] || 0);
       }
       setLoading(false);
@@ -157,12 +156,23 @@ export default function CustomerDetailPage() {
         return;
     }
     
-     if (type === 'credit') {
-        const customerSpecificLimit = shopkeeperProfile?.customerLimits?.[customer.uid];
-        const creditLimit = customerSpecificLimit ?? shopkeeperProfile?.defaultCreditLimit ?? 1000;
+    if (type === 'credit') {
+        const customerSettings = shopkeeperProfile.creditSettings?.[customer.uid];
+        const isCreditEnabled = customerSettings?.isCreditEnabled ?? true;
+
+        if (!isCreditEnabled) {
+            alert("Credit is disabled for this customer. Please enable it in the Control Room to give credit.");
+            return;
+        }
+
+        const creditLimit = customerSettings?.limitType === 'manual' 
+            ? customerSettings.manualLimit 
+            : shopkeeperProfile.defaultCreditLimit ?? 1000;
+        
         const currentBalance = shopkeeperBalance || 0;
+
         if (currentBalance + transactionAmount > creditLimit) {
-            await sendCreditLimitNotification(firestore, auth.currentUser.uid, customer.uid, creditLimit, transactionAmount);
+            alert(`This transaction exceeds the customer's credit limit of ₹${creditLimit}. You cannot give more credit.`);
             setShowLimitModal(true); // Show the increase limit modal
             return; // IMPORTANT: Stop the transaction here
         }
@@ -190,20 +200,17 @@ export default function CustomerDetailPage() {
         const shopkeeperRef = doc(firestore, 'shopkeepers', shopkeeperId);
         const customerRef = doc(firestore, 'customers', customerId);
 
-        // We use the profile from state as it's kept up-to-date by the snapshot listener
-        const shopkeeperBalances = (shopkeeperProfile as any).balances || {};
-        const newShopkeeperBalance = (shopkeeperBalances[customerId] || 0) + balanceChange;
+        const newShopkeeperBalance = shopkeeperBalance + balanceChange;
 
         const customerDoc = await getDoc(customerRef);
         const customerBalances = customerDoc.data()?.balances || {};
         const newCustomerBalance = (customerBalances[shopkeeperId] || 0) + balanceChange;
         
-        batch.set(shopkeeperRef, { balances: { [customerId]: newShopkeeperBalance } }, { merge: true });
-        batch.set(customerRef, { balances: { [shopkeeperId]: newCustomerBalance } }, { merge: true });
+        batch.update(shopkeeperRef, { [`balances.${customerId}`]: newShopkeeperBalance });
+        batch.update(customerRef, { [`balances.${shopkeeperId}`]: newCustomerBalance });
 
         await batch.commit();
 
-        alert(`Transaction successful! New balance is ₹${newShopkeeperBalance.toFixed(2)}.`);
         setAmount('');
         setNotes('');
 
@@ -228,9 +235,17 @@ export default function CustomerDetailPage() {
       setIsSavingLimit(true);
       try {
           const shopkeeperRef = doc(firestore, 'shopkeepers', auth.currentUser.uid);
+          // Get the existing settings or create a default structure
+          const existingSettings = shopkeeperProfile?.creditSettings?.[customer.uid] || { isCreditEnabled: true, limitType: 'default', manualLimit: 0};
+          
           await updateDoc(shopkeeperRef, {
-              [`customerLimits.${customer.uid}`]: limitVal
+              [`creditSettings.${customer.uid}`]: {
+                  ...existingSettings,
+                  limitType: 'manual',
+                  manualLimit: limitVal,
+              }
           });
+
           setShowLimitModal(false);
           setNewLimit('');
           alert(`Credit limit for ${customer.displayName} updated to ₹${limitVal}. You can now proceed with the transaction.`);
@@ -243,8 +258,12 @@ export default function CustomerDetailPage() {
 
 
   const balanceColor = shopkeeperBalance > 0 ? '#ff3b5c' : '#00c896';
-  const balanceText = shopkeeperBalance > 0 ? 'Udhaar' : 'Advance';
-  const currentCreditLimit = shopkeeperProfile?.customerLimits?.[customerId] ?? shopkeeperProfile?.defaultCreditLimit ?? 1000;
+  const balanceText = shopkeeperBalance > 0 ? 'Udhaar' : (shopkeeperBalance < 0 ? 'Advance' : 'Settled');
+  
+  const customerSettings = shopkeeperProfile?.creditSettings?.[customerId];
+  const currentCreditLimit = customerSettings?.limitType === 'manual'
+      ? customerSettings.manualLimit
+      : shopkeeperProfile?.defaultCreditLimit ?? 1000;
 
 
   if (loading) {

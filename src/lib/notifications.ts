@@ -1,5 +1,12 @@
 import { collection, addDoc, serverTimestamp, type Firestore } from 'firebase/firestore';
 
+// This file is currently not in use but is kept for potential future notification features.
+// The credit limit notification logic has been integrated directly into the transaction flow
+// for a more immediate and robust user experience.
+
+/**
+ * @deprecated This function is no longer used. The logic is now handled client-side before a transaction is attempted.
+ */
 export const sendCreditLimitNotification = async (
     firestore: Firestore, 
     shopkeeperId: string, 
