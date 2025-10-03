@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
 import { doc, onSnapshot, collection, query, where, getDocs, addDoc, serverTimestamp, DocumentData, writeBatch, updateDoc, getDoc } from 'firebase/firestore';
 import Link from 'next/link';
-import { MessageSquare, X, Check, ArrowLeft, ArrowRight, QrCode, Share2, RefreshCw, User as UsersIcon, CheckCircle, XCircle, AlertTriangle, IndianRupee } from 'lucide-react';
+import { MessageSquare, X, Check, ArrowLeft, ArrowRight, QrCode, Share2, RefreshCw, User as UsersIcon, CheckCircle, XCircle, AlertTriangle, IndianRupee, Repeat } from 'lucide-react';
 import { acceptConnectionRequest, rejectConnectionRequest } from '@/lib/connections';
 import CustomerCard from '@/app/shopkeeper/components/CustomerCard';
 import QrPoster from '@/components/shopkeeper/QrPoster';
@@ -96,10 +96,10 @@ export default function ShopkeeperDashboardPage() {
   const [newLimit, setNewLimit] = useState('');
   const [isSavingLimit, setIsSavingLimit] = useState(false);
   const [limitModalError, setLimitModalError] = useState('');
-
-  // State for role switching
-  const [hasCustomerRole, setHasCustomerRole] = useState(false);
-  const [showEnrollModal, setShowEnrollModal] = useState(false);
+  
+  // Role switching state
+  const [hasBothRoles, setHasBothRoles] = useState(false);
+  const [showRoleModal, setShowRoleModal] = useState(false);
 
 
   // Effect for profile, customers, and connection requests
@@ -115,9 +115,9 @@ export default function ShopkeeperDashboardPage() {
         const profile = { uid: docSnap.id, ...docSnap.data() } as UserProfile;
         setShopkeeperProfile(profile);
 
-        // Check for customer role
+        // Check for customer role to enable switch button
         const customerDoc = await getDoc(doc(firestore, 'customers', auth.currentUser!.uid));
-        setHasCustomerRole(customerDoc.exists());
+        setHasBothRoles(customerDoc.exists());
 
         if (!qrPosterDataUrl) {
           const savedQr = localStorage.getItem('shopkeeperQrPosterPng');
@@ -444,7 +444,6 @@ export default function ShopkeeperDashboardPage() {
         }
         
         const latestShopkeeper = {uid: shopkeeperSnap.id, ...shopkeeperSnap.data()} as UserProfile;
-        const latestCustomer = {uid: customerSnap.id, ...customerSnap.data()} as UserProfile;
         
         const customerSettings = latestShopkeeper.creditSettings?.[customer.uid];
         const isCreditEnabled = customerSettings?.isCreditEnabled ?? true;
@@ -552,14 +551,15 @@ export default function ShopkeeperDashboardPage() {
       }
   };
 
-  const handleSwitchRoleClick = () => {
-    if (hasCustomerRole) {
-      localStorage.setItem('activeRole', 'customer');
-      router.push('/customer/dashboard');
+  const handleRoleSwitchClick = () => {
+    if (hasBothRoles) {
+        localStorage.setItem('activeRole', 'customer');
+        router.push('/customer/dashboard');
     } else {
-      setShowEnrollModal(true);
+        setShowRoleModal(true);
     }
   };
+
 
   const renderEnterAmount = () => {
     return (
@@ -763,25 +763,6 @@ export default function ShopkeeperDashboardPage() {
   
   return (
     <>
-    {showEnrollModal && (
-        <div className="modal-overlay" onClick={() => setShowEnrollModal(false)}>
-            <div className="login-card modal-content" style={{maxWidth: '450px'}} onClick={(e) => e.stopPropagation()}>
-                <div className="modal-header">
-                    <h2>Enroll as Customer</h2>
-                    <button className="close-button" onClick={() => setShowEnrollModal(false)}><X size={24} /></button>
-                </div>
-                <p style={{ color: '#6c7293', textAlign: 'center', marginBottom: '30px' }}>
-                    You don't have a customer profile yet. Go to your profile to enroll.
-                </p>
-                <Link href="/shopkeeper/profile">
-                    <button className="neu-button" style={{width: '100%', margin: 0}}>
-                        Go to Enrollment Page
-                    </button>
-                </Link>
-            </div>
-        </div>
-    )}
-
     {showSetLimitModal && activeConnectionRequest && (
         <SetCreditLimitModal
             customerName={activeConnectionRequest.customerName}
@@ -825,17 +806,32 @@ export default function ShopkeeperDashboardPage() {
         </div>
       )}
 
-    <header className="dashboard-header">
-         <div className="user-menu">
-            <button
-                onClick={handleSwitchRoleClick}
-                className="user-avatar neu-icon"
-                aria-label="Switch Role"
-                style={{ cursor: 'pointer' }}
-            >
-                <RefreshCw size={24} />
-            </button>
+      {showRoleModal && (
+        <div className="modal-overlay" onClick={() => setShowRoleModal(false)}>
+          <div className="login-card modal-content" style={{maxWidth: '450px'}} onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                  <h2 style={{fontSize: '1.5rem'}}>Add Customer Role</h2>
+                   <button className="close-button" onClick={() => setShowRoleModal(false)}>&times;</button>
+              </div>
+              <p style={{color: '#6c7293', textAlign: 'center', marginBottom: '30px'}}>
+                  You do not have a customer profile yet. To switch to a customer view, you first need to enroll as one.
+              </p>
+              <button className="neu-button" onClick={() => router.push('/shopkeeper/profile')} style={{margin: 0}}>
+                  Go to Profile to Enroll
+              </button>
+          </div>
         </div>
+      )}
+
+    <header className="dashboard-header">
+        <button 
+            className="neu-button" 
+            style={{width: '45px', height: '45px', margin: 0, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0}}
+            onClick={handleRoleSwitchClick}
+            aria-label="Switch Role"
+        >
+            <Repeat size={20} />
+        </button>
         <div 
             className="token-balance" 
             style={{padding: '10px 15px', height: 'auto', flexDirection: 'row', gap: '10px', justifyContent: 'center', alignItems: 'center', cursor: 'pointer', flexGrow: 1, margin: '0 10px'}}
