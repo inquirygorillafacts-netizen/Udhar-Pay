@@ -5,9 +5,11 @@ import { useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
 import { doc, onSnapshot, collection, query, where, getDocs, writeBatch, updateDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import Link from 'next/link';
-import { Paperclip, X, User, Check, AlertCircle, Send, IndianRupee, ArrowRight } from 'lucide-react';
+import { Paperclip, X, User, Check, AlertCircle, Send, IndianRupee, ArrowRight, Repeat } from 'lucide-react';
 import ShopkeeperCard from '@/app/customer/components/ShopkeeperCard';
 import { sendConnectionRequest } from '@/lib/connections';
+import RoleEnrollmentModal from '@/components/auth/RoleEnrollmentModal';
+
 
 interface UserProfile {
   uid: string;
@@ -61,16 +63,25 @@ export default function CustomerDashboardPage() {
   const [activeRequest, setActiveRequest] = useState<CreditRequest | null>(null);
   const [isProcessingRequest, setIsProcessingRequest] = useState(false);
   
+  // Role switching state
+  const [hasShopkeeperRole, setHasShopkeeperRole] = useState(false);
+  const [showRoleModal, setShowRoleModal] = useState(false);
+
   const totalBalance = userProfile?.balances ? Object.values(userProfile.balances).reduce((sum, bal) => sum + bal, 0) : 0;
 
   useEffect(() => {
     if (!auth.currentUser || !firestore) return;
 
       const userRef = doc(firestore, 'customers', auth.currentUser.uid);
-      const unsubscribe = onSnapshot(userRef, (docSnap) => {
+      const unsubscribe = onSnapshot(userRef, async (docSnap) => {
         if (docSnap.exists()) {
           const profile = { uid: auth.currentUser!.uid, ...docSnap.data() } as UserProfile;
           setUserProfile(profile);
+
+          // Check for shopkeeper role to enable switch button
+          const shopkeeperDoc = await getDoc(doc(firestore, 'shopkeepers', auth.currentUser!.uid));
+          setHasShopkeeperRole(shopkeeperDoc.exists());
+
 
           if (profile.connections && profile.connections.length > 0) {
               setLoadingShopkeepers(true);
@@ -126,6 +137,16 @@ export default function CustomerDashboardPage() {
         setActiveRequest(null);
     }
   }, [creditRequests, activeRequest]);
+
+  const handleRoleSwitchClick = () => {
+    if (hasShopkeeperRole) {
+        localStorage.setItem('activeRole', 'shopkeeper');
+        router.push('/shopkeeper/dashboard');
+    } else {
+        setShowRoleModal(true);
+    }
+  };
+
 
   const handleCreditRequestResponse = async (request: CreditRequest, response: 'approved' | 'rejected') => {
       if (!auth.currentUser || !firestore || !userProfile) return;
@@ -244,6 +265,16 @@ export default function CustomerDashboardPage() {
   
   return (
     <>
+        {showRoleModal && (
+            <RoleEnrollmentModal 
+                role="shopkeeper"
+                onClose={() => setShowRoleModal(false)}
+                onSuccess={() => {
+                    localStorage.setItem('activeRole', 'shopkeeper');
+                    router.push('/shopkeeper/dashboard');
+                }}
+            />
+        )}
         {activeRequest && (
             <div className="modal-overlay">
                 <div className="login-card modal-content" style={{maxWidth: '450px'}} onClick={(e) => e.stopPropagation()}>
@@ -301,17 +332,9 @@ export default function CustomerDashboardPage() {
         )}
 
         <header className="dashboard-header">
-           <div className="user-menu">
-            <Link href="/customer/profile">
-                <div className="user-avatar neu-icon">
-                    {userProfile.photoURL ? (
-                        <img src={userProfile.photoURL} alt={userProfile.displayName} style={{width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover'}} />
-                    ) : (
-                        <User size={24} />
-                    )}
-                  </div>
-              </Link>
-          </div>
+           <button onClick={handleRoleSwitchClick} className="neu-button" style={{width: '45px', height: '45px', margin: 0, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0}}>
+              <Repeat size={20}/>
+           </button>
           <h1 style={{color: '#3d4468', fontSize: '1.2rem', fontWeight: '600', textAlign: 'center', flexGrow: 1}}>
             {userProfile.displayName}
           </h1>

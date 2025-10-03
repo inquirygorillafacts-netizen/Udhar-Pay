@@ -6,6 +6,7 @@ import { doc, setDoc } from 'firebase/firestore';
 import { generateUniqueCustomerCode, generateUniqueShopkeeperCode } from '@/lib/code-helpers';
 import { Camera, User, Phone, Store, ArrowRight, Check, AlertTriangle } from 'lucide-react';
 import axios from 'axios';
+import { useRouter } from 'next/navigation';
 
 
 interface RoleEnrollmentModalProps {
@@ -18,6 +19,7 @@ const IMGBB_API_KEY = '833aa7bc7188c4f8d99f63e06421bbad';
 
 export default function RoleEnrollmentModal({ role, onClose, onSuccess }: RoleEnrollmentModalProps) {
     const { auth, firestore } = useFirebase();
+    const router = useRouter();
     const [step, setStep] = useState(1);
     const [agreed, setAgreed] = useState(false);
     
@@ -131,6 +133,26 @@ export default function RoleEnrollmentModal({ role, onClose, onSuccess }: RoleEn
     const photoUploadInstruction = role === 'customer'
         ? "अपना साफ़ चेहरे वाला फोटो अपलोड करें।"
         : "अपनी दुकान का साफ़ फोटो अपलोड करें।";
+
+    // This handles the case where a user is prompted from the dashboard to enroll.
+    if (step === 0) {
+        return (
+             <div className="modal-overlay">
+                <div className="login-card modal-content" style={{ maxWidth: '450px' }} onClick={(e) => e.stopPropagation()}>
+                    <div className="modal-header">
+                        <h2>Add {role.charAt(0).toUpperCase() + role.slice(1)} Role</h2>
+                        <button className="close-button" onClick={onClose}>&times;</button>
+                    </div>
+                     <p style={{color: '#6c7293', textAlign: 'center', marginBottom: '30px'}}>
+                        You do not have a {role} profile yet. To switch to the {role} view, you first need to enroll.
+                    </p>
+                    <button className="neu-button" onClick={() => router.push('/profile')} style={{margin: 0}}>
+                        Go to Profile to Enroll
+                    </button>
+                </div>
+            </div>
+        )
+    }
 
 
     return (
