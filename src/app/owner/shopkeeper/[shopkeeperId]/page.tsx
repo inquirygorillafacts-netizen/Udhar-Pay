@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { ArrowLeft, User, Users, BookUser, UserCheck, IndianRupee, KeyRound, QrCode, Lock, ShieldCheck, Edit, WhatsApp, Save } from 'lucide-react';
+import { ArrowLeft, User, Users, BookUser, UserCheck, IndianRupee, KeyRound, QrCode, Lock, ShieldCheck, Edit, Save, X } from 'lucide-react';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
 

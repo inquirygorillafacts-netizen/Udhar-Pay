@@ -88,7 +88,6 @@ export default function EcosystemPage() {
 
   const openWhatsApp = (mobileNumber: string | undefined) => {
       if(mobileNumber) {
-          // Format number to ensure it includes country code without '+'
           const formattedNumber = mobileNumber.replace(/\D/g, '');
           const whatsappUrl = `https://wa.me/${formattedNumber.startsWith('91') ? formattedNumber : '91' + formattedNumber}`;
           window.open(whatsappUrl, '_blank');
