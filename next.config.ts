@@ -28,8 +28,17 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+       {
+        protocol: 'https',
+        hostname: 'i.ibb.co',
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
+  env: {
+    NEXT_PUBLIC_IMGBB_API_KEY: process.env.IMGBB_API_KEY,
+  }
 };
 
 export default nextConfig;

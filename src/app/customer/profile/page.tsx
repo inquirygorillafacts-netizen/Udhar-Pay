@@ -8,6 +8,7 @@ import { updateProfile } from 'firebase/auth';
 import { Camera, User, Phone, LogOut, Settings, Lock, ShieldOff, KeyRound, Store, CheckCircle, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import RoleEnrollmentModal from '@/components/auth/RoleEnrollmentModal';
+import axios from 'axios';
 
 interface UserProfile {
   uid: string;
@@ -23,6 +24,9 @@ interface Notification {
     type: 'success' | 'error';
     message: string;
 }
+
+const IMGBB_API_KEY = process.env.NEXT_PUBLIC_IMGBB_API_KEY || '833aa7bc7188c4f8d99f63e06421bbad';
+
 
 export default function CustomerProfilePage() {
   const { auth, firestore } = useFirebase();
@@ -134,13 +138,24 @@ export default function CustomerProfilePage() {
     setIsSaving(true);
     
     try {
+        let photoURL = userProfile?.photoURL || user.photoURL;
+
+        if (photo) {
+            const formData = new FormData();
+            formData.append('image', photo);
+            const response = await axios.post(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, formData);
+            if (response.data && response.data.data && response.data.data.url) {
+                photoURL = response.data.data.url;
+            } else {
+                throw new Error("Image upload to ImgBB failed.");
+            }
+        }
+        
         const userRef = doc(firestore, 'customers', user.uid);
-        // NOTE: Image uploading to a backend is not implemented yet.
+        await updateProfile(user, { displayName: name, photoURL: photoURL });
+        await updateDoc(userRef, { displayName: name, mobileNumber: mobile, photoURL: photoURL });
         
-        await updateProfile(user, { displayName: name });
-        await updateDoc(userRef, { displayName: name, mobileNumber: mobile });
-        
-        setUserProfile(prev => prev ? { ...prev, displayName: name, mobileNumber: mobile } : null);
+        setUserProfile(prev => prev ? { ...prev, displayName: name, mobileNumber: mobile, photoURL: photoURL } : null);
         
         setNotification({ type: 'success', message: 'Profile updated successfully!' });
 

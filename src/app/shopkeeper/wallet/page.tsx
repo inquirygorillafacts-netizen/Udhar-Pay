@@ -18,7 +18,8 @@ interface Notification {
     message: string;
 }
 
-const IMGBB_API_KEY = '833aa7bc7188c4f8d99f63e06421bbad';
+const IMGBB_API_KEY = process.env.NEXT_PUBLIC_IMGBB_API_KEY || '833aa7bc7188c4f8d99f63e06421bbad';
+
 
 export default function ShopkeeperWalletPage() {
     const { auth, firestore } = useFirebase();
