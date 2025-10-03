@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
 import { doc, onSnapshot, collection, query, where, getDocs, addDoc, serverTimestamp, DocumentData, writeBatch, updateDoc, getDoc } from 'firebase/firestore';
 import Link from 'next/link';
-import { MessageSquare, X, Check, ArrowLeft, ArrowRight, QrCode, Share2, RefreshCw, User as UsersIcon, CheckCircle, XCircle, AlertTriangle, IndianRupee, Repeat } from 'lucide-react';
+import { MessageSquare, X, Check, ArrowLeft, ArrowRight, QrCode, Share2, RefreshCw, User as UsersIcon, CheckCircle, XCircle, AlertTriangle, IndianRupee, Repeat, StickyNote } from 'lucide-react';
 import { acceptConnectionRequest, rejectConnectionRequest } from '@/lib/connections';
 import CustomerCard from '@/app/shopkeeper/components/CustomerCard';
 import QrPoster from '@/components/shopkeeper/QrPoster';
@@ -75,6 +75,7 @@ export default function ShopkeeperDashboardPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerForSelection | null>(null);
   
   const [creditAmount, setCreditAmount] = useState('');
+  const [creditNotes, setCreditNotes] = useState('');
   const [expression, setExpression] = useState('');
   const [displayValue, setDisplayValue] = useState('₹ 0');
 
@@ -300,7 +301,7 @@ export default function ShopkeeperDashboardPage() {
                 const customerBalances = customerDoc.data()?.balances || {};
                 const newCustomerBalance = (customerBalances[auth.currentUser.uid] || 0) + balanceChange;
 
-                batch.set(shopkeeperRef, { balances: { [request.customerId]: newCustomerBalance } }, { merge: true });
+                batch.set(shopkeeperRef, { balances: { [request.customerId]: newShopkeeperBalance } }, { merge: true });
                 batch.set(customerRef, { balances: { [auth.currentUser.uid]: newCustomerBalance } }, { merge: true });
 
                 const transactionRef = doc(collection(firestore, 'transactions'));
@@ -473,6 +474,7 @@ export default function ShopkeeperDashboardPage() {
         
         const newRequestRef = await addDoc(creditRequestsRef, {
           amount: amount,
+          notes: creditNotes,
           customerId: customer.uid,
           customerName: customer.displayName,
           shopkeeperId: latestShopkeeper.uid,
@@ -498,6 +500,7 @@ export default function ShopkeeperDashboardPage() {
       setStep('enterAmount');
       setSelectedCustomer(null);
       setCreditAmount('');
+      setCreditNotes('');
       setExpression('');
       setError('');
       setActiveRequest(null);
@@ -589,6 +592,14 @@ export default function ShopkeeperDashboardPage() {
                     }}
                 />
             </div>
+            
+             <div className="form-group" style={{ marginBottom: '20px' }}>
+                <div className="neu-input">
+                    <input type="text" id="notes" value={creditNotes} onChange={(e) => setCreditNotes(e.target.value)} placeholder=" "/>
+                    <label htmlFor="notes">Notes (e.g., 1kg Sugar, 2L Milk)</label>
+                    <div className="input-icon"><StickyNote /></div>
+                </div>
+            </div>
 
             {error && <p style={{ color: '#ff3b5c', textAlign: 'center', marginBottom: '15px', animation: 'gentleShake 0.5s' }}>{error}</p>}
             
@@ -634,6 +645,7 @@ export default function ShopkeeperDashboardPage() {
             <div>
                 <p style={{ color: '#6c7293', margin: 0, fontSize: '14px'}}>Amount to request:</p>
                 <h2 style={{color: '#3d4468', fontSize: '1.5rem', margin: 0}}>₹{parseFloat(creditAmount)}</h2>
+                {creditNotes && <p style={{color: '#9499b7', fontSize: '13px', fontStyle: 'italic', margin: '2px 0 0 0'}}>Note: "{creditNotes}"</p>}
             </div>
         </div>
         
@@ -709,6 +721,7 @@ export default function ShopkeeperDashboardPage() {
                     <div style={{width: '100%', textAlign: 'left', background: '#e0e5ec', padding: '15px 20px', borderRadius: '20px', boxShadow: 'inset 5px 5px 10px #bec3cf, inset -5px -5px 10px #ffffff'}}>
                         <p style={{color: '#9499b7', fontSize: '13px', margin: 0}}>To: <strong style={{color: '#3d4468'}}>{selectedCustomer.displayName}</strong></p>
                         <p style={{color: '#9499b7', fontSize: '13px', margin: 0}}>Amount: <strong style={{color: '#3d4468'}}>₹{parseFloat(creditAmount)}</strong></p>
+                        {creditNotes && <p style={{color: '#9499b7', fontSize: '13px', fontStyle: 'italic', margin: '2px 0 0 0'}}>Note: "{creditNotes}"</p>}
                     </div>
                 </div>
 
