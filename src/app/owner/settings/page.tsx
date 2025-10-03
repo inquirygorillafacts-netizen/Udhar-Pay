@@ -157,7 +157,7 @@ setShowPinModal(false);
   return (
     <>
     {notification && (
-        <div className="modal-overlay" onClick={() => setNotification(null)}>
+        <div className="notification-overlay" onClick={() => setNotification(null)}>
             <div className="login-card modal-content" style={{maxWidth: '450px'}} onClick={(e) => e.stopPropagation()}>
                 <div className="modal-header" style={{alignItems: 'center', gap: '15px'}}>
                     {notification.type === 'success' ? (

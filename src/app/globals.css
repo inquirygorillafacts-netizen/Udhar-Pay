@@ -495,6 +495,21 @@ body {
     padding: 20px;
 }
 
+.notification-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(224, 229, 236, 0.8);
+    backdrop-filter: blur(5px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000; /* Higher z-index to appear above other modals */
+    padding: 20px;
+}
+
 .modal-content {
     max-width: 480px;
     width: 100%;
