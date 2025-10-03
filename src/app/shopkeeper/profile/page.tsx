@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
-import { Camera, User, Phone, LogOut, Settings, Lock, ShieldOff, KeyRound, Store, CheckCircle, SlidersHorizontal } from 'lucide-react';
+import { Camera, User, Phone, LogOut, Settings, Lock, ShieldOff, KeyRound, Store, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
 import RoleEnrollmentModal from '@/components/auth/RoleEnrollmentModal';
 
@@ -326,14 +326,6 @@ export default function ShopkeeperProfilePage() {
                 <div className="modal-header">
                   <h2>Settings</h2>
                   <button className="close-button" onClick={() => setShowSettingsModal(false)}>&times;</button>
-                </div>
-
-                <div className="setting-section">
-                    <h3 className="setting-title">Shop Management</h3>
-                    <Link href="/shopkeeper/control-room" className="neu-button" style={{margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
-                        <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}><SlidersHorizontal size={20} /><span>दुकान कंट्रोल रूम</span></div>
-                        <span>&rarr;</span>
-                    </Link>
                 </div>
 
                 <div className="setting-section">

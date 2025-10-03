@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useFirebase } from '@/firebase/client-provider';
 import { onSnapshot, doc, updateDoc } from 'firebase/firestore';
-import { LifeBuoy, Phone, UploadCloud, Lock, CheckCircle, ShieldAlert, KeyRound, HelpCircle, X, AlertTriangle } from 'lucide-react';
+import { LifeBuoy, Phone, UploadCloud, Lock, CheckCircle, ShieldAlert, KeyRound, HelpCircle, X, AlertTriangle, SlidersHorizontal } from 'lucide-react';
 import Link from 'next/link';
 
 interface ShopkeeperProfile {
@@ -230,6 +230,13 @@ export default function ShopkeeperWalletPage() {
                  <div style={{marginBottom: '30px', maxWidth: '600px', margin: 'auto'}}>
                     <Link href="/shopkeeper/helpline" className="neu-button" style={{margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
                         <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}><Phone size={20} /><span>Helpline</span></div>
+                        <span>&rarr;</span>
+                    </Link>
+                 </div>
+
+                 <div style={{marginBottom: '30px', maxWidth: '600px', margin: 'auto'}}>
+                    <Link href="/shopkeeper/control-room" className="neu-button" style={{margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
+                        <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}><SlidersHorizontal size={20} /><span>उधार कंट्रोल रूम</span></div>
                         <span>&rarr;</span>
                     </Link>
                  </div>
