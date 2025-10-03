@@ -86,15 +86,8 @@ export default function ShopkeeperAnalysisPage() {
             ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
                     
-                    {/* Total Outstanding Card */}
-                    <div className="login-card" style={{ margin: 0, padding: '25px', textAlign: 'center' }}>
-                        <div className="neu-icon" style={{width: '60px', height: '60px', margin: '0 auto 15px'}}><IndianRupee/></div>
-                        <p style={{color: '#6c7293', fontSize: '1rem', fontWeight: 500, margin: 0}}>Total Outstanding Credit</p>
-                        <p style={{color: '#3d4468', fontSize: '2.5rem', fontWeight: 700, margin: '5px 0'}}>₹{analytics.totalOutstanding.toLocaleString('en-IN')}</p>
-                    </div>
-
                     {/* Stats Grid */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '25px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '25px' }}>
                         <div className="neu-input" style={{ padding: '25px', textAlign: 'center' }}>
                             <div className="neu-icon" style={{width: '50px', height: '50px', margin: '0 auto 15px'}}><Users/></div>
                             <p style={{color: '#6c7293', fontSize: '14px', fontWeight: 500, margin: 0}}>Total Customers</p>
@@ -111,6 +104,14 @@ export default function ShopkeeperAnalysisPage() {
                             <p style={{color: '#00c896', fontSize: '2rem', fontWeight: 700, margin: '5px 0'}}>{analytics.customersWithZeroBalance}</p>
                         </div>
                     </div>
+
+                    {/* Total Outstanding Card */}
+                    <div className="login-card" style={{ margin: 0, padding: '25px', textAlign: 'center', background: 'linear-gradient(145deg, #d1d9e6, #f9f9f9)' }}>
+                        <div className="neu-icon" style={{width: '60px', height: '60px', margin: '0 auto 15px'}}><IndianRupee/></div>
+                        <p style={{color: '#6c7293', fontSize: '1rem', fontWeight: 500, margin: 0}}>Total Outstanding Credit</p>
+                        <p style={{color: '#3d4468', fontSize: '2.5rem', fontWeight: 700, margin: '5px 0'}}>₹{analytics.totalOutstanding.toLocaleString('en-IN')}</p>
+                    </div>
+
                 </div>
             )}
         </div>
