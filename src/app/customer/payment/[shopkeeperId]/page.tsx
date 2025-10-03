@@ -83,14 +83,14 @@ export default function PaymentPage() {
       transRef,
       where('customerId', '==', auth.currentUser.uid),
       where('shopkeeperId', '==', shopkeeperId),
-      orderBy('timestamp', 'desc')
+      orderBy('timestamp', 'asc') // Changed to 'asc' to avoid composite index
     );
     const unsubscribeTransactions = onSnapshot(q, (snapshot) => {
       const trans: Transaction[] = [];
       snapshot.forEach(doc => {
         trans.push({ id: doc.id, ...doc.data() } as Transaction);
       });
-      setTransactions(trans);
+      setTransactions(trans.reverse()); // Reverse in code to show latest first
     });
 
     return () => {
