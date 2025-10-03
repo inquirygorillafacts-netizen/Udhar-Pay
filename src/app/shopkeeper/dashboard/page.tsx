@@ -97,6 +97,10 @@ export default function ShopkeeperDashboardPage() {
   const [isSavingLimit, setIsSavingLimit] = useState(false);
   const [limitModalError, setLimitModalError] = useState('');
 
+  // State for role switching
+  const [hasCustomerRole, setHasCustomerRole] = useState(false);
+  const [showEnrollModal, setShowEnrollModal] = useState(false);
+
 
   // Effect for profile, customers, and connection requests
   useEffect(() => {
@@ -110,6 +114,10 @@ export default function ShopkeeperDashboardPage() {
       if (docSnap.exists()) {
         const profile = { uid: docSnap.id, ...docSnap.data() } as UserProfile;
         setShopkeeperProfile(profile);
+
+        // Check for customer role
+        const customerDoc = await getDoc(doc(firestore, 'customers', auth.currentUser!.uid));
+        setHasCustomerRole(customerDoc.exists());
 
         if (!qrPosterDataUrl) {
           const savedQr = localStorage.getItem('shopkeeperQrPosterPng');
@@ -544,6 +552,14 @@ export default function ShopkeeperDashboardPage() {
       }
   };
 
+  const handleSwitchRoleClick = () => {
+    if (hasCustomerRole) {
+      localStorage.setItem('activeRole', 'customer');
+      router.push('/customer/dashboard');
+    } else {
+      setShowEnrollModal(true);
+    }
+  };
 
   const renderEnterAmount = () => {
     return (
@@ -747,6 +763,25 @@ export default function ShopkeeperDashboardPage() {
   
   return (
     <>
+    {showEnrollModal && (
+        <div className="modal-overlay" onClick={() => setShowEnrollModal(false)}>
+            <div className="login-card modal-content" style={{maxWidth: '450px'}} onClick={(e) => e.stopPropagation()}>
+                <div className="modal-header">
+                    <h2>Enroll as Customer</h2>
+                    <button className="close-button" onClick={() => setShowEnrollModal(false)}><X size={24} /></button>
+                </div>
+                <p style={{ color: '#6c7293', textAlign: 'center', marginBottom: '30px' }}>
+                    You don't have a customer profile yet. Go to your profile to enroll.
+                </p>
+                <Link href="/shopkeeper/profile">
+                    <button className="neu-button" style={{width: '100%', margin: 0}}>
+                        Go to Enrollment Page
+                    </button>
+                </Link>
+            </div>
+        </div>
+    )}
+
     {showSetLimitModal && activeConnectionRequest && (
         <SetCreditLimitModal
             customerName={activeConnectionRequest.customerName}
@@ -791,16 +826,15 @@ export default function ShopkeeperDashboardPage() {
       )}
 
     <header className="dashboard-header">
-        <div className="user-menu">
-        <Link href="/shopkeeper/profile">
-            <div className="user-avatar neu-icon">
-                {shopkeeperProfile?.photoURL ? (
-                    <img src={shopkeeperProfile.photoURL} alt={shopkeeperProfile.displayName || ''} style={{width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover'}} />
-                ) : (
-                    <UsersIcon size={24} />
-                )}
-                </div>
-            </Link>
+         <div className="user-menu">
+            <button
+                onClick={handleSwitchRoleClick}
+                className="user-avatar neu-icon"
+                aria-label="Switch Role"
+                style={{ cursor: 'pointer' }}
+            >
+                <RefreshCw size={24} />
+            </button>
         </div>
         <div 
             className="token-balance" 
