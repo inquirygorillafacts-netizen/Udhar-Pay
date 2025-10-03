@@ -454,7 +454,8 @@ export default function ShopkeeperDashboardPage() {
         const currentBalance = latestShopkeeper.balances?.[customer.uid] || 0;
     
         if (currentBalance + amount > creditLimit) {
-            alert(`आप इस ग्राहक को और उधार नहीं दे सकते क्योंकि उनकी उधार सीमा (₹${creditLimit}) पार हो जाएगी। या तो उनकी उधार सीमा बढ़ाएँ या उन्हें पुराना उधार चुकाने के लिए कहें।`);
+            setLimitModalData({ customer, currentLimit: creditLimit });
+            setShowCreditLimitExceededModal(true);
             setIsRequestingCredit(false);
             return;
         }
