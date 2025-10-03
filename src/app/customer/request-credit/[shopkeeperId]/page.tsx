@@ -13,12 +13,14 @@ interface ShopkeeperProfile {
   email: string;
   photoURL?: string | null;
   defaultCreditLimit?: number;
+  customerLimits?: { [key: string]: number };
 }
 
 interface CustomerProfile {
     uid: string;
     displayName: string;
     balances?: { [key: string]: number };
+    connections?: string[];
 }
 
 export default function RequestCreditPage() {
@@ -95,7 +97,8 @@ export default function RequestCreditPage() {
         return;
     }
     
-    const creditLimit = shopkeeper.defaultCreditLimit ?? 100;
+    const customerSpecificLimit = shopkeeper.customerLimits?.[customerProfile.uid];
+    const creditLimit = customerSpecificLimit ?? shopkeeper.defaultCreditLimit ?? 1000;
     const currentBalance = customerProfile.balances?.[shopkeeper.uid] || 0;
 
     if (currentBalance >= creditLimit) {

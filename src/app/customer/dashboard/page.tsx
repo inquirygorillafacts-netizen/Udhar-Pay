@@ -25,6 +25,7 @@ interface ShopkeeperProfile {
   email: string;
   photoURL?: string | null;
   defaultCreditLimit?: number;
+  customerLimits?: { [key: string]: number };
 }
 
 interface CreditRequest {
@@ -373,6 +374,7 @@ export default function CustomerDashboardPage() {
                                 key={shopkeeper.uid}
                                 shopkeeper={shopkeeper}
                                 balance={userProfile.balances?.[shopkeeper.uid] || 0}
+                                customerId={userProfile.uid}
                             />
                           ))}
                       </div>

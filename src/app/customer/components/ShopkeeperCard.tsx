@@ -3,6 +3,7 @@
 import { User, IndianRupee, ArrowRight, Wallet } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import {ArrowUpRight, ArrowDownRight, Circle} from 'lucide-react';
 
 interface ShopkeeperProfile {
   uid: string;
@@ -10,19 +11,23 @@ interface ShopkeeperProfile {
   email: string;
   photoURL?: string | null;
   defaultCreditLimit?: number;
+  customerLimits?: { [key: string]: number };
 }
 
 interface ShopkeeperCardProps {
     shopkeeper: ShopkeeperProfile;
     balance: number;
+    customerId: string;
 }
 
-export default function ShopkeeperCard({ shopkeeper, balance }: ShopkeeperCardProps) {
+export default function ShopkeeperCard({ shopkeeper, balance, customerId }: ShopkeeperCardProps) {
     const router = useRouter();
     
-    // Use the shopkeeper-defined limit, or a default fallback.
-    const creditLimit = shopkeeper.defaultCreditLimit ?? 1000; // Default to 1000 if not set
-    const usedPercentage = creditLimit > 0 && balance > 0 ? (balance / creditLimit) * 100 : 0;
+    // Determine the specific credit limit for this customer.
+    // Fallback chain: customer-specific limit -> shopkeeper's default limit -> 1000.
+    const creditLimit = shopkeeper.customerLimits?.[customerId] ?? shopkeeper.defaultCreditLimit ?? 1000;
+    
+    const usedPercentage = balance > 0 ? (balance / creditLimit) * 100 : 0;
     
     const isCredit = balance > 0;
     const balanceColor = '#3d4468';

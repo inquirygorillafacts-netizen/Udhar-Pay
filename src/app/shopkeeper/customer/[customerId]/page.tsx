@@ -17,6 +17,7 @@ interface CustomerProfile {
 
 interface ShopkeeperProfile {
     defaultCreditLimit?: number;
+    customerLimits?: { [key: string]: number };
 }
 
 interface Transaction {
@@ -149,7 +150,8 @@ export default function CustomerDetailPage() {
     }
     
      if (type === 'credit') {
-        const creditLimit = shopkeeperProfile?.defaultCreditLimit ?? 100;
+        const customerSpecificLimit = shopkeeperProfile?.customerLimits?.[customer.uid];
+        const creditLimit = customerSpecificLimit ?? shopkeeperProfile?.defaultCreditLimit ?? 1000;
         const currentBalance = shopkeeperBalance || 0;
         if (currentBalance + transactionAmount > creditLimit) {
             await sendCreditLimitNotification(firestore, auth.currentUser.uid, customer.uid, creditLimit, transactionAmount);
