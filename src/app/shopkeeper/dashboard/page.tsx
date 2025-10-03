@@ -23,7 +23,8 @@ interface UserProfile {
   shopkeeperCode?: string;
   customerCode?: string;
   defaultCreditLimit?: number;
-   customerLimits?: { [key: string]: number };
+  customerLimits?: { [key: string]: number };
+  creditSettings?: { [key: string]: { limitType: 'default' | 'manual', manualLimit: number, isCreditEnabled: boolean } };
 }
 
 interface ConnectionRequest {
@@ -231,14 +232,15 @@ export default function ShopkeeperDashboardPage() {
     setShowSetLimitModal(true);
   };
 
-  const handleConfirmAcceptConnection = async (limit?: number) => {
+  const handleConfirmAcceptConnection = async (limitType: 'default' | 'manual', manualLimit?: number) => {
     if (!firestore || !activeConnectionRequest) return;
     try {
       await acceptConnectionRequest(firestore, {
         requestId: activeConnectionRequest.id,
         customerId: activeConnectionRequest.customerId,
         shopkeeperId: activeConnectionRequest.shopkeeperId,
-        limit: limit,
+        limitType: limitType,
+        manualLimit: manualLimit
       });
     } catch (error) {
       console.error("Error accepting request:", error);
@@ -446,8 +448,12 @@ export default function ShopkeeperDashboardPage() {
   }
   
   const getCreditLimitForCustomer = (customerId: string) => {
-    if (!shopkeeperProfile) return 1000;
-    return shopkeeperProfile.customerLimits?.[customerId] ?? shopkeeperProfile.defaultCreditLimit ?? 1000;
+      if (!shopkeeperProfile) return 1000; // Fallback
+      const settings = shopkeeperProfile.creditSettings?.[customerId];
+      if (settings?.limitType === 'manual') {
+          return settings.manualLimit;
+      }
+      return shopkeeperProfile.defaultCreditLimit ?? 1000;
   }
 
   const renderEnterAmount = () => {

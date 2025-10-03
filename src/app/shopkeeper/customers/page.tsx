@@ -18,7 +18,7 @@ interface UserProfile {
 
 interface ShopkeeperProfile {
     defaultCreditLimit?: number;
-    customerLimits?: { [key: string]: number };
+    creditSettings?: { [key: string]: { limitType: 'default' | 'manual', manualLimit: number, isCreditEnabled: boolean } };
 }
 
 export default function ShopkeeperCustomersPage() {
@@ -78,9 +78,19 @@ export default function ShopkeeperCustomersPage() {
     }
   }, [searchTerm, allCustomers]);
   
-  const getCreditLimitForCustomer = (customerId: string) => {
-      if (!shopkeeperProfile) return 1000;
-      return shopkeeperProfile.customerLimits?.[customerId] ?? shopkeeperProfile.defaultCreditLimit ?? 1000;
+  const getCreditLimitForCustomer = (customerId: string): number => {
+    if (!shopkeeperProfile) return 1000;
+    const settings = shopkeeperProfile.creditSettings?.[customerId];
+    if (settings?.limitType === 'manual') {
+      return settings.manualLimit;
+    }
+    return shopkeeperProfile.defaultCreditLimit ?? 1000;
+  };
+  
+  const isCreditEnabledForCustomer = (customerId: string): boolean => {
+      if (!shopkeeperProfile) return true; // Default to enabled
+      const settings = shopkeeperProfile.creditSettings?.[customerId];
+      return settings?.isCreditEnabled ?? true;
   }
 
   return (
@@ -133,6 +143,7 @@ export default function ShopkeeperCustomersPage() {
                             customer={customer} 
                             shopkeeperId={auth.currentUser!.uid}
                             creditLimit={getCreditLimitForCustomer(customer.uid)}
+                            isCreditEnabled={isCreditEnabledForCustomer(customer.uid)}
                         />
                     </Link>
                 ))}

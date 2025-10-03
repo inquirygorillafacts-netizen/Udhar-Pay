@@ -4,7 +4,8 @@ interface ConnectionRequestPayload {
   requestId: string;
   customerId: string;
   shopkeeperId: string;
-  limit?: number; // Optional limit
+  limitType: 'default' | 'manual';
+  manualLimit?: number;
 }
 
 interface ConnectionResult {
@@ -67,7 +68,7 @@ export const sendConnectionRequest = async (firestore: Firestore, customerId: st
 
 
 export const acceptConnectionRequest = async (firestore: Firestore, payload: ConnectionRequestPayload) => {
-  const { requestId, customerId, shopkeeperId, limit } = payload;
+  const { requestId, customerId, shopkeeperId, limitType, manualLimit } = payload;
   
   const batch = writeBatch(firestore);
 
@@ -75,16 +76,20 @@ export const acceptConnectionRequest = async (firestore: Firestore, payload: Con
   const requestRef = doc(firestore, 'connectionRequests', requestId);
   batch.update(requestRef, { status: 'approved' });
 
-  // 2. Add customerId to shopkeeper's connections array and optionally set the limit
+  // 2. Add customerId to shopkeeper's connections array and set the credit settings.
   const shopkeeperRef = doc(firestore, 'shopkeepers', shopkeeperId);
-  const shopkeeperUpdateData: { connections: any, [key: string]: any } = {
-    connections: arrayUnion(customerId)
+  
+  const creditSettings = {
+      limitType: limitType,
+      manualLimit: limitType === 'manual' && manualLimit ? manualLimit : 0,
+      isCreditEnabled: true, // Credit is enabled by default for new connections
+  };
+
+  const shopkeeperUpdateData = {
+    connections: arrayUnion(customerId),
+    [`creditSettings.${customerId}`]: creditSettings,
   };
   
-  // If a specific limit is provided for this customer, set it in the customerLimits map.
-  if (limit !== undefined) {
-    shopkeeperUpdateData[`customerLimits.${customerId}`] = limit;
-  }
   batch.update(shopkeeperRef, shopkeeperUpdateData);
 
 

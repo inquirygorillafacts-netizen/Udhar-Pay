@@ -1,13 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { IndianRupee } from 'lucide-react';
+import { IndianRupee, ToggleLeft, ToggleRight } from 'lucide-react';
 
 interface SetCreditLimitModalProps {
   customerName: string;
   defaultLimit: number;
   onClose: () => void;
-  onConfirm: (limit?: number) => void;
+  onConfirm: (limitType: 'default' | 'manual', manualLimit?: number) => void;
 }
 
 export default function SetCreditLimitModal({
@@ -16,22 +16,21 @@ export default function SetCreditLimitModal({
   onClose,
   onConfirm,
 }: SetCreditLimitModalProps) {
-  const [limitType, setLimitType] = useState<'default' | 'custom'>('default');
+  const [limitType, setLimitType] = useState<'default' | 'manual'>('default');
   const [customLimit, setCustomLimit] = useState('');
   const [error, setError] = useState('');
 
   const handleConfirm = () => {
     setError('');
-    if (limitType === 'custom') {
+    if (limitType === 'manual') {
       const limitValue = parseFloat(customLimit);
       if (isNaN(limitValue) || limitValue <= 0) {
         setError('Please enter a valid positive number for the credit limit.');
         return;
       }
-      onConfirm(limitValue);
+      onConfirm('manual', limitValue);
     } else {
-      // For default, we don't pass a value, so the backend won't set a custom limit.
-      onConfirm(defaultLimit);
+      onConfirm('default');
     }
   };
 

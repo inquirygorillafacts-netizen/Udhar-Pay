@@ -11,7 +11,7 @@ interface ShopkeeperProfile {
   email: string;
   photoURL?: string | null;
   defaultCreditLimit?: number;
-  customerLimits?: { [key: string]: number };
+  creditSettings?: { [key: string]: { limitType: 'default' | 'manual', manualLimit: number } };
 }
 
 interface ShopkeeperCardProps {
@@ -25,7 +25,10 @@ export default function ShopkeeperCard({ shopkeeper, balance, customerId }: Shop
     
     // Determine the specific credit limit for this customer.
     // Fallback chain: customer-specific limit -> shopkeeper's default limit -> 1000.
-    const creditLimit = shopkeeper.customerLimits?.[customerId] ?? shopkeeper.defaultCreditLimit ?? 1000;
+    const customerSettings = shopkeeper.creditSettings?.[customerId];
+    const creditLimit = customerSettings?.limitType === 'manual' 
+        ? customerSettings.manualLimit 
+        : shopkeeper.defaultCreditLimit ?? 1000;
     
     const usedPercentage = balance > 0 ? (balance / creditLimit) * 100 : 0;
     

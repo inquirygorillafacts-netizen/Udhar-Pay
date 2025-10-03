@@ -25,7 +25,7 @@ interface ShopkeeperProfile {
   email: string;
   photoURL?: string | null;
   defaultCreditLimit?: number;
-  customerLimits?: { [key: string]: number };
+  creditSettings?: { [key: string]: { limitType: 'default' | 'manual', manualLimit: number } };
 }
 
 interface CreditRequest {
