@@ -13,7 +13,7 @@ interface ShopkeeperProfile {
   email: string;
   photoURL?: string | null;
   defaultCreditLimit?: number;
-  customerLimits?: { [key: string]: number };
+  creditSettings?: { [key: string]: { limitType: 'default' | 'manual', manualLimit: number, isCreditEnabled: boolean } };
 }
 
 interface CustomerProfile {
@@ -97,8 +97,18 @@ export default function RequestCreditPage() {
         return;
     }
     
-    const customerSpecificLimit = shopkeeper.customerLimits?.[customerProfile.uid];
-    const creditLimit = customerSpecificLimit ?? shopkeeper.defaultCreditLimit ?? 1000;
+    const customerSettings = shopkeeper.creditSettings?.[customerProfile.uid];
+    const isCreditEnabled = customerSettings?.isCreditEnabled ?? true;
+
+    if (!isCreditEnabled) {
+      setError("उधार सुविधा इस दुकानदार द्वारा आपके लिए बंद कर दी गई है।"); // Credit is disabled by this shopkeeper for you.
+      return;
+    }
+
+    const creditLimit = customerSettings?.limitType === 'manual' 
+      ? customerSettings.manualLimit 
+      : shopkeeper.defaultCreditLimit ?? 1000;
+    
     const currentBalance = customerProfile.balances?.[shopkeeper.uid] || 0;
 
     if (currentBalance >= creditLimit) {
@@ -108,7 +118,7 @@ export default function RequestCreditPage() {
 
     if (currentBalance + creditAmount > creditLimit) {
         const remainingLimit = creditLimit - currentBalance;
-        setError(`यह अनुरोध आपकी उधार सीमा (₹${creditLimit}) से अधिक हो जाएगा। आप केवल ₹${remainingLimit.toFixed(2)} तक का अनुरोध कर सकते हैं।`);
+        setError(`यह अनुरोध आपकी उधार सीमा (₹${creditLimit}) से अधिक हो जाएगा। आप केवल ₹${remainingLimit > 0 ? remainingLimit.toFixed(2) : 0} तक का अनुरोध कर सकते हैं।`);
         return;
     }
 

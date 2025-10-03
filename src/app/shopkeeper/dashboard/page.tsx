@@ -405,13 +405,35 @@ export default function ShopkeeperDashboardPage() {
   const handleSendRequest = async (customer: CustomerForSelection) => {
       setSelectedCustomer(customer);
       const amount = parseFloat(creditAmount);
+
       if (isNaN(amount) || amount <= 0 || !shopkeeperProfile || !firestore) {
           setError("An unexpected error occurred. Please start over.");
           return;
       }
       
-      setIsRequestingCredit(true);
       setError('');
+      // --- PRE-REQUEST CREDIT CHECK ---
+      const customerSettings = shopkeeperProfile.creditSettings?.[customer.uid];
+      const isCreditEnabled = customerSettings?.isCreditEnabled ?? true;
+
+      if (!isCreditEnabled) {
+          alert("Credit is disabled for this customer. Please enable it in the Control Room to give credit.");
+          return;
+      }
+
+      const creditLimit = customerSettings?.limitType === 'manual'
+          ? customerSettings.manualLimit
+          : shopkeeperProfile.defaultCreditLimit ?? 1000;
+      
+      const currentBalance = customer.balance || 0;
+
+      if (currentBalance + amount > creditLimit) {
+          alert(`This transaction exceeds the customer's credit limit of ₹${creditLimit}. You cannot give more credit. Please increase their limit or ask them to repay.`);
+          return;
+      }
+      // --- END OF CHECK ---
+
+      setIsRequestingCredit(true);
 
       try {
           const creditRequestsRef = collection(firestore, 'creditRequests');
@@ -455,6 +477,14 @@ export default function ShopkeeperDashboardPage() {
       }
       return shopkeeperProfile.defaultCreditLimit ?? 1000;
   }
+  
+  const isCreditEnabledForCustomer = (customerId: string): boolean => {
+      if (!shopkeeperProfile) return true; // Default to enabled
+      const settings = shopkeeperProfile.creditSettings?.[customerId];
+      // If settings is undefined, it means credit is enabled by default.
+      return settings?.isCreditEnabled ?? true;
+  }
+
 
   const renderEnterAmount = () => {
     return (
@@ -572,6 +602,7 @@ export default function ShopkeeperDashboardPage() {
                           customer={customer} 
                           shopkeeperId={auth.currentUser!.uid} 
                           creditLimit={getCreditLimitForCustomer(customer.uid)}
+                          isCreditEnabled={isCreditEnabledForCustomer(customer.uid)}
                         />
                     </div>
                 ))}

@@ -206,8 +206,8 @@ export default function CustomerDetailPage() {
         const customerBalances = customerDoc.data()?.balances || {};
         const newCustomerBalance = (customerBalances[shopkeeperId] || 0) + balanceChange;
         
-        batch.update(shopkeeperRef, { [`balances.${customerId}`]: newShopkeeperBalance });
-        batch.update(customerRef, { [`balances.${shopkeeperId}`]: newCustomerBalance });
+        batch.set(shopkeeperRef, { balances: { [customerId]: newShopkeeperBalance } }, { merge: true });
+        batch.set(customerRef, { balances: { [shopkeeperId]: newCustomerBalance } }, { merge: true });
 
         await batch.commit();
 
