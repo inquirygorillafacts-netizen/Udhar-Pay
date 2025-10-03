@@ -22,8 +22,13 @@ export default function ShopkeeperCard({ shopkeeper, balance }: ShopkeeperCardPr
     
     // Using a neutral, consistent color for the balance to avoid anxiety
     const balanceColor = '#3d4468';
-    const balanceBgColor = isCredit ? 'bg-[#ff3b5c]' : 'bg-[#00c896]'; // Bar can still have color for quick visual cue
     const balanceText = isCredit ? 'Udhaar' : (balance < 0 ? 'Advance' : 'Settled');
+
+    // Dummy credit limit for demonstration. In a real app, this would come from props/backend.
+    const creditLimit = 5000;
+    const usedPercentage = creditLimit > 0 ? (Math.abs(balance) / creditLimit) * 100 : 0;
+    const barColor = usedPercentage > 75 ? '#ff3b5c' : '#00c896';
+
 
     return (
         <div 
@@ -33,6 +38,9 @@ export default function ShopkeeperCard({ shopkeeper, balance }: ShopkeeperCardPr
                 padding: '25px',
                 cursor: 'pointer',
                 transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '20px'
             }}
             onClick={() => router.push(`/customer/payment/${shopkeeper.uid}`)}
         >
@@ -56,6 +64,17 @@ export default function ShopkeeperCard({ shopkeeper, balance }: ShopkeeperCardPr
                         <span style={{ fontSize: '1.5rem', fontWeight: 'bold', color: balanceColor }}>₹{Math.abs(balance)}</span>
                     </div>
                     <ArrowRight size={20} style={{ color: '#9499b7', flexShrink: 0 }} />
+                </div>
+            </div>
+
+            {/* Credit Limit Bar */}
+            <div>
+                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px'}}>
+                    <span style={{fontSize: '12px', color: '#6c7293', fontWeight: 500}}>Credit Limit</span>
+                    <span style={{fontSize: '12px', color: '#3d4468', fontWeight: 600}}>₹{creditLimit.toLocaleString('en-IN')}</span>
+                </div>
+                <div style={{height: '8px', background: '#e0e5ec', borderRadius: '4px', boxShadow: 'inset 2px 2px 4px #bec3cf, inset -2px -2px 4px #ffffff', overflow: 'hidden'}}>
+                    <div style={{width: `${usedPercentage > 100 ? 100 : usedPercentage}%`, height: '100%', background: barColor, borderRadius: '4px', transition: 'width 0.5s ease, background-color 0.5s ease'}}></div>
                 </div>
             </div>
         </div>
