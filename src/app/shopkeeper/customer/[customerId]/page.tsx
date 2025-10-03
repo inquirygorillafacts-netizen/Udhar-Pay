@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
-import { doc, getDoc, collection, query, where, onSnapshot, orderBy, Timestamp } from 'firebase/firestore';
-import { ArrowLeft, User, IndianRupee, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
+import { doc, getDoc, collection, query, where, onSnapshot, Timestamp } from 'firebase/firestore';
+import { ArrowLeft, User, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
 
 interface CustomerProfile {
   uid: string;
@@ -31,9 +31,9 @@ export default function CustomerTransactionHistoryPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // New state for separate balances
-  const [totalUdhaar, setTotalUdhaar] = useState(0);
-  const [totalPayment, setTotalPayment] = useState(0);
+  // New state for separate balances based on user's logic
+  const [netBalance, setNetBalance] = useState(0);
+  const [totalPaymentReceived, setTotalPaymentReceived] = useState(0);
 
   useEffect(() => {
     if (!customerId || !auth.currentUser) {
@@ -67,22 +67,26 @@ export default function CustomerTransactionHistoryPage() {
         trans.push({ id: doc.id, ...doc.data() } as Transaction);
       });
       
-      // Sort transactions by timestamp in descending order (newest first)
+      // Sort transactions by timestamp (newest first)
       trans.sort((a, b) => b.timestamp.toMillis() - a.timestamp.toMillis());
       setTransactions(trans);
 
-      // Calculate total credit and payment
-      let udhaar = 0;
-      let payment = 0;
+      // Calculate new balances based on the specified logic
+      let totalCredit = 0;
+      let totalPayment = 0;
       trans.forEach(tx => {
           if (tx.type === 'credit') {
-              udhaar += tx.amount;
+              totalCredit += tx.amount;
           } else if (tx.type === 'payment') {
-              payment += tx.amount;
+              totalPayment += tx.amount;
           }
       });
-      setTotalUdhaar(udhaar);
-      setTotalPayment(payment);
+      
+      setNetBalance(totalCredit - totalPayment);
+      // This represents the unsettled amount the owner owes the shopkeeper for this customer
+      // In a real scenario, this would be more complex, considering settlements.
+      // For now, we assume it's the total payment collected.
+      setTotalPaymentReceived(totalPayment);
 
     }, (error) => {
         console.error("Error fetching transactions: ", error);
@@ -101,11 +105,6 @@ export default function CustomerTransactionHistoryPage() {
     return <div className="loading-container">Customer not found.</div>;
   }
   
-  const netBalance = totalUdhaar - totalPayment;
-  const balanceColor = netBalance > 0 ? '#ff3b5c' : '#00c896';
-  const balanceText = netBalance > 0 ? 'Udhaar' : (netBalance < 0 ? 'Advance' : 'Settled');
-
-
   return (
     <div style={{ paddingBottom: '80px' }}>
       <header className="dashboard-header" style={{ position: 'sticky', top: 0, zIndex: 10, borderRadius: '0 0 20px 20px' }}>
@@ -129,19 +128,12 @@ export default function CustomerTransactionHistoryPage() {
         
         <div style={{ maxWidth: '600px', margin: 'auto', marginBottom: '30px', display: 'flex', gap: '20px' }}>
             <div className="login-card" style={{ flex: 1, textAlign: 'center', padding: '20px' }}>
-                <p style={{fontSize: '0.9rem', color: '#ff3b5c', margin: 0, fontWeight: 500}}>Total Udhaar</p>
-                <p style={{fontSize: '1.75rem', fontWeight: 'bold', margin: '5px 0', color: '#3d4468'}}>₹{totalUdhaar}</p>
+                <p style={{fontSize: '0.9rem', color: '#ff3b5c', margin: 0, fontWeight: 500}}>कुल उधार (बकाया)</p>
+                <p style={{fontSize: '1.75rem', fontWeight: 'bold', margin: '5px 0', color: '#3d4468'}}>₹{netBalance > 0 ? netBalance : 0}</p>
             </div>
             <div className="login-card" style={{ flex: 1, textAlign: 'center', padding: '20px' }}>
-                 <p style={{fontSize: '0.9rem', color: '#00c896', margin: 0, fontWeight: 500}}>Total Payment</p>
-                <p style={{fontSize: '1.75rem', fontWeight: 'bold', margin: '5px 0', color: '#3d4468'}}>₹{totalPayment}</p>
-            </div>
-        </div>
-
-        <div className="login-card" style={{ maxWidth: '600px', margin: 'auto', marginBottom: '30px', background: balanceColor }}>
-            <div style={{textAlign: 'center', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 20px'}}>
-                <p style={{fontSize: '1rem', color: 'white', margin: 0, fontWeight: 600}}>Current Balance: {balanceText}</p>
-                <p style={{fontSize: '1.5rem', fontWeight: 'bold', margin: '0', color: 'white'}}>₹{Math.abs(netBalance)}</p>
+                 <p style={{fontSize: '0.9rem', color: '#00c896', margin: 0, fontWeight: 500}}>भुगतान मिला</p>
+                <p style={{fontSize: '1.75rem', fontWeight: 'bold', margin: '5px 0', color: '#3d4468'}}>₹{totalPaymentReceived}</p>
             </div>
         </div>
 
