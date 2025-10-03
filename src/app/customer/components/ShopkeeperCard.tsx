@@ -22,7 +22,7 @@ export default function ShopkeeperCard({ shopkeeper, balance }: ShopkeeperCardPr
     
     // Use the shopkeeper-defined limit, or a default fallback.
     const creditLimit = shopkeeper.defaultCreditLimit ?? 1000; // Default to 1000 if not set
-    const usedPercentage = creditLimit > 0 ? (Math.abs(balance) / creditLimit) * 100 : 0;
+    const usedPercentage = creditLimit > 0 && balance > 0 ? (balance / creditLimit) * 100 : 0;
     
     const isCredit = balance > 0;
     const balanceColor = '#3d4468';
