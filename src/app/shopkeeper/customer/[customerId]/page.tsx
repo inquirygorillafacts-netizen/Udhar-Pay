@@ -67,7 +67,7 @@ export default function CustomerTransactionHistoryPage() {
         trans.push({ id: doc.id, ...doc.data() } as Transaction);
       });
       
-      // Sort transactions by timestamp (newest first)
+      // Sort transactions by timestamp client-side
       trans.sort((a, b) => b.timestamp.toMillis() - a.timestamp.toMillis());
       setTransactions(trans);
 
