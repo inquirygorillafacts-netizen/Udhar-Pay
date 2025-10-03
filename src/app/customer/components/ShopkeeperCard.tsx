@@ -27,7 +27,13 @@ export default function ShopkeeperCard({ shopkeeper, balance }: ShopkeeperCardPr
     const isCredit = balance > 0;
     const balanceColor = '#3d4468';
     const balanceText = isCredit ? 'Udhaar' : (balance < 0 ? 'Advance' : 'Settled');
-    const barColor = usedPercentage > 75 ? '#ff3b5c' : '#00c896';
+    
+    const getBarColor = () => {
+        if (usedPercentage > 75) return '#ff3b5c'; // Red for high usage
+        if (usedPercentage > 50) return '#007BFF'; // Blue for moderate usage
+        return '#00c896'; // Green for low usage
+    };
+    const barColor = getBarColor();
 
 
     return (
