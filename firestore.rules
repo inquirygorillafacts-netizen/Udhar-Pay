@@ -1,23 +1,64 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow reading the owner PIN for the lock screen, even if not authenticated.
-    match /lock/{docId} {
-      allow read: if true;
-      allow write: if false; // Nobody can write to this from the client
+    // By default, deny all reads and writes
+    match /{document=**} {
+      allow read, write: if false;
     }
 
-    // Secure user collections
-    match /customers/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    // Owners have full access to their own document
+    match /owners/{ownerId} {
+      allow read, update: if request.auth.uid == ownerId;
     }
-    match /shopkeepers/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+    // Allow owners to manage the PIN lock document
+    match /lock/{docId} {
+        allow read, write: if get(/databases/$(database)/documents/owners/$(request.auth.uid)).exists;
     }
-    match /owners/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    
+    // Shopkeepers can create their profile and only read/update their own
+    match /shopkeepers/{shopkeeperId} {
+      allow create: if request.auth.uid == shopkeeperId;
+      allow read, update: if request.auth.uid == shopkeeperId;
+    }
+
+    // Customers can create their profile and only read/update their own
+    match /customers/{customerId} {
+      allow create: if request.auth.uid == customerId;
+      allow read, update: if request.auth.uid == customerId;
+    }
+
+    // Rules for connection requests between customers and shopkeepers
+    match /connectionRequests/{requestId} {
+      // Customer can create a request
+      allow create: if request.auth.uid == request.resource.data.customerId;
+      // Shopkeeper can read and update (approve/reject) the request
+      allow read, update: if request.auth.uid == resource.data.shopkeeperId;
+      // Customer who made the request can also read it to check status
+      allow read: if request.auth.uid == resource.data.customerId;
+    }
+
+    // Rules for credit requests (customer-initiated or shopkeeper-initiated)
+    match /creditRequests/{requestId} {
+      // Allow creation by either customer or shopkeeper, as long as they are part of the request
+      allow create: if (request.auth.uid == request.resource.data.customerId || request.auth.uid == request.resource.data.shopkeeperId);
+      // Allow both customer and shopkeeper involved in the request to read or update it (e.g., to approve/reject)
+      allow read, update, delete: if (request.auth.uid == resource.data.customerId || request.auth.uid == resource.data.shopkeeperId);
+    }
+    
+    // TTL policy for credit requests
+    match /creditRequests/{requestId} {
+      allow read, write; // Keep existing rules
+      @ttl(deleteAfter=expireAt)
+    }
+
+    // Rules for transactions, which are the source of truth for balances
+    match /transactions/{transactionId} {
+        // Only the shopkeeper involved can create a transaction (credit or payment)
+        allow create: if request.auth.uid == request.resource.data.shopkeeperId;
+        // Both the customer and shopkeeper involved can read the transaction history
+        allow read: if request.auth.uid == resource.data.customerId || request.auth.uid == resource.data.shopkeeperId;
     }
   }
 }
