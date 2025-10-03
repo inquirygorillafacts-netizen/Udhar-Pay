@@ -411,68 +411,79 @@ export default function ShopkeeperDashboardPage() {
   }
 
   const handleSendRequest = async (customer: CustomerForSelection) => {
-    setSelectedCustomer(customer);
-    const amount = parseFloat(creditAmount);
-  
-    if (isNaN(amount) || amount <= 0 || !auth.currentUser || !firestore || !shopkeeperProfile) {
-      setError("An unexpected error occurred. Please start over.");
-      return;
-    }
-  
-    setIsRequestingCredit(true);
-    setError('');
-  
-    try {
-      const latestShopkeeper = shopkeeperProfile;
-      const latestCustomer = customer;
-  
-      const customerSettings = latestShopkeeper.creditSettings?.[customer.uid];
-      const isCreditEnabled = customerSettings?.isCreditEnabled ?? true;
-  
-      if (!isCreditEnabled) {
-        alert("Credit is disabled for this customer. Please enable it in the Control Room to give credit.");
-        setIsRequestingCredit(false);
+      setSelectedCustomer(customer);
+      const amount = parseFloat(creditAmount);
+    
+      if (isNaN(amount) || amount <= 0 || !auth.currentUser || !firestore) {
+        setError("An unexpected error occurred. Please start over.");
         return;
       }
-  
-      const creditLimit = customerSettings?.limitType === 'manual'
-        ? customerSettings.manualLimit
-        : latestShopkeeper.defaultCreditLimit ?? 1000;
-  
-      const currentBalance = latestShopkeeper.balances?.[customer.uid] || 0;
-  
-      if (currentBalance + amount > creditLimit) {
-        setLimitModalData({ customer, currentLimit: creditLimit });
-        setShowCreditLimitExceededModal(true);
+    
+      setIsRequestingCredit(true);
+      setError('');
+    
+      try {
+        const shopkeeperRef = doc(firestore, 'shopkeepers', auth.currentUser.uid);
+        const customerRef = doc(firestore, 'customers', customer.uid);
+
+        const [shopkeeperSnap, customerSnap] = await Promise.all([
+          getDoc(shopkeeperRef),
+          getDoc(customerRef)
+        ]);
+
+        if (!shopkeeperSnap.exists() || !customerSnap.exists()) {
+            throw new Error("Could not verify latest user data.");
+        }
+        
+        const latestShopkeeper = {uid: shopkeeperSnap.id, ...shopkeeperSnap.data()} as UserProfile;
+        const latestCustomer = {uid: customerSnap.id, ...customerSnap.data()} as UserProfile;
+        
+        const customerSettings = latestShopkeeper.creditSettings?.[customer.uid];
+        const isCreditEnabled = customerSettings?.isCreditEnabled ?? true;
+    
+        if (!isCreditEnabled) {
+          alert("Credit is disabled for this customer. Please enable it in the Control Room to give credit.");
+          setIsRequestingCredit(false);
+          return;
+        }
+    
+        const creditLimit = customerSettings?.limitType === 'manual'
+          ? customerSettings.manualLimit
+          : latestShopkeeper.defaultCreditLimit ?? 1000;
+    
+        const currentBalance = latestShopkeeper.balances?.[customer.uid] || 0;
+    
+        if (currentBalance + amount > creditLimit) {
+            alert(`आप इस ग्राहक को और उधार नहीं दे सकते क्योंकि उनकी उधार सीमा (₹${creditLimit}) पार हो जाएगी। या तो उनकी उधार सीमा बढ़ाएँ या उन्हें पुराना उधार चुकाने के लिए कहें।`);
+            setIsRequestingCredit(false);
+            return;
+        }
+    
+        const creditRequestsRef = collection(firestore, 'creditRequests');
+        const expireAt = new Date(Date.now() + 1 * 60 * 1000); // 1 minute from now
+        
+        const newRequestRef = await addDoc(creditRequestsRef, {
+          amount: amount,
+          customerId: customer.uid,
+          customerName: customer.displayName,
+          shopkeeperId: latestShopkeeper.uid,
+          shopkeeperName: latestShopkeeper.displayName,
+          status: 'pending',
+          createdAt: serverTimestamp(),
+          requestedBy: 'shopkeeper',
+          expireAt: expireAt
+        });
+    
+        setActiveRequest({ id: newRequestRef.id, status: 'pending' });
+        setStep('success');
+    
+      } catch (error) {
+        console.error("Error creating credit request:", error);
+        setError("Failed to send request. Please try again.");
+      } finally {
         setIsRequestingCredit(false);
-        return;
       }
-  
-      const creditRequestsRef = collection(firestore, 'creditRequests');
-      const expireAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
-      
-      const newRequestRef = await addDoc(creditRequestsRef, {
-        amount: amount,
-        customerId: customer.uid,
-        customerName: customer.displayName,
-        shopkeeperId: latestShopkeeper.uid,
-        shopkeeperName: latestShopkeeper.displayName,
-        status: 'pending',
-        createdAt: serverTimestamp(),
-        requestedBy: 'shopkeeper',
-        expireAt: expireAt
-      });
-  
-      setActiveRequest({ id: newRequestRef.id, status: 'pending' });
-      setStep('success');
-  
-    } catch (error) {
-      console.error("Error creating credit request:", error);
-      setError("Failed to send request. Please try again.");
-    } finally {
-      setIsRequestingCredit(false);
-    }
-  };
+    };
   
   const resetCreditFlow = () => {
       setStep('enterAmount');
