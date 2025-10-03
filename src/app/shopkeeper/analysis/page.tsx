@@ -86,26 +86,24 @@ export default function ShopkeeperAnalysisPage() {
             ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
                     
-                    {/* Stats Grid */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '25px' }}>
+                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '25px' }}>
                         <div className="neu-input" style={{ padding: '25px', textAlign: 'center' }}>
                             <div className="neu-icon" style={{width: '50px', height: '50px', margin: '0 auto 15px'}}><Users/></div>
                             <p style={{color: '#6c7293', fontSize: '14px', fontWeight: 500, margin: 0}}>Total Customers</p>
                             <p style={{color: '#3d4468', fontSize: '2rem', fontWeight: 700, margin: '5px 0'}}>{analytics.totalCustomers}</p>
                         </div>
                          <div className="neu-input" style={{ padding: '25px', textAlign: 'center' }}>
-                            <div className="neu-icon" style={{width: '50px', height: '50px', margin: '0 auto 15px'}}><BookUser color='#ff3b5c'/></div>
+                            <div className="neu-icon" style={{width: '50px', height: '50px', margin: '0 auto 15px'}}><BookUser color='#3d4468'/></div>
                             <p style={{color: '#6c7293', fontSize: '14px', fontWeight: 500, margin: 0}}>Customers on Credit</p>
-                            <p style={{color: '#ff3b5c', fontSize: '2rem', fontWeight: 700, margin: '5px 0'}}>{analytics.customersOnCredit}</p>
+                            <p style={{color: '#3d4468', fontSize: '2rem', fontWeight: 700, margin: '5px 0'}}>{analytics.customersOnCredit}</p>
                         </div>
                          <div className="neu-input" style={{ padding: '25px', textAlign: 'center' }}>
-                           <div className="neu-icon" style={{width: '50px', height: '50px', margin: '0 auto 15px'}}><UserCheck color='#00c896'/></div>
+                           <div className="neu-icon" style={{width: '50px', height: '50px', margin: '0 auto 15px'}}><UserCheck color='#3d4468'/></div>
                             <p style={{color: '#6c7293', fontSize: '14px', fontWeight: 500, margin: 0}}>Settled Customers</p>
-                            <p style={{color: '#00c896', fontSize: '2rem', fontWeight: 700, margin: '5px 0'}}>{analytics.customersWithZeroBalance}</p>
+                            <p style={{color: '#3d4468', fontSize: '2rem', fontWeight: 700, margin: '5px 0'}}>{analytics.customersWithZeroBalance}</p>
                         </div>
                     </div>
 
-                    {/* Total Outstanding Card */}
                     <div className="login-card" style={{ margin: 0, padding: '25px', textAlign: 'center', background: 'linear-gradient(145deg, #d1d9e6, #f9f9f9)' }}>
                         <div className="neu-icon" style={{width: '60px', height: '60px', margin: '0 auto 15px'}}><IndianRupee/></div>
                         <p style={{color: '#6c7293', fontSize: '1rem', fontWeight: 500, margin: 0}}>Total Outstanding Credit</p>
