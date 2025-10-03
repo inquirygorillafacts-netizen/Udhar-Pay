@@ -362,18 +362,17 @@ export default function CustomerDashboardPage() {
           {(loadingShopkeepers) ? (
             <div className="neu-spinner" style={{margin: '40px auto'}}></div>
           ) : (connectedShopkeepers.length > 0) && (
-              <div className="login-card" style={{maxWidth: '600px', margin: '40px auto'}}>
+              <div style={{maxWidth: '600px', margin: '40px auto'}}>
                    <h2 style={{color: '#3d4468', fontSize: '1.5rem', fontWeight: '600', textAlign: 'center', marginBottom: '30px' }}>
                       Your Connected Shopkeepers
                     </h2>
                      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                           {connectedShopkeepers.map(shopkeeper => (
-                            <Link key={shopkeeper.uid} href={`/customer/payment/${shopkeeper.uid}`} style={{textDecoration: 'none'}}>
-                                <ShopkeeperCard 
-                                  shopkeeper={shopkeeper}
-                                  balance={userProfile.balances?.[shopkeeper.uid] || 0}
-                                />
-                            </Link>
+                            <ShopkeeperCard 
+                                key={shopkeeper.uid}
+                                shopkeeper={shopkeeper}
+                                balance={userProfile.balances?.[shopkeeper.uid] || 0}
+                            />
                           ))}
                       </div>
               </div>
