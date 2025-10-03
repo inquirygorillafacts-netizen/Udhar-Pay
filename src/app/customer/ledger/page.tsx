@@ -30,10 +30,10 @@ export default function CustomerLedgerPage() {
     if (!auth.currentUser) return;
 
     const transRef = collection(firestore, 'transactions');
+    // Remove orderBy from the query to avoid needing a composite index
     const q = query(
       transRef,
-      where('customerId', '==', auth.currentUser.uid),
-      orderBy('timestamp', 'desc')
+      where('customerId', '==', auth.currentUser.uid)
     );
 
     const unsubscribe = onSnapshot(q, async (snapshot) => {
@@ -46,6 +46,12 @@ export default function CustomerLedgerPage() {
         shopkeeperIds.add(data.shopkeeperId);
       });
       
+      // Sort transactions on the client side after fetching
+      trans.sort((a, b) => {
+        const timeA = a.timestamp ? a.timestamp.toMillis() : Date.now();
+        const timeB = b.timestamp ? b.timestamp.toMillis() : Date.now();
+        return timeB - timeA;
+      });
       setTransactions(trans);
 
       // Fetch shopkeeper details for any new IDs
