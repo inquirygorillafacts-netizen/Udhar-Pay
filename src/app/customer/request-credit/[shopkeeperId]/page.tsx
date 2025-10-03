@@ -92,54 +92,67 @@ export default function RequestCreditPage() {
       setError("Please enter a valid amount.");
       return;
     }
-    if (!customerProfile || !shopkeeper) {
-        setError("Could not find your profile. Please try again.");
-        return;
-    }
     
-    const customerSettings = shopkeeper.creditSettings?.[customerProfile.uid];
-    const isCreditEnabled = customerSettings?.isCreditEnabled ?? true;
-
-    if (!isCreditEnabled) {
-      setError("उधार सुविधा इस दुकानदार द्वारा आपके लिए बंद कर दी गई है।"); // Credit is disabled by this shopkeeper for you.
-      return;
-    }
-
-    const creditLimit = customerSettings?.limitType === 'manual' 
-      ? customerSettings.manualLimit 
-      : shopkeeper.defaultCreditLimit ?? 1000;
-    
-    const currentBalance = customerProfile.balances?.[shopkeeper.uid] || 0;
-
-    if (currentBalance >= creditLimit) {
-        setError(`आपकी उधार सीमा (₹${creditLimit}) पूरी हो गई है। और उधार लेने के लिए, कृपया पहले पुराना उधार चुकाएँ।`);
+    // Re-fetch latest data to ensure check is always accurate
+    if (!auth.currentUser || !firestore) {
+        setError("Authentication error. Please refresh and try again.");
         return;
     }
-
-    if (currentBalance + creditAmount > creditLimit) {
-        const remainingLimit = creditLimit - currentBalance;
-        setError(`यह अनुरोध आपकी उधार सीमा (₹${creditLimit}) से अधिक हो जाएगा। आप केवल ₹${remainingLimit > 0 ? remainingLimit.toFixed(2) : 0} तक का अनुरोध कर सकते हैं।`);
-        return;
-    }
-
-
     setIsProcessing(true);
     setError('');
 
     try {
+        const shopkeeperRef = doc(firestore, 'shopkeepers', shopkeeperId);
+        const customerRef = doc(firestore, 'customers', auth.currentUser.uid);
+
+        const [shopkeeperSnap, customerSnap] = await Promise.all([
+            getDoc(shopkeeperRef),
+            getDoc(customerRef)
+        ]);
+
+        if (!shopkeeperSnap.exists() || !customerSnap.exists()) {
+            throw new Error("Could not verify profiles. Please try again.");
+        }
+
+        const latestShopkeeper = shopkeeperSnap.data() as ShopkeeperProfile;
+        const latestCustomer = customerSnap.data() as CustomerProfile;
+
+        const customerSettings = latestShopkeeper.creditSettings?.[auth.currentUser.uid];
+        const isCreditEnabled = customerSettings?.isCreditEnabled ?? true;
+
+        if (!isCreditEnabled) {
+            setError("उधार सुविधा इस दुकानदार द्वारा आपके लिए बंद कर दी गई है।");
+            setIsProcessing(false);
+            return;
+        }
+
+        const creditLimit = customerSettings?.limitType === 'manual'
+            ? customerSettings.manualLimit
+            : latestShopkeeper.defaultCreditLimit ?? 1000;
+
+        const currentBalance = latestCustomer.balances?.[shopkeeperId] || 0;
+        
+        if (currentBalance + creditAmount > creditLimit) {
+            const remainingLimit = creditLimit - currentBalance;
+            setError(`यह अनुरोध आपकी उधार सीमा (₹${creditLimit}) से अधिक हो जाएगा। आप केवल ₹${remainingLimit > 0 ? remainingLimit.toFixed(2) : 0} तक का अनुरोध कर सकते हैं।`);
+            setIsProcessing(false);
+            return;
+        }
+
         const creditRequestsRef = collection(firestore, 'creditRequests');
         await addDoc(creditRequestsRef, {
             amount: creditAmount,
             notes: notes,
             customerId: auth.currentUser!.uid,
-            customerName: customerProfile.displayName,
+            customerName: latestCustomer.displayName,
             shopkeeperId: shopkeeperId,
-            shopkeeperName: shopkeeper?.displayName,
+            shopkeeperName: latestShopkeeper?.displayName,
             status: 'pending',
             createdAt: serverTimestamp(),
             requestedBy: 'customer'
         });
         setSuccess(true);
+
     } catch (err) {
         console.error("Error creating credit request:", err);
         setError("Failed to send request. Please try again.");

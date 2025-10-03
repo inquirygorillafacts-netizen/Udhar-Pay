@@ -406,50 +406,65 @@ export default function ShopkeeperDashboardPage() {
       setSelectedCustomer(customer);
       const amount = parseFloat(creditAmount);
 
-      if (isNaN(amount) || amount <= 0 || !shopkeeperProfile || !firestore) {
+      if (isNaN(amount) || amount <= 0 || !auth.currentUser || !firestore) {
           setError("An unexpected error occurred. Please start over.");
           return;
       }
       
-      setError('');
-      // --- PRE-REQUEST CREDIT CHECK ---
-      const customerSettings = shopkeeperProfile.creditSettings?.[customer.uid];
-      const isCreditEnabled = customerSettings?.isCreditEnabled ?? true;
-
-      if (!isCreditEnabled) {
-          alert("Credit is disabled for this customer. Please enable it in the Control Room to give credit.");
-          return;
-      }
-
-      const creditLimit = customerSettings?.limitType === 'manual'
-          ? customerSettings.manualLimit
-          : shopkeeperProfile.defaultCreditLimit ?? 1000;
-      
-      const currentBalance = customer.balance || 0;
-
-      if (currentBalance + amount > creditLimit) {
-          alert(`This transaction exceeds the customer's credit limit of ₹${creditLimit}. You cannot give more credit. Please increase their limit or ask them to repay.`);
-          return;
-      }
-      // --- END OF CHECK ---
-
       setIsRequestingCredit(true);
-
+      setError('');
+      
       try {
-          const creditRequestsRef = collection(firestore, 'creditRequests');
-          const newRequestRef = await addDoc(creditRequestsRef, {
-              amount: amount,
-              customerId: customer.uid,
-              customerName: customer.displayName,
-              shopkeeperId: shopkeeperProfile.uid,
-              shopkeeperName: shopkeeperProfile.displayName,
-              status: 'pending',
-              createdAt: serverTimestamp(),
-              requestedBy: 'shopkeeper'
-          });
-          
-          setActiveRequest({ id: newRequestRef.id, status: 'pending' });
-          setStep('success');
+        const shopkeeperRef = doc(firestore, 'shopkeepers', auth.currentUser.uid);
+        const customerRef = doc(firestore, 'customers', customer.uid);
+
+        const [shopkeeperSnap, customerSnap] = await Promise.all([
+          getDoc(shopkeeperRef),
+          getDoc(customerRef)
+        ]);
+
+        if (!shopkeeperSnap.exists() || !customerSnap.exists()) {
+          throw new Error("Could not verify profiles. Please try again.");
+        }
+
+        const latestShopkeeper = shopkeeperSnap.data() as UserProfile;
+        const latestCustomer = customerSnap.data() as UserProfile;
+
+        const customerSettings = latestShopkeeper.creditSettings?.[customer.uid];
+        const isCreditEnabled = customerSettings?.isCreditEnabled ?? true;
+
+        if (!isCreditEnabled) {
+            alert("Credit is disabled for this customer. Please enable it in the Control Room to give credit.");
+            setIsRequestingCredit(false);
+            return;
+        }
+
+        const creditLimit = customerSettings?.limitType === 'manual'
+            ? customerSettings.manualLimit
+            : latestShopkeeper.defaultCreditLimit ?? 1000;
+        
+        const currentBalance = latestShopkeeper.balances?.[customer.uid] || 0;
+        
+        if (currentBalance + amount > creditLimit) {
+            alert(`आप इस ग्राहक को और उधार नहीं दे सकते क्योंकि उनकी उधार सीमा (₹${creditLimit}) पार हो जाएगी। या तो उनकी उधार सीमा बढ़ाएँ या उन्हें पुराना उधार चुकाने के लिए कहें।`);
+            setIsRequestingCredit(false);
+            return;
+        }
+
+        const creditRequestsRef = collection(firestore, 'creditRequests');
+        const newRequestRef = await addDoc(creditRequestsRef, {
+            amount: amount,
+            customerId: customer.uid,
+            customerName: customer.displayName,
+            shopkeeperId: latestShopkeeper.uid,
+            shopkeeperName: latestShopkeeper.displayName,
+            status: 'pending',
+            createdAt: serverTimestamp(),
+            requestedBy: 'shopkeeper'
+        });
+        
+        setActiveRequest({ id: newRequestRef.id, status: 'pending' });
+        setStep('success');
 
       } catch (error) {
           console.error("Error creating credit request:", error);
