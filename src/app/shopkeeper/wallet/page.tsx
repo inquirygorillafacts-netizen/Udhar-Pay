@@ -5,6 +5,7 @@ import { useFirebase } from '@/firebase/client-provider';
 import { onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { LifeBuoy, Phone, UploadCloud, Lock, CheckCircle, ShieldAlert, KeyRound, HelpCircle, X, AlertTriangle, SlidersHorizontal, IndianRupee } from 'lucide-react';
 import Link from 'next/link';
+import axios from 'axios';
 
 interface ShopkeeperProfile {
     balances?: { [key: string]: number };
@@ -16,6 +17,8 @@ interface Notification {
     type: 'success' | 'error';
     message: string;
 }
+
+const IMGBB_API_KEY = '833aa7bc7188c4f8d99f63e06421bbad';
 
 export default function ShopkeeperWalletPage() {
     const { auth, firestore } = useFirebase();
@@ -114,24 +117,31 @@ export default function ShopkeeperWalletPage() {
         }
         setIsUploading(true);
         setError('');
+    
+        const formData = new FormData();
+        formData.append('image', qrFile);
 
         try {
-            // NOTE: Image uploading to a backend is not implemented yet.
-            // This is a placeholder for the UI flow.
-            const qrCodeUrl = "https://placehold.co/400x400.png?text=Your+QR+Code"; // Placeholder URL
-            const userRef = doc(firestore, 'shopkeepers', auth.currentUser.uid);
-            await updateDoc(userRef, { qrCodeUrl: qrCodeUrl });
+            const response = await axios.post(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, formData);
             
-            if(isUpdate) {
-                resetAllModals();
-                setNotification({ type: 'success', message: "QR Code updated successfully!" });
+            if (response.data && response.data.data && response.data.data.url) {
+                const qrCodeUrl = response.data.data.url;
+                const userRef = doc(firestore, 'shopkeepers', auth.currentUser.uid);
+                await updateDoc(userRef, { qrCodeUrl: qrCodeUrl });
+                
+                if(isUpdate) {
+                    resetAllModals();
+                    setNotification({ type: 'success', message: "QR Code updated successfully!" });
+                } else {
+                    setShowQrModal(false);
+                    setShowPinModal(true); 
+                }
             } else {
-                setShowQrModal(false);
-                setShowPinModal(true); 
+                 throw new Error("Invalid response from image hosting service.");
             }
-            
         } catch (err) {
-            const errorMessage = "Image upload functionality is not yet implemented.";
+            console.error("QR Code Upload Error:", err);
+            const errorMessage = "Failed to upload QR Code. Please try a different image or try again later.";
             if(isUpdate) {
                 setNotification({ type: 'error', message: errorMessage });
             } else {
