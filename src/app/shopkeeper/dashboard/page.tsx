@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
-import { doc, onSnapshot, collection, query, where, getDocs, addDoc, serverTimestamp, DocumentData, writeBatch, updateDoc } from 'firebase/firestore';
+import { doc, onSnapshot, collection, query, where, getDocs, addDoc, serverTimestamp, DocumentData, writeBatch, updateDoc, getDoc } from 'firebase/firestore';
 import Link from 'next/link';
 import { MessageSquare, X, Check, ArrowLeft, ArrowRight, QrCode, Share2, RefreshCw, User as UsersIcon, CheckCircle, XCircle } from 'lucide-react';
 import { acceptConnectionRequest, rejectConnectionRequest } from '@/lib/connections';
