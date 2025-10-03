@@ -167,9 +167,6 @@ export default function EcosystemPage() {
                 <h1 style={{ color: '#3d4468', fontSize: '2rem', fontWeight: '600' }}>
                     Platform Ecosystem
                 </h1>
-                <p style={{ color: '#6c7293', marginTop: '1rem' }}>
-                    Monitor all shopkeepers and their pending settlements.
-                </p>
             </div>
             
             <div style={{ display: 'flex', gap: '20px', alignItems: 'stretch', marginBottom: '30px', maxWidth: '800px', margin: 'auto' }}>
