@@ -1,6 +1,6 @@
 'use client';
 
-import { User, IndianRupee, ArrowRight } from 'lucide-react';
+import { User, IndianRupee, ArrowRight, Wallet } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -19,15 +19,14 @@ interface ShopkeeperCardProps {
 
 export default function ShopkeeperCard({ shopkeeper, balance }: ShopkeeperCardProps) {
     const router = useRouter();
-    const isCredit = balance > 0;
     
-    // Using a neutral, consistent color for the balance to avoid anxiety
+    // Use the shopkeeper-defined limit, or a default fallback.
+    const creditLimit = shopkeeper.defaultCreditLimit ?? 1000; // Default to 1000 if not set
+    const usedPercentage = creditLimit > 0 ? (Math.abs(balance) / creditLimit) * 100 : 0;
+    
+    const isCredit = balance > 0;
     const balanceColor = '#3d4468';
     const balanceText = isCredit ? 'Udhaar' : (balance < 0 ? 'Advance' : 'Settled');
-
-    // Use the shopkeeper-defined limit, or a default fallback.
-    const creditLimit = shopkeeper.defaultCreditLimit || 5000;
-    const usedPercentage = creditLimit > 0 ? (Math.abs(balance) / creditLimit) * 100 : 0;
     const barColor = usedPercentage > 75 ? '#ff3b5c' : '#00c896';
 
 
