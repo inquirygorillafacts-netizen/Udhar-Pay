@@ -1,10 +1,9 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
 import { useFirebase } from '@/firebase/client-provider';
-import { collection, onSnapshot } from 'firebase/firestore';
-import { Network, ChevronRight, User, IndianRupee } from 'lucide-react';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { Network, ChevronRight, User, Search, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 
@@ -13,12 +12,16 @@ interface Shopkeeper {
   displayName: string;
   photoURL?: string;
   pendingSettlement: number;
+  shopkeeperCode?: string;
 }
 
 export default function EcosystemPage() {
   const { firestore } = useFirebase();
   const router = useRouter();
-  const [shopkeepers, setShopkeepers] = useState<Shopkeeper[]>([]);
+  
+  const [allShopkeepers, setAllShopkeepers] = useState<Shopkeeper[]>([]);
+  const [filteredShopkeepers, setFilteredShopkeepers] = useState<Shopkeeper[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -34,9 +37,11 @@ export default function EcosystemPage() {
           displayName: data.displayName || 'Unnamed Shopkeeper',
           photoURL: data.photoURL,
           pendingSettlement: data.pendingSettlement || 0,
+          shopkeeperCode: data.shopkeeperCode
         });
       });
-      setShopkeepers(shopkeeperList);
+      setAllShopkeepers(shopkeeperList);
+      setFilteredShopkeepers(shopkeeperList);
       setLoading(false);
     }, (error) => {
       console.error("Error fetching shopkeepers:", error);
@@ -45,6 +50,19 @@ export default function EcosystemPage() {
 
     return () => unsubscribe();
   }, [firestore]);
+
+  useEffect(() => {
+    if (searchTerm === '') {
+      setFilteredShopkeepers(allShopkeepers);
+    } else {
+      const lowercasedFilter = searchTerm.toLowerCase();
+      const filtered = allShopkeepers.filter(shopkeeper =>
+        shopkeeper.displayName.toLowerCase().includes(lowercasedFilter) ||
+        shopkeeper.shopkeeperCode?.toLowerCase().includes(lowercasedFilter)
+      );
+      setFilteredShopkeepers(filtered);
+    }
+  }, [searchTerm, allShopkeepers]);
 
   const navigateToShopkeeperDetails = (shopkeeperId: string) => {
     router.push(`/owner/shopkeeper/${shopkeeperId}`);
@@ -64,6 +82,31 @@ export default function EcosystemPage() {
             Monitor all shopkeepers and their pending settlements.
           </p>
         </div>
+        
+        <div className="login-card" style={{ maxWidth: '800px', margin: 'auto', marginBottom: '30px' }}>
+             <div style={{ display: 'flex', gap: '20px', alignItems: 'stretch' }}>
+                <div className="form-group" style={{ flexGrow: 1, margin: 0 }}>
+                    <div className="neu-input">
+                    <input
+                        type="text"
+                        id="search"
+                        placeholder=" "
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                    <label htmlFor="search">Search by Name or Code</label>
+                    <div className="input-icon"><Search /></div>
+                    </div>
+                </div>
+                <div className="token-balance" style={{ margin: 0, padding: '10px 20px', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: '100px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Users size={20} />
+                        <span style={{ fontSize: '1.5rem', fontWeight: 700 }}>{allShopkeepers.length}</span>
+                    </div>
+                     <span style={{ fontSize: '12px', color: '#6c7293', fontWeight: 500, marginTop: '2px' }}>Shopkeepers</span>
+                </div>
+            </div>
+        </div>
 
         {loading ? (
           <div className="loading-container" style={{ minHeight: '300px' }}>
@@ -72,8 +115,10 @@ export default function EcosystemPage() {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            {shopkeepers.length > 0 ? (
-              shopkeepers.map(shopkeeper => (
+            {allShopkeepers.length === 0 ? (
+                <p style={{ textAlign: 'center', color: '#9499b7' }}>No shopkeepers found on the platform yet.</p>
+            ) : filteredShopkeepers.length > 0 ? (
+              filteredShopkeepers.map(shopkeeper => (
                 <div
                   key={shopkeeper.uid}
                   className="neu-input"
@@ -97,7 +142,7 @@ export default function EcosystemPage() {
                 </div>
               ))
             ) : (
-              <p style={{ textAlign: 'center', color: '#9499b7' }}>No shopkeepers found on the platform yet.</p>
+                <p style={{ textAlign: 'center', color: '#9499b7' }}>No shopkeeper found matching your search.</p>
             )}
           </div>
         )}
