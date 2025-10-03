@@ -10,6 +10,7 @@ import { acceptConnectionRequest, rejectConnectionRequest } from '@/lib/connecti
 import CustomerCard from '@/app/shopkeeper/components/CustomerCard';
 import QrPoster from '@/components/shopkeeper/QrPoster';
 import { toPng } from 'html-to-image';
+import SetCreditLimitModal from '@/components/shopkeeper/SetCreditLimitModal';
 
 
 interface UserProfile {
@@ -21,6 +22,7 @@ interface UserProfile {
   connections?: string[];
   shopkeeperCode?: string;
   customerCode?: string;
+  defaultCreditLimit?: number;
 }
 
 interface ConnectionRequest {
@@ -81,6 +83,10 @@ export default function ShopkeeperDashboardPage() {
   const [showQrModal, setShowQrModal] = useState(false);
   const [qrPosterDataUrl, setQrPosterDataUrl] = useState<string | null>(null);
   const posterRef = useRef<HTMLDivElement>(null);
+
+  // New state for handling the connection approval modal
+  const [showSetLimitModal, setShowSetLimitModal] = useState(false);
+  const [activeConnectionRequest, setActiveConnectionRequest] = useState<ConnectionRequest | null>(null);
 
   // Effect for profile, customers, and connection requests
   useEffect(() => {
@@ -219,15 +225,29 @@ export default function ShopkeeperDashboardPage() {
       generateAndSaveQrPoster();
   }
 
-  const handleAcceptConnection = async (requestId: string, customerId: string, shopkeeperId: string) => {
-      if (!firestore) return;
-      try {
-          await acceptConnectionRequest(firestore, { requestId, customerId, shopkeeperId });
-      } catch (error) {
-          console.error("Error accepting request:", error);
-          alert("Failed to accept request.");
-      }
+ const handleAcceptClick = (request: ConnectionRequest) => {
+    setActiveConnectionRequest(request);
+    setShowSetLimitModal(true);
   };
+
+  const handleConfirmAcceptConnection = async (limit?: number) => {
+    if (!firestore || !activeConnectionRequest) return;
+    try {
+      await acceptConnectionRequest(firestore, {
+        requestId: activeConnectionRequest.id,
+        customerId: activeConnectionRequest.customerId,
+        shopkeeperId: activeConnectionRequest.shopkeeperId,
+        limit: limit,
+      });
+    } catch (error) {
+      console.error("Error accepting request:", error);
+      alert("Failed to accept request.");
+    } finally {
+      setShowSetLimitModal(false);
+      setActiveConnectionRequest(null);
+    }
+  };
+
 
   const handleRejectConnection = async (requestId: string) => {
       if (!firestore) return;
@@ -621,6 +641,17 @@ export default function ShopkeeperDashboardPage() {
   
   return (
     <>
+    {showSetLimitModal && activeConnectionRequest && (
+        <SetCreditLimitModal
+            customerName={activeConnectionRequest.customerName}
+            defaultLimit={shopkeeperProfile?.defaultCreditLimit ?? 1000}
+            onClose={() => {
+                setShowSetLimitModal(false);
+                setActiveConnectionRequest(null);
+            }}
+            onConfirm={handleConfirmAcceptConnection}
+        />
+    )}
     <header className="dashboard-header">
         <div className="user-menu">
         <Link href="/shopkeeper/profile">
@@ -682,7 +713,7 @@ export default function ShopkeeperDashboardPage() {
                                 <button className="neu-button" onClick={() => handleRejectConnection(req.id)} style={{ margin: 0, width: 'auto', padding: '8px 16px', background: '#e0e5ec', color: '#ff3b5c' }}>
                                     Reject
                                 </button>
-                                <button className="neu-button" onClick={() => handleAcceptConnection(req.id, req.customerId, req.shopkeeperId)} style={{ margin: 0, width: 'auto', padding: '8px 16px', background: '#00c896', color: 'white' }}>
+                                <button className="neu-button" onClick={() => handleAcceptClick(req)} style={{ margin: 0, width: 'auto', padding: '8px 16px', background: '#00c896', color: 'white' }}>
                                     Accept
                                 </button>
                             </div>

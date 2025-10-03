@@ -4,6 +4,7 @@ interface ConnectionRequestPayload {
   requestId: string;
   customerId: string;
   shopkeeperId: string;
+  limit?: number; // Optional limit
 }
 
 interface ConnectionResult {
@@ -66,7 +67,7 @@ export const sendConnectionRequest = async (firestore: Firestore, customerId: st
 
 
 export const acceptConnectionRequest = async (firestore: Firestore, payload: ConnectionRequestPayload) => {
-  const { requestId, customerId, shopkeeperId } = payload;
+  const { requestId, customerId, shopkeeperId, limit } = payload;
   
   const batch = writeBatch(firestore);
 
@@ -74,11 +75,18 @@ export const acceptConnectionRequest = async (firestore: Firestore, payload: Con
   const requestRef = doc(firestore, 'connectionRequests', requestId);
   batch.update(requestRef, { status: 'approved' });
 
-  // 2. Add customerId to shopkeeper's connections array.
+  // 2. Add customerId to shopkeeper's connections array and optionally set the limit
   const shopkeeperRef = doc(firestore, 'shopkeepers', shopkeeperId);
-  batch.update(shopkeeperRef, {
-      connections: arrayUnion(customerId)
-  });
+  const shopkeeperUpdateData: { connections: any, [key: string]: any } = {
+    connections: arrayUnion(customerId)
+  };
+  
+  // If a specific limit is provided for this customer, set it in the customerLimits map.
+  if (limit !== undefined) {
+    shopkeeperUpdateData[`customerLimits.${customerId}`] = limit;
+  }
+  batch.update(shopkeeperRef, shopkeeperUpdateData);
+
 
   // 3. Add shopkeeperId to customer's connections array.
   const customerRef = doc(firestore, 'customers', customerId);
@@ -86,7 +94,7 @@ export const acceptConnectionRequest = async (firestore: Firestore, payload: Con
       connections: arrayUnion(shopkeeperId)
   });
 
-  // Commit all three operations as a single atomic transaction.
+  // Commit all operations as a single atomic transaction.
   await batch.commit();
 };
 
