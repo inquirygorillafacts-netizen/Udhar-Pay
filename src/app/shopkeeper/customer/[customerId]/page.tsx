@@ -84,14 +84,16 @@ export default function CustomerDetailPage() {
     const transRef = collection(firestore, 'transactions');
     const q = query(
       transRef,
-      where('customerId', '==', customerId),
       where('shopkeeperId', '==', auth.currentUser.uid),
       orderBy('timestamp', 'desc')
     );
     const unsubscribeTransactions = onSnapshot(q, (snapshot) => {
       const trans: Transaction[] = [];
-      snapshot.forEach(doc => {
-        trans.push({ id: doc.id, ...doc.data() } as Transaction);
+      snapshot.docs.forEach(doc => {
+        const data = doc.data();
+        if (data.customerId === customerId) {
+            trans.push({ id: doc.id, ...data } as Transaction);
+        }
       });
       setTransactions(trans);
     });
