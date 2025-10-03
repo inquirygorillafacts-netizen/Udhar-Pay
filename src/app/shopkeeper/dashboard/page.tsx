@@ -427,8 +427,8 @@ export default function ShopkeeperDashboardPage() {
           throw new Error("Could not verify profiles. Please try again.");
         }
 
-        const latestShopkeeper = shopkeeperSnap.data() as UserProfile;
-        const latestCustomer = customerSnap.data() as UserProfile;
+        const latestShopkeeper = {uid: shopkeeperSnap.id, ...shopkeeperSnap.data()} as UserProfile;
+        const latestCustomer = {uid: customerSnap.id, ...customerSnap.data()} as UserProfile;
 
         const customerSettings = latestShopkeeper.creditSettings?.[customer.uid];
         const isCreditEnabled = customerSettings?.isCreditEnabled ?? true;
