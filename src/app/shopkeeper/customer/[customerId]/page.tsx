@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
 import { doc, getDoc, collection, query, where, onSnapshot, orderBy, Timestamp } from 'firebase/firestore';
-import { ArrowLeft, User, IndianRupee } from 'lucide-react';
+import { ArrowLeft, User, IndianRupee, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
 
 interface CustomerProfile {
   uid: string;
@@ -80,7 +80,7 @@ export default function CustomerTransactionHistoryPage() {
     };
   }, [customerId, firestore, auth.currentUser, router]);
 
-  const balanceColor = shopkeeperBalance > 0 ? '#ff3b5c' : '#00c896';
+  const balanceColor = shopkeeperBalance > 0 ? '#ff3b5c' : (shopkeeperBalance < 0 ? '#007bff' : '#00c896');
   const balanceText = shopkeeperBalance > 0 ? 'Udhaar' : (shopkeeperBalance < 0 ? 'Advance' : 'Settled');
 
   if (loading) {
@@ -119,20 +119,31 @@ export default function CustomerTransactionHistoryPage() {
             </div>
         </div>
 
-        <div className="login-card" style={{ maxWidth: '600px', margin: 'auto' }}>
-            <h2 style={{textAlign: 'center', color: '#3d4468', fontWeight: 600, fontSize: '1.5rem', marginBottom: '25px'}}>All Transactions</h2>
+        <div style={{ maxWidth: '600px', margin: 'auto' }}>
+            <h2 style={{color: '#3d4468', fontWeight: 600, fontSize: '1.2rem', marginBottom: '20px', textAlign: 'center' }}>Recent Transactions</h2>
             {transactions.length > 0 ? (
                 <div style={{display: 'flex', flexDirection: 'column', gap: '15px'}}>
                     {transactions.map(tx => (
-                        <div key={tx.id} className="neu-input" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 20px', boxShadow: 'none' }}>
-                            <div>
-                                <p style={{fontWeight: 600, color: tx.type === 'credit' ? '#ff3b5c' : '#00c896', textTransform: 'capitalize', marginBottom: '4px'}}>
+                        <div key={tx.id} className="neu-input" style={{display: 'flex', alignItems: 'center', padding: '15px 20px', boxShadow: '5px 5px 10px #d1d9e6, -5px -5px 10px #ffffff' }}>
+                           <div style={{ marginRight: '15px' }}>
+                                {tx.type === 'credit' ? (
+                                    <div className="neu-icon" style={{ width: '45px', height: '45px', margin: 0, background: 'rgba(255, 59, 92, 0.1)', boxShadow: 'none' }}>
+                                        <ArrowUpCircle size={24} color="#ff3b5c" />
+                                    </div>
+                                ) : (
+                                    <div className="neu-icon" style={{ width: '45px', height: '45px', margin: 0, background: 'rgba(0, 200, 150, 0.1)', boxShadow: 'none' }}>
+                                        <ArrowDownCircle size={24} color="#00c896" />
+                                    </div>
+                                )}
+                            </div>
+                            <div style={{flexGrow: 1}}>
+                                <p style={{fontWeight: 600, color: '#3d4468', textTransform: 'capitalize', marginBottom: '2px'}}>
                                     {tx.type === 'credit' ? 'Udhaar Given' : 'Payment Received'}
                                 </p>
-                                {tx.notes && <p style={{fontSize: '13px', color: '#6c7293', marginBottom: '8px'}}>Notes: {tx.notes}</p>}
                                 <p style={{fontSize: '12px', color: '#9499b7', margin: 0}}>
-                                    {tx.timestamp.toDate().toLocaleString()}
+                                    {tx.timestamp.toDate().toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
                                 </p>
+                                {tx.notes && <p style={{fontSize: '13px', color: '#6c7293', marginTop: '5px', fontStyle: 'italic'}}>"{tx.notes}"</p>}
                             </div>
                             <p style={{fontWeight: 'bold', fontSize: '1.2rem', color: tx.type === 'credit' ? '#ff3b5c' : '#00c896'}}>
                                 ₹{tx.amount}
@@ -141,7 +152,9 @@ export default function CustomerTransactionHistoryPage() {
                     ))}
                 </div>
             ) : (
-                <p style={{textAlign: 'center', color: '#9499b7'}}>No transactions with this customer yet.</p>
+                 <div className="login-card" style={{padding: '40px 20px'}}>
+                    <p style={{textAlign: 'center', color: '#9499b7', margin: 0}}>No transactions with this customer yet.</p>
+                 </div>
             )}
         </div>
       </main>
