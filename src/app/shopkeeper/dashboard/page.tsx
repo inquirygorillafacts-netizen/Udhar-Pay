@@ -23,6 +23,7 @@ interface UserProfile {
   shopkeeperCode?: string;
   customerCode?: string;
   defaultCreditLimit?: number;
+   customerLimits?: { [key: string]: number };
 }
 
 interface ConnectionRequest {
@@ -443,6 +444,11 @@ export default function ShopkeeperDashboardPage() {
       setActiveRequest(null);
       setIsRequestingCredit(false);
   }
+  
+  const getCreditLimitForCustomer = (customerId: string) => {
+    if (!shopkeeperProfile) return 1000;
+    return shopkeeperProfile.customerLimits?.[customerId] ?? shopkeeperProfile.defaultCreditLimit ?? 1000;
+  }
 
   const renderEnterAmount = () => {
     return (
@@ -500,7 +506,7 @@ export default function ShopkeeperDashboardPage() {
                     disabled={!creditAmount || parseFloat(creditAmount) <= 0}
                     style={{ background: '#00c896', color: 'white', margin: 0, flex: 1, height: '60px' }}
                 >
-                    Next <ArrowRight style={{display: 'inline', marginLeft: '8px'}} size={20}/>
+                    <span style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'}}>Next <ArrowRight size={20}/></span>
                 </button>
             </div>
         </div>
@@ -556,7 +562,11 @@ export default function ShopkeeperDashboardPage() {
                         onClick={() => !isRequestingCredit && handleSendRequest(customer)}
                         style={{pointerEvents: isRequestingCredit ? 'none' : 'auto', opacity: isRequestingCredit ? 0.5 : 1}}
                     >
-                        <CustomerCard customer={customer} shopkeeperId={auth.currentUser!.uid} />
+                        <CustomerCard 
+                          customer={customer} 
+                          shopkeeperId={auth.currentUser!.uid} 
+                          creditLimit={getCreditLimitForCustomer(customer.uid)}
+                        />
                     </div>
                 ))}
             </div>

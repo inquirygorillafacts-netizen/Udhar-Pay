@@ -16,6 +16,8 @@ interface CustomerProfile {
 }
 
 interface ShopkeeperProfile {
+    uid: string;
+    displayName: string;
     defaultCreditLimit?: number;
     customerLimits?: { [key: string]: number };
 }
@@ -72,8 +74,8 @@ export default function CustomerDetailPage() {
     const shopkeeperRef = doc(firestore, 'shopkeepers', auth.currentUser.uid);
     const unsubscribeBalance = onSnapshot(shopkeeperRef, (docSnap) => {
       if (docSnap.exists()) {
-        const data = docSnap.data();
-        setShopkeeperProfile(data as ShopkeeperProfile);
+        const data = { uid: docSnap.id, ...docSnap.data()} as ShopkeeperProfile;
+        setShopkeeperProfile(data);
         const balances = data.balances || {};
         setShopkeeperBalance(balances[customerId] || 0);
       }
@@ -150,7 +152,7 @@ export default function CustomerDetailPage() {
       return;
     }
     
-    if(!auth.currentUser || !customer) {
+    if(!auth.currentUser || !customer || !shopkeeperProfile) {
         alert("Authentication error.");
         return;
     }
@@ -162,7 +164,7 @@ export default function CustomerDetailPage() {
         if (currentBalance + transactionAmount > creditLimit) {
             await sendCreditLimitNotification(firestore, auth.currentUser.uid, customer.uid, creditLimit, transactionAmount);
             setShowLimitModal(true); // Show the increase limit modal
-            return;
+            return; // IMPORTANT: Stop the transaction here
         }
     }
 
@@ -188,8 +190,8 @@ export default function CustomerDetailPage() {
         const shopkeeperRef = doc(firestore, 'shopkeepers', shopkeeperId);
         const customerRef = doc(firestore, 'customers', customerId);
 
-        const shopkeeperDoc = await getDoc(shopkeeperRef);
-        const shopkeeperBalances = shopkeeperDoc.data()?.balances || {};
+        // We use the profile from state as it's kept up-to-date by the snapshot listener
+        const shopkeeperBalances = (shopkeeperProfile as any).balances || {};
         const newShopkeeperBalance = (shopkeeperBalances[customerId] || 0) + balanceChange;
 
         const customerDoc = await getDoc(customerRef);
@@ -344,20 +346,20 @@ export default function CustomerDetailPage() {
               <div style={{display: 'flex', gap: '20px'}}>
                   <button 
                       className={`neu-button ${isProcessing && transactionType === 'credit' ? 'loading' : ''}`} 
-                      style={{margin: 0, background: '#ff3b5c', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'}}
+                      style={{margin: 0, background: '#ff3b5c', color: 'white'}}
                       onClick={() => handleTransaction('credit')}
                       disabled={isProcessing}
                       >
-                      <span className="btn-text"><MinusCircle size={18}/> Give Credit (Udhaar)</span>
+                      <span className="btn-text" style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'}}><MinusCircle size={18}/> Give Credit (Udhaar)</span>
                       <div className="btn-loader"><div className="neu-spinner"></div></div>
                   </button>
                   <button 
                       className={`neu-button ${isProcessing && transactionType === 'payment' ? 'loading' : ''}`} 
-                      style={{margin: 0, background: '#00c896', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'}}
+                      style={{margin: 0, background: '#00c896', color: 'white'}}
                       onClick={() => handleTransaction('payment')}
                       disabled={isProcessing}
                       >
-                      <span className="btn-text"><PlusCircle size={18}/> Receive Payment</span>
+                      <span className="btn-text" style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'}}><PlusCircle size={18}/> Receive Payment</span>
                       <div className="btn-loader"><div className="neu-spinner"></div></div>
                   </button>
               </div>
