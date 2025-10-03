@@ -28,9 +28,12 @@ export default function CustomerTransactionHistoryPage() {
   const customerId = params.customerId as string;
 
   const [customer, setCustomer] = useState<CustomerProfile | null>(null);
-  const [shopkeeperBalance, setShopkeeperBalance] = useState<number>(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // New state for separate balances
+  const [totalUdhaar, setTotalUdhaar] = useState(0);
+  const [totalPayment, setTotalPayment] = useState(0);
 
   useEffect(() => {
     if (!customerId || !auth.currentUser) {
@@ -46,44 +49,49 @@ export default function CustomerTransactionHistoryPage() {
       } else {
         router.push('/shopkeeper/customers');
       }
+      setLoading(false);
     };
     
     fetchCustomerProfile();
-
-    const shopkeeperRef = doc(firestore, 'shopkeepers', auth.currentUser.uid);
-    const unsubscribeBalance = onSnapshot(shopkeeperRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const balances = (docSnap.data() as any).balances || {};
-        setShopkeeperBalance(balances[customerId] || 0);
-      }
-      setLoading(false);
-    });
 
     const transRef = collection(firestore, 'transactions');
     const q = query(
       transRef,
       where('shopkeeperId', '==', auth.currentUser.uid),
       where('customerId', '==', customerId)
-      // Removed orderBy to prevent index error. Sorting will be done in the client.
     );
+
     const unsubscribeTransactions = onSnapshot(q, (snapshot) => {
       const trans: Transaction[] = [];
       snapshot.forEach(doc => {
         trans.push({ id: doc.id, ...doc.data() } as Transaction);
       });
+      
       // Sort transactions by timestamp in descending order (newest first)
       trans.sort((a, b) => b.timestamp.toMillis() - a.timestamp.toMillis());
       setTransactions(trans);
+
+      // Calculate total credit and payment
+      let udhaar = 0;
+      let payment = 0;
+      trans.forEach(tx => {
+          if (tx.type === 'credit') {
+              udhaar += tx.amount;
+          } else if (tx.type === 'payment') {
+              payment += tx.amount;
+          }
+      });
+      setTotalUdhaar(udhaar);
+      setTotalPayment(payment);
+
+    }, (error) => {
+        console.error("Error fetching transactions: ", error);
     });
 
     return () => {
-      unsubscribeBalance();
       unsubscribeTransactions();
     };
   }, [customerId, firestore, auth.currentUser, router]);
-
-  const balanceColor = shopkeeperBalance > 0 ? '#ff3b5c' : (shopkeeperBalance < 0 ? '#007bff' : '#00c896');
-  const balanceText = shopkeeperBalance > 0 ? 'Udhaar' : (shopkeeperBalance < 0 ? 'Advance' : 'Settled');
 
   if (loading) {
     return <div className="loading-container"><div className="neu-spinner"></div></div>;
@@ -92,6 +100,11 @@ export default function CustomerTransactionHistoryPage() {
   if (!customer) {
     return <div className="loading-container">Customer not found.</div>;
   }
+  
+  const netBalance = totalUdhaar - totalPayment;
+  const balanceColor = netBalance > 0 ? '#ff3b5c' : '#00c896';
+  const balanceText = netBalance > 0 ? 'Udhaar' : (netBalance < 0 ? 'Advance' : 'Settled');
+
 
   return (
     <div style={{ paddingBottom: '80px' }}>
@@ -113,16 +126,27 @@ export default function CustomerTransactionHistoryPage() {
       </header>
 
       <main className="dashboard-main-content" style={{padding: '20px'}}>
-        <div className="login-card" style={{ maxWidth: '600px', margin: 'auto', marginBottom: '30px' }}>
-            <div style={{textAlign: 'center'}}>
-                <p style={{fontSize: '0.9rem', color: '#6c7293', margin: 0, fontWeight: 500}}>Current Balance</p>
-                <p style={{fontSize: '3rem', fontWeight: 'bold', margin: '5px 0', color: balanceColor}}>₹{Math.abs(shopkeeperBalance)}</p>
-                <p style={{fontSize: '0.9rem', fontWeight: 600, color: balanceColor}}>{balanceText}</p>
+        
+        <div style={{ maxWidth: '600px', margin: 'auto', marginBottom: '30px', display: 'flex', gap: '20px' }}>
+            <div className="login-card" style={{ flex: 1, textAlign: 'center', padding: '20px' }}>
+                <p style={{fontSize: '0.9rem', color: '#ff3b5c', margin: 0, fontWeight: 500}}>Total Udhaar</p>
+                <p style={{fontSize: '1.75rem', fontWeight: 'bold', margin: '5px 0', color: '#3d4468'}}>₹{totalUdhaar}</p>
+            </div>
+            <div className="login-card" style={{ flex: 1, textAlign: 'center', padding: '20px' }}>
+                 <p style={{fontSize: '0.9rem', color: '#00c896', margin: 0, fontWeight: 500}}>Total Payment</p>
+                <p style={{fontSize: '1.75rem', fontWeight: 'bold', margin: '5px 0', color: '#3d4468'}}>₹{totalPayment}</p>
+            </div>
+        </div>
+
+        <div className="login-card" style={{ maxWidth: '600px', margin: 'auto', marginBottom: '30px', background: balanceColor }}>
+            <div style={{textAlign: 'center', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 20px'}}>
+                <p style={{fontSize: '1rem', color: 'white', margin: 0, fontWeight: 600}}>Current Balance: {balanceText}</p>
+                <p style={{fontSize: '1.5rem', fontWeight: 'bold', margin: '0', color: 'white'}}>₹{Math.abs(netBalance)}</p>
             </div>
         </div>
 
         <div style={{ maxWidth: '600px', margin: 'auto' }}>
-            <h2 style={{color: '#3d4468', fontWeight: 600, fontSize: '1.2rem', marginBottom: '20px', textAlign: 'center' }}>Recent Transactions</h2>
+            <h2 style={{color: '#3d4468', fontWeight: 600, fontSize: '1.2rem', marginBottom: '20px', textAlign: 'center' }}>All Transactions</h2>
             {transactions.length > 0 ? (
                 <div style={{display: 'flex', flexDirection: 'column', gap: '15px'}}>
                     {transactions.map(tx => (
