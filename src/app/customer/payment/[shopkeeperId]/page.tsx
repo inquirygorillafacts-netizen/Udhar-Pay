@@ -89,8 +89,12 @@ export default function PaymentPage() {
       snapshot.forEach(doc => {
         trans.push({ id: doc.id, ...doc.data() } as Transaction);
       });
-      // Sort client-side to avoid composite index
-      trans.sort((a, b) => b.timestamp.toMillis() - a.timestamp.toMillis());
+      // Sort client-side to avoid composite index and handle null timestamps
+      trans.sort((a, b) => {
+        const timeA = a.timestamp ? a.timestamp.toMillis() : Date.now();
+        const timeB = b.timestamp ? b.timestamp.toMillis() : Date.now();
+        return timeB - timeA;
+      });
       setTransactions(trans);
     });
 
@@ -318,7 +322,7 @@ export default function PaymentPage() {
                                     {tx.type === 'credit' ? 'Udhaar Taken' : 'Payment Made'}
                                 </p>
                                 <p style={{fontSize: '12px', color: '#9499b7', margin: 0}}>
-                                    {tx.timestamp.toDate().toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                                    {tx.timestamp ? tx.timestamp.toDate().toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Processing...'}
                                 </p>
                                 {tx.notes && <p style={{fontSize: '13px', color: '#6c7293', marginTop: '5px', fontStyle: 'italic'}}>"{tx.notes}"</p>}
                             </div>
