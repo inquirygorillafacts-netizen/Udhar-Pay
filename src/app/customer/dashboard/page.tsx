@@ -24,6 +24,7 @@ interface ShopkeeperProfile {
   displayName: string;
   email: string;
   photoURL?: string | null;
+  defaultCreditLimit?: number;
 }
 
 interface CreditRequest {

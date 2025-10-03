@@ -7,8 +7,9 @@ import { useRouter } from 'next/navigation';
 interface ShopkeeperProfile {
   uid: string;
   displayName: string;
-  email: string; // Kept in interface for prop compatibility, but not displayed
+  email: string;
   photoURL?: string | null;
+  defaultCreditLimit?: number;
 }
 
 interface ShopkeeperCardProps {
@@ -24,8 +25,8 @@ export default function ShopkeeperCard({ shopkeeper, balance }: ShopkeeperCardPr
     const balanceColor = '#3d4468';
     const balanceText = isCredit ? 'Udhaar' : (balance < 0 ? 'Advance' : 'Settled');
 
-    // Dummy credit limit for demonstration. In a real app, this would come from props/backend.
-    const creditLimit = 5000;
+    // Use the shopkeeper-defined limit, or a default fallback.
+    const creditLimit = shopkeeper.defaultCreditLimit || 5000;
     const usedPercentage = creditLimit > 0 ? (Math.abs(balance) / creditLimit) * 100 : 0;
     const barColor = usedPercentage > 75 ? '#ff3b5c' : '#00c896';
 
