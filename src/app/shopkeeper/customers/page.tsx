@@ -16,13 +16,18 @@ interface UserProfile {
   balances?: { [key: string]: number };
 }
 
+interface ShopkeeperProfile {
+    defaultCreditLimit?: number;
+    customerLimits?: { [key: string]: number };
+}
+
 export default function ShopkeeperCustomersPage() {
   const { auth, firestore } = useFirebase();
   const [allCustomers, setAllCustomers] = useState<UserProfile[]>([]);
   const [filteredCustomers, setFilteredCustomers] = useState<UserProfile[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
-  const [shopkeeperProfile, setShopkeeperProfile] = useState<any>(null);
+  const [shopkeeperProfile, setShopkeeperProfile] = useState<ShopkeeperProfile | null>(null);
 
   useEffect(() => {
     if (!auth.currentUser || !firestore) {
@@ -33,9 +38,9 @@ export default function ShopkeeperCustomersPage() {
     const shopkeeperRef = doc(firestore, 'shopkeepers', auth.currentUser.uid);
     const unsubscribe = onSnapshot(shopkeeperRef, async (shopkeeperSnap) => {
         if (shopkeeperSnap.exists()) {
-            const shopkeeperData = shopkeeperSnap.data();
+            const shopkeeperData = shopkeeperSnap.data() as ShopkeeperProfile;
             setShopkeeperProfile(shopkeeperData);
-            const customerIds = shopkeeperData.connections || [];
+            const customerIds = (shopkeeperData as any).connections || [];
             
             if (customerIds.length > 0) {
                 const customersRef = collection(firestore, 'customers');
@@ -72,6 +77,11 @@ export default function ShopkeeperCustomersPage() {
       setFilteredCustomers(filtered);
     }
   }, [searchTerm, allCustomers]);
+  
+  const getCreditLimitForCustomer = (customerId: string) => {
+      if (!shopkeeperProfile) return 1000;
+      return shopkeeperProfile.customerLimits?.[customerId] ?? shopkeeperProfile.defaultCreditLimit ?? 1000;
+  }
 
   return (
     <main className="dashboard-main-content" style={{padding: '20px'}}>
@@ -122,6 +132,7 @@ export default function ShopkeeperCustomersPage() {
                         <CustomerCard 
                             customer={customer} 
                             shopkeeperId={auth.currentUser!.uid}
+                            creditLimit={getCreditLimitForCustomer(customer.uid)}
                         />
                     </Link>
                 ))}

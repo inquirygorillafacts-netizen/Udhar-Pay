@@ -10,13 +10,26 @@ interface CustomerProfile {
   balances?: { [key: string]: number };
 }
 
-// Dummy data for now
-const creditLimit = 1000;
+interface CustomerCardProps {
+    customer: CustomerProfile;
+    shopkeeperId: string;
+    creditLimit: number;
+}
 
-const CustomerCard = ({ customer, shopkeeperId }: { customer: CustomerProfile; shopkeeperId: string }) => {
+
+const CustomerCard = ({ customer, shopkeeperId, creditLimit }: CustomerCardProps) => {
   // Get the balance specific to this shopkeeper
   const balance = customer.balances?.[shopkeeperId] || 0;
-  const usedPercentage = creditLimit > 0 ? (balance / creditLimit) * 100 : 0;
+  
+  // Calculate used percentage only if there is a positive balance (actual credit)
+  const usedPercentage = balance > 0 ? (balance / creditLimit) * 100 : 0;
+
+  const getBarColor = () => {
+        if (usedPercentage > 75) return '#ff3b5c'; // Red for high usage
+        if (usedPercentage > 50) return '#007BFF'; // Blue for moderate usage
+        return '#00c896'; // Green for low usage
+  };
+  const barColor = getBarColor();
 
   return (
     <div className="neu-input" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px', cursor: 'pointer', boxShadow: '5px 5px 15px #bec3cf, -5px -5px 15px #ffffff' }}>
@@ -49,7 +62,7 @@ const CustomerCard = ({ customer, shopkeeperId }: { customer: CustomerProfile; s
               <span style={{fontSize: '12px', color: '#3d4468', fontWeight: 600}}>₹{creditLimit}</span>
           </div>
           <div style={{height: '8px', background: '#e0e5ec', borderRadius: '4px', boxShadow: 'inset 2px 2px 4px #bec3cf, inset -2px -2px 4px #ffffff', overflow: 'hidden'}}>
-            <div style={{width: `${usedPercentage}%`, height: '100%', background: balance > creditLimit ? '#ff3b5c' : '#00c896', borderRadius: '4px', transition: 'width 0.5s ease'}}></div>
+            <div style={{width: `${usedPercentage > 100 ? 100 : usedPercentage}%`, height: '100%', background: barColor, borderRadius: '4px', transition: 'width 0.5s ease, background-color 0.5s ease'}}></div>
           </div>
       </div>
 
