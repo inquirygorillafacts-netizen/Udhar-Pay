@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { LayoutDashboard, Settings, CreditCard, Wallet } from 'lucide-react';
+import { LayoutDashboard, Settings, CreditCard, Wallet, Network } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
@@ -44,6 +44,10 @@ export default function OwnerLayout({
         <Link href="/owner/dashboard" className={`admin-nav-item ${pathname === '/owner/dashboard' ? 'active' : ''}`}>
           <LayoutDashboard size={24} />
           <span>Dashboard</span>
+        </Link>
+         <Link href="/owner/ecosystem" className={`admin-nav-item ${pathname.startsWith('/owner/ecosystem') ? 'active' : ''}`}>
+          <Network size={24} />
+          <span>Ecosystem</span>
         </Link>
          <Link href="/owner/sell-credit-card" className={`admin-nav-item ${pathname === '/owner/sell-credit-card' ? 'active' : ''}`}>
           <CreditCard size={24} />
