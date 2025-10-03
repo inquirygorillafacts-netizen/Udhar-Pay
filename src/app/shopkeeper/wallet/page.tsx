@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useFirebase } from '@/firebase/client-provider';
 import { onSnapshot, doc, updateDoc } from 'firebase/firestore';
-import { LifeBuoy, Phone, UploadCloud, Lock, CheckCircle, ShieldAlert, KeyRound, HelpCircle, X, AlertTriangle, SlidersHorizontal } from 'lucide-react';
+import { LifeBuoy, Phone, UploadCloud, Lock, CheckCircle, ShieldAlert, KeyRound, HelpCircle, X, AlertTriangle, SlidersHorizontal, IndianRupee } from 'lucide-react';
 import Link from 'next/link';
 
 interface ShopkeeperProfile {
@@ -209,91 +209,86 @@ export default function ShopkeeperWalletPage() {
         }
     }
 
-    const renderSetupView = () => (
-        <div className="login-card" style={{ flex: 1, textAlign: 'center', padding: '30px 20px' }}>
-            <div className="login-header" style={{marginBottom: 0}}>
-                <div style={{display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '20px'}}>
-                    <div className={`neu-toggle-switch ${isSetupActive ? 'active' : ''}`} onClick={handleToggleChange}>
-                        <div className="neu-toggle-handle"></div>
-                    </div>
-                </div>
-                <div style={{ padding: '20px', background: '#e0e5ec', borderRadius: '15px', boxShadow: 'inset 5px 5px 10px #bec3cf, inset -5px -5px 10px #ffffff' }}>
-                    <p style={{color: '#9499b7', margin: 0}}>पेमेंट सेटअप करें।</p>
-                </div>
-            </div>
-        </div>
-    );
-    
     return (
         <>
             <main className="dashboard-main-content" style={{padding: '20px'}}>
-                 <div style={{marginBottom: '30px', maxWidth: '600px', margin: 'auto'}}>
-                    <Link href="/shopkeeper/helpline" className="neu-button" style={{margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
-                        <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}><Phone size={20} /><span>Helpline</span></div>
-                        <span>&rarr;</span>
-                    </Link>
-                 </div>
-
-                 <div style={{marginBottom: '30px', maxWidth: '600px', margin: 'auto'}}>
-                    <Link href="/shopkeeper/control-room" className="neu-button" style={{margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
-                        <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}><SlidersHorizontal size={20} /><span>उधार कंट्रोल रूम</span></div>
-                        <span>&rarr;</span>
-                    </Link>
-                 </div>
-
-                 <div style={{ display: 'flex', gap: '20px', alignItems: 'stretch', marginBottom: '40px', maxWidth: '600px', margin: 'auto' }}>
-                    {!isSetupActive && renderSetupView()}
-
-                    <div className="login-card" style={{ flex: 1, textAlign: 'center', padding: '30px 20px' }}>
+                <div style={{ maxWidth: '600px', margin: 'auto' }}>
+                    <div className="login-card" style={{ marginBottom: '30px', background: 'linear-gradient(145deg, #f0f5fd, #d8dde4)', boxShadow: '15px 15px 40px #b8bdc5, -15px -15px 40px #ffffff' }}>
                          {loading ? (
-                             <div className="neu-spinner" style={{margin: 'auto'}}></div>
+                             <div style={{height: '110px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}><div className="neu-spinner"></div></div>
                         ) : (
-                            <div style={{marginBottom: '10px'}}>
-                                 <p style={{color: '#3d4468', fontSize: '2.5rem', fontWeight: '700', margin: 0}}>
-                                    ₹{outstandingCredit}
-                                 </p>
+                            <div style={{textAlign: 'center'}}>
+                                <p style={{fontSize: '1rem', color: '#6c7293', margin: '0 0 5px 0', fontWeight: 500}}>आपका कुल बाज़ार उधार</p>
+                                <p style={{fontSize: '3.5rem', fontWeight: 'bold', margin: '0', color: '#3d4468', lineHeight: 1.2}}>
+                                    <span style={{fontSize: '2.5rem', verticalAlign: 'middle'}}>₹</span>{outstandingCredit.toLocaleString('en-IN')}
+                                </p>
                             </div>
                         )}
-                        <div className="login-header" style={{marginBottom: 0}}>
-                            <h1 style={{color: '#6c7293', fontSize: '1rem', fontWeight: '500', margin: 0}}>आपका वर्तमान उधार</h1>
+                    </div>
+                    
+                     <div className="login-card" style={{marginBottom: '30px'}}>
+                         <h3 className="setting-title" style={{textAlign: 'center', border: 'none', padding: 0, margin: '0 0 20px 0'}}>सेटिंग्स और सहायता</h3>
+                         <div style={{display: 'flex', flexDirection: 'column', gap: '15px'}}>
+                             <Link href="/shopkeeper/control-room" className="neu-button" style={{margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
+                                <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}><SlidersHorizontal size={20} /><span>उधार कंट्रोल रूम</span></div>
+                                <span>&rarr;</span>
+                            </Link>
+                            <Link href="/shopkeeper/helpline" className="neu-button" style={{margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
+                                <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}><Phone size={20} /><span>हेल्पलाइन</span></div>
+                                <span>&rarr;</span>
+                            </Link>
+                         </div>
+                     </div>
+
+
+                     <div className="login-card" style={{ marginBottom: '30px' }}>
+                        <h3 className="setting-title" style={{textAlign: 'center', border: 'none', padding: 0, margin: '0 0 20px 0'}}>पेमेंट सेटअप</h3>
+                        <div className="neu-input" style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '15px 20px', marginBottom: '20px'}}>
+                            <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
+                                <IndianRupee size={20} style={{color: '#6c7293'}} />
+                                <div>
+                                    <span style={{fontWeight: 600}}>पेमेंट प्राप्त करें</span>
+                                    <p style={{fontSize: '12px', color: isSetupActive ? '#00c896' : '#ff3b5c'}}>{isSetupActive ? 'सक्रिय' : 'निष्क्रिय'}</p>
+                                </div>
+                            </div>
+                            <div className={`neu-toggle-switch ${isSetupActive ? 'active' : ''}`} onClick={handleToggleChange}>
+                                <div className="neu-toggle-handle"></div>
+                            </div>
+                        </div>
+                        {isSetupActive && (
+                             <div style={{display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '20px', borderTop: '1px solid #d1d9e6', paddingTop: '20px'}}>
+                                <button onClick={() => setShowUpdateQrModal(true)} className="neu-button" style={{margin: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px'}}><UploadCloud size={20}/>QR कोड अपडेट करें</button>
+                                <button onClick={() => setShowUpdatePinModal(true)} className="neu-button" style={{margin: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px'}}><KeyRound size={20}/>PIN बदलें</button>
+                                <button onClick={() => setShowForgotPinModal(true)} className="neu-button" style={{margin: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px'}}><HelpCircle size={20}/>PIN भूल गए?</button>
+                            </div>
+                        )}
+                    </div>
+                     
+                    <div className="login-card" style={{ textAlign: 'center', marginBottom: '30px' }}>
+                         <div style={{ padding: '15px', background: '#e0e5ec', borderRadius: '15px', boxShadow: 'inset 5px 5px 10px #bec3cf, inset -5px -5px 10px #ffffff' }}>
+                            <p style={{ color: '#6c7293', margin: 0, textAlign: 'center', fontSize: '14px', width: '100%', marginBottom: '5px' }}>
+                                आपकी हफ़्ते भर की कमाई का पैसा हर रविवार को आपके खाते में भेज दिया जाएगा।
+                            </p>
+                            <p style={{ color: '#3d4468', fontWeight: '600', margin: 0, textAlign: 'center', fontSize: '14px', width: '100%' }}>
+                                Sunday 10:00 am → 4:00 pm
+                            </p>
                         </div>
                     </div>
-                 </div>
 
-                {isSetupActive && (
-                 <div className="login-card" style={{ maxWidth: '600px', margin: 'auto', marginBottom: '40px' }}>
-                    <div style={{display: 'flex', flexDirection: 'column', gap: '15px'}}>
-                        <button onClick={() => setShowUpdateQrModal(true)} className="neu-button" style={{margin: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px'}}><UploadCloud size={20}/>QR कोड अपडेट करें</button>
-                        <button onClick={() => setShowUpdatePinModal(true)} className="neu-button" style={{margin: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px'}}><KeyRound size={20}/>PIN बदलें</button>
-                        <button onClick={() => setShowForgotPinModal(true)} className="neu-button" style={{margin: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px'}}><HelpCircle size={20}/>PIN भूल गए?</button>
+                    <div className="login-card" style={{ textAlign: 'center' }}>
+                         <div className="login-header" style={{marginBottom: '25px'}}>
+                            <h2 style={{fontSize: '1.5rem'}}>पेमेंट जल्दी चाहिए?</h2>
+                         </div>
+                         <div style={{ padding: '20px', background: '#e0e5ec', borderRadius: '15px', boxShadow: 'inset 5px 5px 10px #bec3cf, inset -5px -5px 10px #ffffff', marginBottom: '30px' }}>
+                            <p style={{ color: '#6c7293', margin: 0, textAlign: 'center', fontSize: '14px', lineHeight: '1.8' }}>
+                               अगर आपको किसी कारण से रविवार से पहले पेमेंट चाहिए, तो आप जब चाहें अपना पेमेंट ले सकते हैं। यदि कोई ज़्यादा ज़रूरत नहीं है, तो आपका पेमेंट हर रविवार को अपने-आप भेज दिया जाएगा।
+                            </p>
+                        </div>
+                        <a href="tel:8302806913" className="neu-button" style={{margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', background: '#00c896', color: 'white' }}>
+                            <Phone size={20} />
+                            <span>ज़रूरी पेमेंट के लिए कॉल करें</span>
+                        </a>
                     </div>
-                 </div>
-                )}
-                 
-                 <div className="login-card" style={{ maxWidth: '600px', margin: 'auto', textAlign: 'center' }}>
-                     <div style={{ padding: '15px', background: '#e0e5ec', borderRadius: '15px', boxShadow: 'inset 5px 5px 10px #bec3cf, inset -5px -5px 10px #ffffff' }}>
-                        <p style={{ color: '#6c7293', margin: 0, textAlign: 'center', fontSize: '14px', width: '100%', marginBottom: '5px' }}>
-                           आपकी हफ़्ते भर की कमाई का पैसा हर रविवार को आपके खाते में भेज दिया जाएगा।
-                        </p>
-                        <p style={{ color: '#3d4468', fontWeight: '600', margin: 0, textAlign: 'center', fontSize: '14px', width: '100%' }}>
-                           Sunday 10:00 am → 4:00 pm
-                        </p>
-                    </div>
-                 </div>
-
-                <div className="login-card" style={{ maxWidth: '600px', margin: '40px auto 0', textAlign: 'center' }}>
-                     <div className="login-header" style={{marginBottom: '25px'}}>
-                        <h2 style={{fontSize: '1.5rem'}}>पेमेंट जल्दी चाहिए?</h2>
-                     </div>
-                     <div style={{ padding: '20px', background: '#e0e5ec', borderRadius: '15px', boxShadow: 'inset 5px 5px 10px #bec3cf, inset -5px -5px 10px #ffffff', marginBottom: '30px' }}>
-                        <p style={{ color: '#6c7293', margin: 0, textAlign: 'center', fontSize: '14px', lineHeight: '1.8' }}>
-                           अगर आपको किसी कारण से रविवार से पहले पेमेंट चाहिए, तो आप जब चाहें अपना पेमेंट ले सकते हैं। यदि कोई ज़्यादा ज़रूरत नहीं है, तो आपका पेमेंट हर रविवार को अपने-आप भेज दिया जाएगा।
-                        </p>
-                    </div>
-                    <a href="tel:8302806913" className="neu-button" style={{margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', background: '#00c896', color: 'white' }}>
-                        <Phone size={20} />
-                        <span>ज़रूरी पेमेंट के लिए कॉल करें</span>
-                    </a>
                 </div>
             </main>
 
