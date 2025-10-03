@@ -64,14 +64,14 @@ export default function CustomerTransactionHistoryPage() {
       transRef,
       where('shopkeeperId', '==', auth.currentUser.uid),
       where('customerId', '==', customerId),
-      orderBy('timestamp', 'desc')
+      orderBy('timestamp', 'asc')
     );
     const unsubscribeTransactions = onSnapshot(q, (snapshot) => {
       const trans: Transaction[] = [];
       snapshot.forEach(doc => {
         trans.push({ id: doc.id, ...doc.data() } as Transaction);
       });
-      setTransactions(trans);
+      setTransactions(trans.reverse());
     });
 
     return () => {
