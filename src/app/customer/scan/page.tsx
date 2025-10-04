@@ -24,9 +24,13 @@ export default function CustomerScanQrPage() {
   
   const stopScanner = useCallback(() => {
     if (scannerRef.current && scannerRef.current.isScanning) {
-        scannerRef.current.stop().catch(err => {
-          // Errors on stop are common and can be ignored.
-        });
+        try {
+            scannerRef.current.stop().catch(err => {
+              // Errors on stop are common and can be ignored.
+            });
+        } catch (e) {
+            // Can ignore this too
+        }
         scannerRef.current = null;
         setIsScanning(false);
     }
@@ -69,8 +73,11 @@ export default function CustomerScanQrPage() {
   
   
   useEffect(() => {
+      // Ensure this only runs on the client
+      if (typeof window === 'undefined') return;
+
       const startScanner = () => {
-          if (scannerRef.current) {
+          if (scannerRef.current || document.getElementById('reader') === null) {
             return;
           }
 
@@ -190,7 +197,7 @@ export default function CustomerScanQrPage() {
           <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden', padding: '20px' }}>
               <div className="qr-scanner-container">
                    <div id="reader" style={{ width: '100%', height: '100%', borderRadius: '25px', overflow: 'hidden' }}></div>
-                      {isScanning && (
+                      {isScanning ? (
                           <div className="qr-scanner-frame">
                               <div className="scanner-corner top-left"></div>
                               <div className="scanner-corner top-right"></div>
@@ -198,9 +205,8 @@ export default function CustomerScanQrPage() {
                               <div className="scanner-corner bottom-right"></div>
                               <div className="scanner-line"></div>
                           </div>
-                      )}
-                      {!isScanning && !showPermissionModal && (
-                           <div className="neu-spinner" style={{position: 'absolute'}}></div>
+                      ) : (
+                         !showPermissionModal && <div className="neu-spinner" style={{position: 'absolute'}}></div>
                       )}
               </div>
           </main>
