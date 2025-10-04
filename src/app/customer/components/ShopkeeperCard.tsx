@@ -23,8 +23,6 @@ interface ShopkeeperCardProps {
 export default function ShopkeeperCard({ shopkeeper, balance, customerId }: ShopkeeperCardProps) {
     const router = useRouter();
     
-    // Determine the specific credit limit for this customer.
-    // Fallback chain: customer-specific limit -> shopkeeper's default limit -> 1000.
     const customerSettings = shopkeeper.creditSettings?.[customerId];
     const creditLimit = customerSettings?.limitType === 'manual' 
         ? customerSettings.manualLimit 
@@ -37,9 +35,9 @@ export default function ShopkeeperCard({ shopkeeper, balance, customerId }: Shop
     const balanceText = isCredit ? 'Udhaar' : (balance < 0 ? 'Advance' : 'Settled');
     
     const getBarColor = () => {
-        if (usedPercentage > 75) return '#ff3b5c'; // Red for high usage
-        if (usedPercentage > 50) return '#007BFF'; // Blue for moderate usage
-        return '#00c896'; // Green for low usage
+        if (usedPercentage > 75) return '#ff3b5c';
+        if (usedPercentage > 50) return '#007BFF';
+        return '#00c896';
     };
     const barColor = getBarColor();
 
@@ -58,7 +56,6 @@ export default function ShopkeeperCard({ shopkeeper, balance, customerId }: Shop
             }}
             onClick={() => router.push(`/customer/payment/${shopkeeper.uid}`)}
         >
-            {/* Top section: Profile and Balance */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px', overflow: 'hidden' }}>
                     <div className="neu-icon" style={{width: '50px', height: '50px', margin: 0, flexShrink: 0}}>
@@ -75,7 +72,7 @@ export default function ShopkeeperCard({ shopkeeper, balance, customerId }: Shop
                 </div>
                 <div style={{textAlign: 'right', display: 'flex', alignItems: 'center', gap: '8px'}}>
                     <div>
-                        <span style={{ fontSize: '1.5rem', fontWeight: 'bold', color: balanceColor }}>₹{Math.abs(balance)}</span>
+                        <span style={{ fontSize: '1.5rem', fontWeight: 'bold', color: balanceColor }}>₹{Math.abs(balance).toLocaleString('en-IN')}</span>
                     </div>
                     <ArrowRight size={20} style={{ color: '#9499b7', flexShrink: 0 }} />
                 </div>

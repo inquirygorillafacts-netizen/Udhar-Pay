@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useFirebase } from '@/firebase/client-provider';
-import { doc, onSnapshot, collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { doc, onSnapshot, collection, query, where, Timestamp } from 'firebase/firestore';
 import { Users, BookUser, UserCheck, IndianRupee, PieChart } from 'lucide-react';
 
 interface ShopkeeperProfile {
@@ -32,17 +32,20 @@ export default function ShopkeeperAnalysisPage() {
   const [loadingAnalytics, setLoadingAnalytics] = useState(true);
 
   useEffect(() => {
-    if (!auth.currentUser) return;
+    if (!auth.currentUser || !firestore) return;
 
-    // This listener will react to changes in the shopkeeper's direct data (like new connections)
+    let unsubscribeTransactions: () => void = () => {};
+    
     const shopkeeperRef = doc(firestore, 'shopkeepers', auth.currentUser.uid);
     const unsubscribeShopkeeper = onSnapshot(shopkeeperRef, (shopkeeperSnap) => {
+      unsubscribeTransactions(); // Unsubscribe from previous transaction listener
+      setLoadingAnalytics(true);
+
       if (!shopkeeperSnap.exists()) {
         setLoadingAnalytics(false);
         return;
       }
       
-      setLoadingAnalytics(true);
       const shopkeeperProfile = shopkeeperSnap.data() as ShopkeeperProfile;
       const customerIds = shopkeeperProfile.connections || [];
       
@@ -52,23 +55,21 @@ export default function ShopkeeperAnalysisPage() {
         return;
       }
 
-      // Now, set up a listener for ALL transactions related to this shopkeeper
-      // This is the single source of truth for all balance calculations.
       const transactionsRef = collection(firestore, 'transactions');
       const q = query(transactionsRef, where('shopkeeperId', '==', auth.currentUser!.uid));
 
-      const unsubscribeTransactions = onSnapshot(q, (transactionsSnapshot) => {
+      unsubscribeTransactions = onSnapshot(q, (transactionsSnapshot) => {
         const customerBalances: { [key: string]: number } = {};
-
-        // Initialize balances for all connected customers to 0
         customerIds.forEach(id => customerBalances[id] = 0);
 
         transactionsSnapshot.forEach((transactionDoc) => {
             const transaction = transactionDoc.data() as Transaction;
-            if (transaction.type === 'credit') {
-                customerBalances[transaction.customerId] = (customerBalances[transaction.customerId] || 0) + transaction.amount;
-            } else if (transaction.type === 'payment') {
-                customerBalances[transaction.customerId] = (customerBalances[transaction.customerId] || 0) - transaction.amount;
+            if (customerBalances[transaction.customerId] !== undefined) {
+                if (transaction.type === 'credit') {
+                    customerBalances[transaction.customerId] += transaction.amount;
+                } else if (transaction.type === 'payment') {
+                    customerBalances[transaction.customerId] -= transaction.amount;
+                }
             }
         });
 
@@ -97,14 +98,15 @@ export default function ShopkeeperAnalysisPage() {
         setLoadingAnalytics(false);
       });
 
-      return () => unsubscribeTransactions();
-
     }, (error) => {
       console.error("Error fetching shopkeeper data for analytics:", error);
       setLoadingAnalytics(false);
     });
 
-    return () => unsubscribeShopkeeper();
+    return () => {
+        unsubscribeShopkeeper();
+        unsubscribeTransactions();
+    }
   }, [auth.currentUser, firestore]);
 
   return (

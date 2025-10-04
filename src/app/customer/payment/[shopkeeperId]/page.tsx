@@ -65,18 +65,10 @@ export default function PaymentPage() {
       } else {
         router.push('/customer/dashboard');
       }
+      setLoading(false);
     };
     
     fetchShopkeeperProfile();
-
-    const customerRef = doc(firestore, 'customers', auth.currentUser.uid);
-    const unsubscribeBalance = onSnapshot(customerRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const balances = docSnap.data().balances || {};
-        setCustomerBalance(balances[shopkeeperId] || 0);
-      }
-      setLoading(false);
-    });
 
     const transRef = collection(firestore, 'transactions');
     const q = query(
@@ -84,22 +76,30 @@ export default function PaymentPage() {
       where('customerId', '==', auth.currentUser.uid),
       where('shopkeeperId', '==', shopkeeperId)
     );
+
     const unsubscribeTransactions = onSnapshot(q, (snapshot) => {
       const trans: Transaction[] = [];
+      let balance = 0;
       snapshot.forEach(doc => {
-        trans.push({ id: doc.id, ...doc.data() } as Transaction);
+        const tx = { id: doc.id, ...doc.data() } as Transaction;
+        trans.push(tx);
+        if (tx.type === 'credit') {
+            balance += tx.amount;
+        } else {
+            balance -= tx.amount;
+        }
       });
-      // Sort client-side to avoid composite index and handle null timestamps
+      
       trans.sort((a, b) => {
-        const timeA = a.timestamp ? a.timestamp.toMillis() : Date.now();
-        const timeB = b.timestamp ? b.timestamp.toMillis() : Date.now();
+        const timeA = a.timestamp ? a.timestamp.toMillis() : 0;
+        const timeB = b.timestamp ? b.timestamp.toMillis() : 0;
         return timeB - timeA;
       });
       setTransactions(trans);
+      setCustomerBalance(balance);
     });
 
     return () => {
-      unsubscribeBalance();
       unsubscribeTransactions();
     };
 
@@ -149,7 +149,7 @@ export default function PaymentPage() {
                     throw new Error('Payment verification failed.');
                 }
                 
-                await updateBalancesAfterPayment(paymentAmount, response.razorpay_payment_id);
+                await recordPaymentTransaction(paymentAmount, response.razorpay_payment_id);
                 setAmount('');
                 setPaymentNotification({
                     type: 'success',
@@ -184,21 +184,9 @@ export default function PaymentPage() {
     }
   };
 
-  const updateBalancesAfterPayment = async (paidAmount: number, paymentId: string) => {
+  const recordPaymentTransaction = async (paidAmount: number, paymentId: string) => {
       if (!auth.currentUser || !shopkeeper) return;
       const batch = writeBatch(firestore);
-
-      const customerRef = doc(firestore, 'customers', auth.currentUser.uid);
-      const newCustomerBalance = (customerBalance || 0) - paidAmount;
-      batch.set(customerRef, { balances: { [shopkeeperId]: newCustomerBalance } }, { merge: true });
-      
-      const shopkeeperRef = doc(firestore, 'shopkeepers', shopkeeperId);
-      // This needs to be an atomic operation.
-      const shopkeeperDoc = await getDoc(shopkeeperRef);
-      const currentPending = shopkeeperDoc.data()?.pendingSettlement || 0;
-      const newPendingSettlement = currentPending + paidAmount;
-
-      batch.update(shopkeeperRef, { pendingSettlement: newPendingSettlement });
       
       const transactionRef = doc(collection(firestore, 'transactions'));
       batch.set(transactionRef, {
@@ -210,6 +198,12 @@ export default function PaymentPage() {
           timestamp: serverTimestamp(),
           paymentGatewayId: paymentId
       });
+
+      // Atomically update pending settlement for shopkeeper
+      const shopkeeperRef = doc(firestore, 'shopkeepers', shopkeeperId);
+      const shopkeeperDoc = await getDoc(shopkeeperRef);
+      const currentPending = shopkeeperDoc.data()?.pendingSettlement || 0;
+      batch.update(shopkeeperRef, { pendingSettlement: currentPending + paidAmount });
       
       await batch.commit();
   }
@@ -270,7 +264,7 @@ export default function PaymentPage() {
           <div className="login-card" style={{ maxWidth: '600px', margin: 'auto', marginBottom: '30px' }}>
               <div style={{textAlign: 'center'}}>
                   <p style={{fontSize: '0.9rem', color: '#6c7293', margin: 0, fontWeight: 500}}>Your Current Balance</p>
-                  <p style={{fontSize: '3rem', fontWeight: 'bold', margin: '5px 0', color: balanceColor}}>₹{Math.abs(customerBalance)}</p>
+                  <p style={{fontSize: '3rem', fontWeight: 'bold', margin: '5px 0', color: balanceColor}}>₹{Math.abs(customerBalance).toLocaleString('en-IN')}</p>
                   <p style={{fontSize: '0.9rem', fontWeight: 600, color: balanceColor}}>{balanceText}</p>
               </div>
           </div>

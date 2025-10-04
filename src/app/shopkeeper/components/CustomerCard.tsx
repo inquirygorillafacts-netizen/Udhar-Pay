@@ -7,7 +7,7 @@ interface CustomerProfile {
   displayName: string;
   email: string;
   photoURL?: string | null;
-  balances?: { [key: string]: number };
+  balance: number; // Balance is now passed directly
 }
 
 interface CustomerCardProps {
@@ -19,10 +19,8 @@ interface CustomerCardProps {
 
 
 const CustomerCard = ({ customer, shopkeeperId, creditLimit, isCreditEnabled }: CustomerCardProps) => {
-  // Get the balance specific to this shopkeeper
-  const balance = customer.balances?.[shopkeeperId] || 0;
+  const balance = customer.balance;
   
-  // Calculate used percentage only if there is a positive balance (actual credit)
   const usedPercentage = balance > 0 ? (balance / creditLimit) * 100 : 0;
 
   const getBarColor = () => {
@@ -57,7 +55,6 @@ const CustomerCard = ({ customer, shopkeeperId, creditLimit, isCreditEnabled }: 
         </div>
       </div>
       
-      {/* Credit Limit Bar */}
       <div>
           <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px'}}>
               <span style={{fontSize: '12px', color: '#6c7293', fontWeight: 500}}>

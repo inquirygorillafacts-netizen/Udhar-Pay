@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
-import { doc, onSnapshot, collection, query, where, getDocs, writeBatch, updateDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, onSnapshot, collection, query, where, getDocs, writeBatch, updateDoc, getDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import Link from 'next/link';
 import { Paperclip, X, User, Check, AlertCircle, Send, IndianRupee, ArrowRight, Repeat } from 'lucide-react';
 import ShopkeeperCard from '@/app/customer/components/ShopkeeperCard';
@@ -16,7 +16,6 @@ interface UserProfile {
   displayName: string;
   email: string;
   photoURL?: string | null;
-  balances?: { [key: string]: number };
   connections?: string[];
   customerCode?: string;
 }
@@ -45,11 +44,18 @@ interface ModalInfo {
     data?: any;
 }
 
+interface Transaction {
+    amount: number;
+    type: 'credit' | 'payment';
+    shopkeeperId: string;
+}
+
 
 export default function CustomerDashboardPage() {
   const { auth, firestore } = useFirebase();
   const router = useRouter();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [balances, setBalances] = useState<{ [key: string]: number }>({});
   const [loading, setLoading] = useState(true);
   
   const [shopkeeperCode, setShopkeeperCode] = useState('');
@@ -63,30 +69,31 @@ export default function CustomerDashboardPage() {
   const [activeRequest, setActiveRequest] = useState<CreditRequest | null>(null);
   const [isProcessingRequest, setIsProcessingRequest] = useState(false);
   
-  // Role switching state
   const [hasShopkeeperRole, setHasShopkeeperRole] = useState(false);
   const [showRoleModal, setShowRoleModal] = useState(false);
 
-  const totalBalance = userProfile?.balances ? Object.values(userProfile.balances).reduce((sum, bal) => sum + bal, 0) : 0;
+  const totalBalance = Object.values(balances).reduce((sum, bal) => sum + (bal > 0 ? bal : 0), 0);
 
   useEffect(() => {
     if (!auth.currentUser || !firestore) return;
 
-      const userRef = doc(firestore, 'customers', auth.currentUser.uid);
-      const unsubscribe = onSnapshot(userRef, async (docSnap) => {
+      const currentUserUid = auth.currentUser.uid;
+      let unsubscribeTransactions: () => void = () => {};
+
+      const userRef = doc(firestore, 'customers', currentUserUid);
+      const unsubscribeUser = onSnapshot(userRef, async (docSnap) => {
         if (docSnap.exists()) {
-          const profile = { uid: auth.currentUser!.uid, ...docSnap.data() } as UserProfile;
+          const profile = { uid: currentUserUid, ...docSnap.data() } as UserProfile;
           setUserProfile(profile);
 
-          // Check for shopkeeper role to enable switch button
-          const shopkeeperDoc = await getDoc(doc(firestore, 'shopkeepers', auth.currentUser!.uid));
+          const shopkeeperDoc = await getDoc(doc(firestore, 'shopkeepers', currentUserUid));
           setHasShopkeeperRole(shopkeeperDoc.exists());
 
-
-          if (profile.connections && profile.connections.length > 0) {
+          const connectedShopkeeperIds = profile.connections || [];
+          if (connectedShopkeeperIds.length > 0) {
               setLoadingShopkeepers(true);
               const shopkeepersRef = collection(firestore, 'shopkeepers');
-              const q = query(shopkeepersRef, where('__name__', 'in', profile.connections));
+              const q = query(shopkeepersRef, where('__name__', 'in', connectedShopkeeperIds));
               getDocs(q)
                   .then(snapshot => {
                       const shopkeepers = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as ShopkeeperProfile));
@@ -96,7 +103,30 @@ export default function CustomerDashboardPage() {
                   .finally(() => setLoadingShopkeepers(false));
           } else {
               setConnectedShopkeepers([]);
+              setBalances({});
           }
+
+          // Listen for transactions to calculate balance
+          unsubscribeTransactions(); // Unsubscribe from previous listener
+          const transRef = collection(firestore, 'transactions');
+          const transQuery = query(transRef, where('customerId', '==', currentUserUid));
+          unsubscribeTransactions = onSnapshot(transQuery, (snapshot) => {
+              const newBalances: { [key: string]: number } = {};
+              connectedShopkeeperIds.forEach(id => newBalances[id] = 0); // Initialize all balances
+
+              snapshot.forEach((doc) => {
+                  const tx = doc.data() as Transaction;
+                  if (newBalances[tx.shopkeeperId] !== undefined) {
+                      if (tx.type === 'credit') {
+                          newBalances[tx.shopkeeperId] += tx.amount;
+                      } else {
+                          newBalances[tx.shopkeeperId] -= tx.amount;
+                      }
+                  }
+              });
+              setBalances(newBalances);
+          });
+
         }
         setLoading(false);
       }, (error) => {
@@ -105,7 +135,7 @@ export default function CustomerDashboardPage() {
       });
       
       const requestsRef = collection(firestore, 'creditRequests');
-      const qRequests = query(requestsRef, where('customerId', '==', auth.currentUser.uid), where('status', '==', 'pending'));
+      const qRequests = query(requestsRef, where('customerId', '==', currentUserUid), where('status', '==', 'pending'));
       
       const unsubscribeRequests = onSnapshot(qRequests, async (snapshot) => {
           const requests: CreditRequest[] = [];
@@ -125,8 +155,9 @@ export default function CustomerDashboardPage() {
       });
 
       return () => {
-          unsubscribe();
+          unsubscribeUser();
           unsubscribeRequests();
+          unsubscribeTransactions();
       }
   }, [auth.currentUser, firestore]);
 
@@ -158,26 +189,8 @@ export default function CustomerDashboardPage() {
           
           if (response === 'approved') {
               const batch = writeBatch(firestore);
-
-              // Update the request status
               batch.update(requestRef, { status: 'approved' });
-
-              // Update balances
-              const balanceChange = request.amount;
-              const shopkeeperRef = doc(firestore, 'shopkeepers', request.shopkeeperId);
-              const customerRef = doc(firestore, 'customers', auth.currentUser.uid);
-
-              const shopkeeperDoc = await getDoc(shopkeeperRef);
-              const shopkeeperBalances = shopkeeperDoc.data()?.balances || {};
-              const newShopkeeperBalance = (shopkeeperBalances[userProfile.uid] || 0) + balanceChange;
-
-              const customerBalances = userProfile.balances || {};
-              const newCustomerBalance = (customerBalances[request.shopkeeperId] || 0) + balanceChange;
               
-              batch.set(shopkeeperRef, { balances: { [userProfile.uid]: newShopkeeperBalance } }, { merge: true });
-              batch.set(customerRef, { balances: { [request.shopkeeperId]: newCustomerBalance } }, { merge: true });
-
-              // Create transaction record
               const transactionRef = doc(collection(firestore, 'transactions'));
               batch.set(transactionRef, {
                   amount: request.amount,
@@ -223,7 +236,7 @@ export default function CustomerDashboardPage() {
         const result = await sendConnectionRequest(firestore, auth.currentUser.uid, shopkeeperCode, userProfile.displayName);
         
         if (result.status === 'already_connected' && result.shopkeeper) {
-             const balance = userProfile.balances?.[result.shopkeeper.id] || 0;
+             const balance = balances[result.shopkeeper.id] || 0;
              setModalInfo({
                 type: 'already_connected',
                 title: 'Already Connected',
@@ -402,7 +415,7 @@ export default function CustomerDashboardPage() {
                             <ShopkeeperCard 
                                 key={shopkeeper.uid}
                                 shopkeeper={shopkeeper}
-                                balance={userProfile.balances?.[shopkeeper.uid] || 0}
+                                balance={balances[shopkeeper.uid] || 0}
                                 customerId={userProfile.uid}
                             />
                           ))}

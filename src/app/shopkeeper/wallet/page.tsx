@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useFirebase } from '@/firebase/client-provider';
-import { onSnapshot, doc, updateDoc, collection, query, where, getDocs, Timestamp, getDoc } from 'firebase/firestore';
+import { onSnapshot, doc, updateDoc, collection, query, where, getDoc, Timestamp } from 'firebase/firestore';
 import { LifeBuoy, Phone, UploadCloud, Lock, CheckCircle, ShieldAlert, KeyRound, HelpCircle, X, AlertTriangle, SlidersHorizontal, IndianRupee } from 'lucide-react';
 import Link from 'next/link';
 import axios from 'axios';
@@ -29,35 +29,26 @@ interface Notification {
 
 const IMGBB_API_KEY = process.env.NEXT_PUBLIC_IMGBB_API_KEY || '833aa7bc7188c4f8d99f63e06421bbad';
 
-
 export default function ShopkeeperWalletPage() {
     const { auth, firestore } = useFirebase();
-
     const [profile, setProfile] = useState<ShopkeeperProfile | null>(null);
     const [loading, setLoading] = useState(true);
     const [outstandingCredit, setOutstandingCredit] = useState(0);
-
-    // State for QR/PIN setup & management
     const [isSetupActive, setIsSetupActive] = useState(false);
     const [showQrModal, setShowQrModal] = useState(false);
     const [showPinModal, setShowPinModal] = useState(false);
     const [showUpdateQrModal, setShowUpdateQrModal] = useState(false);
     const [showUpdatePinModal, setShowUpdatePinModal] = useState(false);
     const [showForgotPinModal, setShowForgotPinModal] = useState(false);
-    
-    // QR Upload state
     const [qrFile, setQrFile] = useState<File | null>(null);
     const [qrPreview, setQrPreview] = useState<string | null>(null);
     const [isUploading, setIsUploading] = useState(false);
-    
-    // PIN management state
     const [pin, setPin] = useState('');
     const [confirmPin, setConfirmPin] = useState('');
     const [oldPin, setOldPin] = useState('');
     const [isSavingPin, setIsSavingPin] = useState(false);
     const [pinVerificationStep, setPinVerificationStep] = useState('verify');
     const [verifiedPin, setVerifiedPin] = useState('');
-
     const [error, setError] = useState('');
     const [notification, setNotification] = useState<Notification | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -67,70 +58,61 @@ export default function ShopkeeperWalletPage() {
             setLoading(false);
             return;
         }
-    
-        let unsubscribeTransactions: () => void = () => {};
+
         const shopkeeperRef = doc(firestore, 'shopkeepers', auth.currentUser.uid);
-    
-        const unsubscribeShopkeeper = onSnapshot(shopkeeperRef, (shopkeeperSnap) => {
-            if (shopkeeperSnap.exists()) {
-                const data = shopkeeperSnap.data() as ShopkeeperProfile;
-                setProfile(data);
-                setIsSetupActive(!!data.qrCodeUrl && !!data.qrUpdatePin);
-            }
-        }, (err) => {
-            console.error("Error fetching shopkeeper profile:", err);
-        });
-    
-        const setupTransactionListener = async () => {
-            try {
-                const shopkeeperSnap = await getDoc(shopkeeperRef);
-                if (!shopkeeperSnap.exists()) {
+        let unsubscribeShopkeeper = () => {};
+        let unsubscribeTransactions = () => {};
+
+        const setupListeners = async () => {
+            setLoading(true);
+            unsubscribeShopkeeper = onSnapshot(shopkeeperRef, async (shopkeeperSnap) => {
+                if (shopkeeperSnap.exists()) {
+                    const data = shopkeeperSnap.data() as ShopkeeperProfile;
+                    setProfile(data);
+                    setIsSetupActive(!!data.qrCodeUrl && !!data.qrUpdatePin);
+
+                    const customerIds = data.connections || [];
+                    if (customerIds.length > 0) {
+                        const transactionsRef = collection(firestore, 'transactions');
+                        const q = query(transactionsRef, where('shopkeeperId', '==', auth.currentUser!.uid));
+                        
+                        unsubscribeTransactions(); // Unsubscribe from old listener
+                        unsubscribeTransactions = onSnapshot(q, (transactionsSnapshot) => {
+                            const customerBalances: { [key: string]: number } = {};
+                            customerIds.forEach((id: string) => customerBalances[id] = 0);
+        
+                            transactionsSnapshot.forEach((transactionDoc) => {
+                                const transaction = transactionDoc.data() as Transaction;
+                                if (customerBalances[transaction.customerId] !== undefined) {
+                                    if (transaction.type === 'credit') {
+                                        customerBalances[transaction.customerId] += transaction.amount;
+                                    } else if (transaction.type === 'payment') {
+                                        customerBalances[transaction.customerId] -= transaction.amount;
+                                    }
+                                }
+                            });
+        
+                            const totalOutstanding = Object.values(customerBalances).reduce((sum, bal) => sum + (bal > 0 ? bal : 0), 0);
+                            setOutstandingCredit(totalOutstanding);
+                            setLoading(false);
+                        }, (err) => {
+                            console.error("Error fetching transactions:", err);
+                            setLoading(false);
+                        });
+                    } else {
+                        setOutstandingCredit(0);
+                        setLoading(false);
+                    }
+                } else {
                     setLoading(false);
-                    return;
                 }
-    
-                const shopkeeperData = shopkeeperSnap.data();
-                const customerIds = shopkeeperData.connections || [];
-    
-                if (customerIds.length === 0) {
-                    setOutstandingCredit(0);
-                    setLoading(false);
-                    return;
-                }
-    
-                const transactionsRef = collection(firestore, 'transactions');
-                const q = query(transactionsRef, where('shopkeeperId', '==', auth.currentUser!.uid));
-    
-                unsubscribeTransactions = onSnapshot(q, (transactionsSnapshot) => {
-                    const customerBalances: { [key: string]: number } = {};
-                    customerIds.forEach((id: string) => customerBalances[id] = 0);
-    
-                    transactionsSnapshot.forEach((transactionDoc) => {
-                        const transaction = transactionDoc.data() as Transaction;
-                        if (customerBalances[transaction.customerId] !== undefined) {
-                            if (transaction.type === 'credit') {
-                                customerBalances[transaction.customerId] += transaction.amount;
-                            } else if (transaction.type === 'payment') {
-                                customerBalances[transaction.customerId] -= transaction.amount;
-                            }
-                        }
-                    });
-    
-                    const totalOutstanding = Object.values(customerBalances).reduce((sum, bal) => sum + (bal > 0 ? bal : 0), 0);
-                    setOutstandingCredit(totalOutstanding);
-                    setLoading(false);
-                }, (error) => {
-                     console.error("Error fetching transactions:", error);
-                     setLoading(false);
-                });
-    
-            } catch (error) {
-                console.error("Error setting up transaction listener:", error);
+            }, (err) => {
+                console.error("Error fetching shopkeeper profile:", err);
                 setLoading(false);
-            }
+            });
         };
-    
-        setupTransactionListener();
+
+        setupListeners();
     
         return () => {
             unsubscribeShopkeeper();

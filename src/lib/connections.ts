@@ -85,7 +85,6 @@ export const acceptConnectionRequest = async (firestore: Firestore, payload: Con
       isCreditEnabled: true, // Credit is enabled by default for new connections
   };
 
-  // We are no longer using the balances map. Connections and settings are enough.
   const shopkeeperUpdateData = {
     connections: arrayUnion(customerId),
     [`creditSettings.${customerId}`]: creditSettings,
