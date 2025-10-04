@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
-import { doc, getDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, collection, addDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
 import { ArrowLeft, User, IndianRupee, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -19,7 +19,6 @@ interface ShopkeeperProfile {
 interface CustomerProfile {
     uid: string;
     displayName: string;
-    balances?: { [key: string]: number };
     connections?: string[];
 }
 
@@ -93,8 +92,7 @@ export default function RequestCreditPage() {
       return;
     }
     
-    // Re-fetch latest data to ensure check is always accurate
-    if (!auth.currentUser || !firestore) {
+    if (!auth.currentUser || !firestore || !shopkeeper) {
         setError("Authentication error. Please refresh and try again.");
         return;
     }
@@ -102,22 +100,7 @@ export default function RequestCreditPage() {
     setError('');
 
     try {
-        const shopkeeperRef = doc(firestore, 'shopkeepers', shopkeeperId);
-        const customerRef = doc(firestore, 'customers', auth.currentUser.uid);
-
-        const [shopkeeperSnap, customerSnap] = await Promise.all([
-            getDoc(shopkeeperRef),
-            getDoc(customerRef)
-        ]);
-
-        if (!shopkeeperSnap.exists() || !customerSnap.exists()) {
-            throw new Error("Could not verify profiles. Please try again.");
-        }
-
-        const latestShopkeeper = shopkeeperSnap.data() as ShopkeeperProfile;
-        const latestCustomer = customerSnap.data() as CustomerProfile;
-
-        const customerSettings = latestShopkeeper.creditSettings?.[auth.currentUser.uid];
+        const customerSettings = shopkeeper.creditSettings?.[auth.currentUser.uid];
         const isCreditEnabled = customerSettings?.isCreditEnabled ?? true;
 
         if (!isCreditEnabled) {
@@ -128,9 +111,21 @@ export default function RequestCreditPage() {
 
         const creditLimit = customerSettings?.limitType === 'manual'
             ? customerSettings.manualLimit
-            : latestShopkeeper.defaultCreditLimit ?? 1000;
+            : shopkeeper.defaultCreditLimit ?? 1000;
 
-        const currentBalance = latestCustomer.balances?.[shopkeeperId] || 0;
+        // Fetch live transactions to calculate current balance
+        const transQuery = query(
+            collection(firestore, 'transactions'), 
+            where('customerId', '==', auth.currentUser.uid), 
+            where('shopkeeperId', '==', shopkeeperId)
+        );
+        const transSnap = await getDocs(transQuery);
+        let currentBalance = 0;
+        transSnap.forEach(doc => {
+            const tx = doc.data();
+            if (tx.type === 'credit') currentBalance += tx.amount;
+            else if (tx.type === 'payment') currentBalance -= tx.amount;
+        });
         
         if (currentBalance + creditAmount > creditLimit) {
             const remainingLimit = creditLimit - currentBalance;
@@ -144,9 +139,9 @@ export default function RequestCreditPage() {
             amount: creditAmount,
             notes: notes,
             customerId: auth.currentUser!.uid,
-            customerName: latestCustomer.displayName,
+            customerName: customerProfile?.displayName,
             shopkeeperId: shopkeeperId,
-            shopkeeperName: latestShopkeeper?.displayName,
+            shopkeeperName: shopkeeper?.displayName,
             status: 'pending',
             createdAt: serverTimestamp(),
             requestedBy: 'customer'

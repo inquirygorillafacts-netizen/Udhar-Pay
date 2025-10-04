@@ -19,12 +19,10 @@ interface UserProfile {
   displayName: string;
   email: string;
   photoURL?: string | null;
-  balances?: { [key: string]: number };
   connections?: string[];
   shopkeeperCode?: string;
   customerCode?: string;
   defaultCreditLimit?: number;
-  customerLimits?: { [key: string]: number };
   creditSettings?: { [key: string]: { limitType: 'default' | 'manual', manualLimit: number, isCreditEnabled: boolean } };
 }
 
@@ -99,6 +97,11 @@ export default function ShopkeeperDashboardPage() {
   const [isSavingLimit, setIsSavingLimit] = useState(false);
   const [limitModalError, setLimitModalError] = useState('');
   
+  // New modal state for disabled credit
+  const [showCreditDisabledModal, setShowCreditDisabledModal] = useState(false);
+  const [creditDisabledModalData, setCreditDisabledModalData] = useState<CustomerForSelection | null>(null);
+  const [isReEnablingCredit, setIsReEnablingCredit] = useState(false);
+  
   // Role switching state
   const [hasCustomerRole, setHasCustomerRole] = useState(false);
   const [showRoleModal, setShowRoleModal] = useState(false);
@@ -110,56 +113,66 @@ export default function ShopkeeperDashboardPage() {
       setLoadingProfile(false);
       return;
     }
+    setLoadingProfile(true);
 
     const currentUserUid = auth.currentUser.uid;
+    const shopkeeperRef = doc(firestore, 'shopkeepers', currentUserUid);
+
+    // 1. Listen to Shopkeeper Profile and their connections
+    const unsubscribeProfile = onSnapshot(shopkeeperRef, async (shopkeeperDoc) => {
+        if (shopkeeperDoc.exists()) {
+            const profileData = { uid: shopkeeperDoc.id, ...shopkeeperDoc.data() } as UserProfile;
+            setShopkeeperProfile(profileData);
+            
+            // Check for customer role (this doesn't need to be real-time)
+            const customerDoc = await getDoc(doc(firestore, 'customers', currentUserUid));
+            setHasCustomerRole(customerDoc.exists());
+        }
+        setLoadingProfile(false);
+    }, (error) => {
+        console.error("Error fetching shopkeeper document:", error);
+        setLoadingProfile(false);
+    });
+    
+    // 2. Listen to customers only when connections change (or on initial load)
     let unsubscribeCustomers = () => {};
-
-    // 1. Listen to Shopkeeper Profile
-    const userRef = doc(firestore, 'shopkeepers', currentUserUid);
-    const unsubscribeProfile = onSnapshot(userRef, async (shopkeeperDoc) => {
-      if (shopkeeperDoc.exists()) {
-        const profileData = { uid: shopkeeperDoc.id, ...shopkeeperDoc.data() } as UserProfile;
-        setShopkeeperProfile(profileData);
-
-        const customerIds = profileData.connections || [];
-        
-        // Clean up previous customers listener before creating a new one
-        unsubscribeCustomers(); 
-
-        if (customerIds.length > 0) {
-          setLoadingCustomers(true);
-          const customersQuery = query(collection(firestore, 'customers'), where('__name__', 'in', customerIds));
-          
-          // 2. Listen to connected customers based on profile connections
-          unsubscribeCustomers = onSnapshot(customersQuery, (customersSnap) => {
+    if (shopkeeperProfile?.connections && shopkeeperProfile.connections.length > 0) {
+        setLoadingCustomers(true);
+        const customersQuery = query(collection(firestore, 'customers'), where('__name__', 'in', shopkeeperProfile.connections));
+        unsubscribeCustomers = onSnapshot(customersQuery, async (customersSnap) => {
             const customerProfiles = customersSnap.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile));
-            const customersWithBalance = customerProfiles.map(cust => ({
-                ...cust,
-                balance: profileData.balances?.[cust.uid] || 0
+
+            // Fetch all transactions to calculate balances
+            const transQuery = query(collection(firestore, 'transactions'), where('shopkeeperId', '==', currentUserUid));
+            const transSnap = await getDocs(transQuery);
+            const balances: {[key: string]: number} = {};
+            shopkeeperProfile.connections!.forEach(id => balances[id] = 0);
+
+            transSnap.forEach(doc => {
+                const t = doc.data() as any;
+                if(balances[t.customerId] !== undefined) {
+                    if (t.type === 'credit') balances[t.customerId] += t.amount;
+                    else if (t.type === 'payment') balances[t.customerId] -= t.amount;
+                }
+            });
+
+            const customersWithBalance = customerProfiles.map(p => ({
+                ...p,
+                balance: balances[p.uid] || 0
             })) as CustomerForSelection[];
+            
             setCustomers(customersWithBalance);
             setFilteredCustomers(customersWithBalance);
             setLoadingCustomers(false);
-          }, (err) => {
+        }, (err) => {
             console.error("Error fetching customers:", err);
             setLoadingCustomers(false);
-          });
-        } else {
-          setCustomers([]);
-          setFilteredCustomers([]);
-          setLoadingCustomers(false);
-        }
-
-        // Check for customer role (this doesn't need to be real-time)
-        const customerDoc = await getDoc(doc(firestore, 'customers', currentUserUid));
-        setHasCustomerRole(customerDoc.exists());
-
-      }
-      setLoadingProfile(false);
-    }, (error) => {
-      console.error("Error fetching shopkeeper document:", error);
-      setLoadingProfile(false);
-    });
+        });
+    } else {
+        setCustomers([]);
+        setFilteredCustomers([]);
+        setLoadingCustomers(false);
+    }
 
     // 3. Listen to Connection Requests
     const connectionsRef = collection(firestore, 'connectionRequests');
@@ -188,7 +201,7 @@ export default function ShopkeeperDashboardPage() {
       unsubscribeCreditRequests();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [auth.currentUser, firestore]);
 
   // Separate effect for tracking the active credit request's status
   useEffect(() => {
@@ -293,20 +306,6 @@ export default function ShopkeeperDashboardPage() {
             if (response === 'approved') {
                 const batch = writeBatch(firestore);
                 batch.update(requestRef, { status: 'approved' });
-
-                const balanceChange = request.amount;
-                const shopkeeperRef = doc(firestore, 'shopkeepers', auth.currentUser.uid);
-                const customerRef = doc(firestore, 'customers', request.customerId);
-
-                const shopkeeperBalances = shopkeeperProfile.balances || {};
-                const newShopkeeperBalance = (shopkeeperBalances[request.customerId] || 0) + balanceChange;
-
-                const customerDoc = await getDoc(customerRef);
-                const customerBalances = customerDoc.data()?.balances || {};
-                const newCustomerBalance = (customerBalances[auth.currentUser.uid] || 0) + balanceChange;
-
-                batch.set(shopkeeperRef, { balances: { [request.customerId]: newShopkeeperBalance } }, { merge: true });
-                batch.set(customerRef, { balances: { [auth.currentUser.uid]: newCustomerBalance } }, { merge: true });
 
                 const transactionRef = doc(collection(firestore, 'transactions'));
                 batch.set(transactionRef, {
@@ -428,40 +427,32 @@ export default function ShopkeeperDashboardPage() {
       setSelectedCustomer(customer);
       const amount = parseFloat(creditAmount);
     
-      if (isNaN(amount) || amount <= 0 || !auth.currentUser || !firestore) {
+      if (isNaN(amount) || amount <= 0 || !auth.currentUser || !firestore || !shopkeeperProfile) {
         setError("An unexpected error occurred. Please start over.");
         return;
       }
     
+      const customerSettings = shopkeeperProfile.creditSettings?.[customer.uid];
+      const isCreditEnabled = customerSettings?.isCreditEnabled ?? true;
+  
+      if (!isCreditEnabled) {
+        setCreditDisabledModalData(customer);
+        setShowCreditDisabledModal(true);
+        return; // Stop the process here
+      }
+      
+      await proceedWithCreditRequest(customer, amount);
+  };
+  
+  const proceedWithCreditRequest = async (customer: CustomerForSelection, amount: number) => {
+      if (!auth.currentUser || !firestore || !shopkeeperProfile) return;
+
       setIsRequestingCredit(true);
       setError('');
     
       try {
-        const shopkeeperRef = doc(firestore, 'shopkeepers', auth.currentUser.uid);
-        const customerRef = doc(firestore, 'customers', customer.uid);
-
-        const shopkeeperSnap = await getDoc(shopkeeperRef);
-
-        if (!shopkeeperSnap.exists()) {
-            throw new Error("Could not verify shopkeeper data.");
-        }
-        
-        const latestShopkeeper = shopkeeperSnap.data() as UserProfile;
-        
-        const customerSettings = latestShopkeeper.creditSettings?.[customer.uid];
-        const isCreditEnabled = customerSettings?.isCreditEnabled ?? true;
-    
-        if (!isCreditEnabled) {
-          alert("Credit is disabled for this customer. Please enable it in the Control Room to give credit.");
-          setIsRequestingCredit(false);
-          return;
-        }
-    
-        const creditLimit = customerSettings?.limitType === 'manual'
-          ? customerSettings.manualLimit
-          : latestShopkeeper.defaultCreditLimit ?? 1000;
-    
-        const currentBalance = latestShopkeeper.balances?.[customer.uid] || 0;
+        const creditLimit = getCreditLimitForCustomer(customer.uid);
+        const currentBalance = customer.balance;
     
         if (currentBalance + amount > creditLimit) {
             setLimitModalData({ customer, currentLimit: creditLimit });
@@ -479,7 +470,7 @@ export default function ShopkeeperDashboardPage() {
           customerId: customer.uid,
           customerName: customer.displayName,
           shopkeeperId: auth.currentUser.uid,
-          shopkeeperName: latestShopkeeper.displayName,
+          shopkeeperName: shopkeeperProfile.displayName,
           status: 'pending',
           createdAt: serverTimestamp(),
           requestedBy: 'shopkeeper',
@@ -495,8 +486,36 @@ export default function ShopkeeperDashboardPage() {
       } finally {
         setIsRequestingCredit(false);
       }
-    };
+  }
   
+  const handleReEnableAndProceed = async () => {
+      if (!creditDisabledModalData || !auth.currentUser || !firestore) return;
+      
+      setIsReEnablingCredit(true);
+      const customerId = creditDisabledModalData.uid;
+
+      try {
+          const shopkeeperRef = doc(firestore, 'shopkeepers', auth.currentUser.uid);
+          // Get existing settings or create a default structure
+          const existingSettings = shopkeeperProfile?.creditSettings?.[customerId] || { limitType: 'default', manualLimit: 0 };
+          
+          await updateDoc(shopkeeperRef, {
+              [`creditSettings.${customerId}.isCreditEnabled`]: true
+          });
+          
+          setShowCreditDisabledModal(false);
+          // Now that credit is enabled, proceed with the original request
+          await proceedWithCreditRequest(creditDisabledModalData, parseFloat(creditAmount));
+
+      } catch (err) {
+          console.error("Failed to re-enable credit:", err);
+          setError("Could not re-enable credit for the customer. Please try again.");
+      } finally {
+          setIsReEnablingCredit(false);
+          setCreditDisabledModalData(null);
+      }
+  };
+
   const resetCreditFlow = () => {
       setStep('enterAmount');
       setSelectedCustomer(null);
@@ -517,13 +536,6 @@ export default function ShopkeeperDashboardPage() {
       return shopkeeperProfile.defaultCreditLimit ?? 1000;
   }
   
-  const isCreditEnabledForCustomer = (customerId: string): boolean => {
-      if (!shopkeeperProfile) return true; // Default to enabled
-      const settings = shopkeeperProfile.creditSettings?.[customerId];
-      // If settings is undefined, it means credit is enabled by default.
-      return settings?.isCreditEnabled ?? true;
-  }
-
   const handleSaveNewLimit = async () => {
       setLimitModalError('');
       const limitVal = parseFloat(newLimit);
@@ -691,7 +703,7 @@ export default function ShopkeeperDashboardPage() {
                           customer={customer} 
                           shopkeeperId={auth.currentUser!.uid} 
                           creditLimit={getCreditLimitForCustomer(customer.uid)}
-                          isCreditEnabled={isCreditEnabledForCustomer(customer.uid)}
+                          isCreditEnabled={shopkeeperProfile?.creditSettings?.[customer.uid]?.isCreditEnabled ?? true}
                         />
                     </div>
                 ))}
@@ -820,6 +832,27 @@ export default function ShopkeeperDashboardPage() {
           </div>
         </div>
       )}
+    
+    {showCreditDisabledModal && creditDisabledModalData && (
+        <div className="modal-overlay">
+            <div className="login-card modal-content" style={{maxWidth: '450px'}} onClick={(e) => e.stopPropagation()}>
+                <div className="modal-header">
+                    <div className="neu-icon" style={{background: '#ffc107', color: 'white', margin: '0 15px 0 0', width: '60px', height: '60px'}}><AlertTriangle size={30}/></div>
+                    <h2 style={{fontSize: '1.5rem'}}>Credit Disabled</h2>
+                </div>
+                <p style={{color: '#6c7293', textAlign: 'center', marginBottom: '25px', lineHeight: 1.7}}>
+                    Credit is currently disabled for <strong>{creditDisabledModalData.displayName}</strong>. Do you want to re-enable their credit and proceed with the transaction?
+                </p>
+                <div style={{display: 'flex', gap: '20px'}}>
+                    <button className="neu-button" onClick={() => setShowCreditDisabledModal(false)} style={{margin:0, flex: 1}}>Cancel</button>
+                    <button className={`neu-button ${isReEnablingCredit ? 'loading' : ''}`} onClick={handleReEnableAndProceed} disabled={isReEnablingCredit} style={{margin:0, flex: 1, background: '#00c896', color: 'white'}}>
+                        <span className="btn-text">Re-enable & Proceed</span>
+                        <div className="btn-loader"><div className="neu-spinner"></div></div>
+                    </button>
+                </div>
+            </div>
+        </div>
+    )}
 
       {showRoleModal && (
         <div className="modal-overlay" onClick={() => setShowRoleModal(false)}>

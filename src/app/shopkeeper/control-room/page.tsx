@@ -53,7 +53,7 @@ export default function ShopControlRoomPage() {
         if (!auth.currentUser) return;
         
         const shopkeeperRef = doc(firestore, 'shopkeepers', auth.currentUser.uid);
-        getDoc(shopkeeperRef).then(async (docSnap) => {
+        const unsubscribe = onSnapshot(shopkeeperRef, async (docSnap) => {
             if (docSnap.exists()) {
                 const data = docSnap.data();
                 const limit = data.defaultCreditLimit === undefined ? 1000 : data.defaultCreditLimit;
@@ -62,6 +62,7 @@ export default function ShopControlRoomPage() {
                 // Fetch connected customers
                 const customerIds = data.connections || [];
                 if (customerIds.length > 0) {
+                    setLoadingCustomers(true);
                     const customersRef = collection(firestore, 'customers');
                     const q = query(customersRef, where('__name__', 'in', customerIds));
                     const customersSnap = await getDocs(q);
@@ -84,23 +85,22 @@ export default function ShopControlRoomPage() {
 
                     setCustomers(customerProfiles);
                     setFilteredCustomers(customerProfiles);
+                    setLoadingCustomers(false);
                 } else {
                      setCustomers([]);
                      setFilteredCustomers([]);
+                     setLoadingCustomers(false);
                 }
             } else {
                  setDefaultCreditLimit(1000);
                  setCustomers([]);
                  setFilteredCustomers([]);
+                 setLoadingCustomers(false);
             }
             setLoading(false);
-            setLoadingCustomers(false);
-        }).catch(err => {
-            console.error("Error fetching shopkeeper settings:", err);
-            setError("सेटिंग्स लोड करने में विफल। कृपया पुनः प्रयास करें।");
-            setLoading(false);
-            setLoadingCustomers(false);
         });
+        
+        return () => unsubscribe();
     }, [auth.currentUser, firestore]);
     
     useEffect(() => {
@@ -177,7 +177,6 @@ export default function ShopControlRoomPage() {
                     : c
             );
         setCustomers(updateCustomerState);
-        setFilteredCustomers(updateCustomerState);
     };
 
     const handleLimitTypeChange = (customerId: string, type: 'default' | 'manual') => {
@@ -188,7 +187,6 @@ export default function ShopControlRoomPage() {
                     : c
             );
         setCustomers(updateCustomerState);
-        setFilteredCustomers(updateCustomerState);
     }
 
 
