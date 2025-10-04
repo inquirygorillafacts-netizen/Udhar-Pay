@@ -130,17 +130,24 @@ export default function ShopkeeperDashboardPage() {
         if (customerIds.length > 0) {
           setLoadingCustomers(true);
           const customersQuery = query(collection(firestore, 'customers'), where('__name__', 'in', customerIds));
-          const customersSnap = await getDocs(customersQuery);
-          const customerProfiles = customersSnap.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile));
           
-          const customersWithBalance = customerProfiles.map(cust => ({
-              ...cust,
-              balance: profile.balances?.[cust.uid] || 0
-          })) as CustomerForSelection[];
+          // Use onSnapshot for real-time customer data
+          const unsubscribeCustomers = onSnapshot(customersQuery, (customersSnap) => {
+            const customerProfiles = customersSnap.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile));
+            
+            const customersWithBalance = customerProfiles.map(cust => ({
+                ...cust,
+                balance: profile.balances?.[cust.uid] || 0
+            })) as CustomerForSelection[];
 
-          setCustomers(customersWithBalance);
-          setFilteredCustomers(customersWithBalance);
-          setLoadingCustomers(false);
+            setCustomers(customersWithBalance);
+            setFilteredCustomers(customersWithBalance);
+            setLoadingCustomers(false);
+          });
+          
+          // Return the cleanup function for the customers snapshot
+          return () => unsubscribeCustomers();
+
         } else {
           setCustomers([]);
           setFilteredCustomers([]);
@@ -436,16 +443,13 @@ export default function ShopkeeperDashboardPage() {
         const shopkeeperRef = doc(firestore, 'shopkeepers', auth.currentUser.uid);
         const customerRef = doc(firestore, 'customers', customer.uid);
 
-        const [shopkeeperSnap, customerSnap] = await Promise.all([
-          getDoc(shopkeeperRef),
-          getDoc(customerRef)
-        ]);
+        const shopkeeperSnap = await getDoc(shopkeeperRef);
 
-        if (!shopkeeperSnap.exists() || !customerSnap.exists()) {
-            throw new Error("Could not verify latest user data.");
+        if (!shopkeeperSnap.exists()) {
+            throw new Error("Could not verify shopkeeper data.");
         }
         
-        const latestShopkeeper = {uid: shopkeeperSnap.id, ...shopkeeperSnap.data()} as UserProfile;
+        const latestShopkeeper = shopkeeperSnap.data() as UserProfile;
         
         const customerSettings = latestShopkeeper.creditSettings?.[customer.uid];
         const isCreditEnabled = customerSettings?.isCreditEnabled ?? true;
@@ -477,7 +481,7 @@ export default function ShopkeeperDashboardPage() {
           notes: creditNotes,
           customerId: customer.uid,
           customerName: customer.displayName,
-          shopkeeperId: latestShopkeeper.uid,
+          shopkeeperId: auth.currentUser.uid,
           shopkeeperName: latestShopkeeper.displayName,
           status: 'pending',
           createdAt: serverTimestamp(),
