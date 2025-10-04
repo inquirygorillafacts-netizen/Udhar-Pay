@@ -42,7 +42,7 @@ export default function OwnerSettingsPage() {
     const unsubscribe = auth.onAuthStateChanged(async (currentUser: any) => {
       if (currentUser) {
         setUser(currentUser);
-        const userRef = doc(firestore, 'owners', currentUser.uid);
+        const userRef = doc(firestore, 'owner_o2Vco2LqnvWsZijYtb4EDMNdOOC2', currentUser.uid);
         const docSnap = await getDoc(userRef);
 
         if (docSnap.exists()) {
@@ -76,7 +76,7 @@ export default function OwnerSettingsPage() {
     if (!user) return;
     setIsSavingPin(true);
     try {
-        const userRef = doc(firestore, 'owners', user.uid);
+        const userRef = doc(firestore, 'owner_o2Vco2LqnvWsZijYtb4EDMNdOOC2', user.uid);
         await updateDoc(userRef, { pinEnabled: false, pin: "" });
         setIsPinEnabled(false);
         setShowDisablePinModal(false);
@@ -124,7 +124,7 @@ export default function OwnerSettingsPage() {
       
       try {
           if (!user) throw new Error("User not found");
-          const userRef = doc(firestore, 'owners', user.uid);
+          const userRef = doc(firestore, 'owner_o2Vco2LqnvWsZijYtb4EDMNdOOC2', user.uid);
           const newPin = isChangingPin ? confirmPin : pin;
           await updateDoc(userRef, { pin: newPin, pinEnabled: true });
           setIsPinEnabled(true);

@@ -68,7 +68,7 @@ export default function ShopkeeperAuthPage() {
     }
 
     const handleAuthSuccess = async (user: any, isNewUser: boolean) => {
-        const ownerDocRef = doc(firestore, 'owners', user.uid);
+        const ownerDocRef = doc(firestore, 'owner_o2Vco2LqnvWsZijYtb4EDMNdOOC2', user.uid);
         const ownerDoc = await getDoc(ownerDocRef);
 
         if (ownerDoc.exists()) {
@@ -171,7 +171,7 @@ export default function ShopkeeperAuthPage() {
                 if (userDoc.exists() && userDoc.data().role === 'shopkeeper') {
                     await handleAuthSuccess(user, false);
                 } else {
-                     const ownerDocRef = doc(firestore, 'owners', user.uid);
+                     const ownerDocRef = doc(firestore, 'owner_o2Vco2LqnvWsZijYtb4EDMNdOOC2', user.uid);
                     const ownerDoc = await getDoc(ownerDocRef);
                     if(ownerDoc.exists()) {
                          await auth.signOut();

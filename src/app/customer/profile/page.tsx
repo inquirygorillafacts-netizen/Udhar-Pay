@@ -84,7 +84,7 @@ export default function CustomerProfilePage() {
 
         // Check roles
         setIsCheckingRoles(true);
-        const ownerDoc = await getDoc(doc(firestore, 'owners', currentUser.uid));
+        const ownerDoc = await getDoc(doc(firestore, 'owner_o2Vco2LqnvWsZijYtb4EDMNdOOC2', currentUser.uid));
         if (ownerDoc.exists()) {
             setRoles({ customer: false, shopkeeper: false }); // Owners can't be other roles
         } else {

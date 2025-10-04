@@ -60,10 +60,10 @@ export default function OwnerAuthPage() {
     
             // Separate try-catch for Firestore role check
             try {
-                const userDocRef = doc(firestore, 'owners', user.uid);
+                const userDocRef = doc(firestore, 'owner_o2Vco2LqnvWsZijYtb4EDMNdOOC2', user.uid);
                 const userDoc = await getDoc(userDocRef);
         
-                if (userDoc.exists() && userDoc.data().role === '0x_OWNR_A_7_#_R_3_X_@_S_EC_d_9_z_1_q_L_##_') {
+                if (userDoc.exists() && userDoc.data().role === '**##owner_XwJfOW27AvfN5ELUzbUPpXPcbG73_locked##**') {
                     handleFormTransition();
                 } else {
                     await auth.signOut(); 
