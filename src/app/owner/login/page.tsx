@@ -63,7 +63,7 @@ export default function OwnerAuthPage() {
                 const userDocRef = doc(firestore, 'owners', user.uid);
                 const userDoc = await getDoc(userDocRef);
         
-                if (userDoc.exists() && userDoc.data().role === '*13*##My##Owner##LOCKED##big##sefty*7*') {
+                if (userDoc.exists() && userDoc.data().role === '0x_OWNR_A_7_#_R_3_X_@_S_EC_d_9_z_1_q_L_##_') {
                     handleFormTransition();
                 } else {
                     await auth.signOut(); 
