@@ -3,6 +3,7 @@ import './globals.css';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 import React from 'react';
 import PWALoader from '@/components/pwa/PWALoader';
+import { Toaster } from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
   title: 'Udhar Pay',
@@ -30,6 +31,7 @@ export default function RootLayout({
         <FirebaseClientProvider>
           <PWALoader />
           {children}
+          <Toaster />
         </FirebaseClientProvider>
       </body>
     </html>
