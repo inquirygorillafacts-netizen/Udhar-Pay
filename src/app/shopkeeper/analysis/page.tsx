@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useFirebase } from '@/firebase/client-provider';
-import { doc, onSnapshot, collection, query, where } from 'firebase/firestore';
+import { doc, onSnapshot, collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { Users, BookUser, UserCheck, IndianRupee, PieChart } from 'lucide-react';
 
 interface ShopkeeperProfile {
@@ -10,9 +10,13 @@ interface ShopkeeperProfile {
   connections?: string[];
 }
 
-interface CustomerProfile {
-    uid: string;
-    balances?: { [key: string]: number };
+interface Transaction {
+    id: string;
+    amount: number;
+    type: 'credit' | 'payment';
+    customerId: string;
+    shopkeeperId: string;
+    timestamp: Timestamp;
 }
 
 interface Analytics {
@@ -30,7 +34,7 @@ export default function ShopkeeperAnalysisPage() {
   useEffect(() => {
     if (!auth.currentUser) return;
 
-    // Listen to the shopkeeper's document primarily to get the list of connections.
+    // This listener will react to changes in the shopkeeper's direct data (like new connections)
     const shopkeeperRef = doc(firestore, 'shopkeepers', auth.currentUser.uid);
     const unsubscribeShopkeeper = onSnapshot(shopkeeperRef, (shopkeeperSnap) => {
       if (!shopkeeperSnap.exists()) {
@@ -48,19 +52,30 @@ export default function ShopkeeperAnalysisPage() {
         return;
       }
 
-      // Now, set up a listener for ALL connected customers.
-      // This is the key change: we get real-time balance updates from each customer.
-      const customersRef = collection(firestore, 'customers');
-      const q = query(customersRef, where('__name__', 'in', customerIds));
+      // Now, set up a listener for ALL transactions related to this shopkeeper
+      // This is the single source of truth for all balance calculations.
+      const transactionsRef = collection(firestore, 'transactions');
+      const q = query(transactionsRef, where('shopkeeperId', '==', auth.currentUser!.uid));
 
-      const unsubscribeCustomers = onSnapshot(q, (customersSnapshot) => {
+      const unsubscribeTransactions = onSnapshot(q, (transactionsSnapshot) => {
+        const customerBalances: { [key: string]: number } = {};
+
+        // Initialize balances for all connected customers to 0
+        customerIds.forEach(id => customerBalances[id] = 0);
+
+        transactionsSnapshot.forEach((transactionDoc) => {
+            const transaction = transactionDoc.data() as Transaction;
+            if (transaction.type === 'credit') {
+                customerBalances[transaction.customerId] = (customerBalances[transaction.customerId] || 0) + transaction.amount;
+            } else if (transaction.type === 'payment') {
+                customerBalances[transaction.customerId] = (customerBalances[transaction.customerId] || 0) - transaction.amount;
+            }
+        });
+
         let totalOutstanding = 0;
         let customersOnCredit = 0;
-        const shopkeeperId = auth.currentUser!.uid;
-
-        customersSnapshot.forEach((customerDoc) => {
-            const customerProfile = customerDoc.data() as CustomerProfile;
-            const balance = customerProfile.balances?.[shopkeeperId] || 0;
+        
+        Object.values(customerBalances).forEach(balance => {
             if (balance > 0) {
                 customersOnCredit++;
                 totalOutstanding += balance;
@@ -78,19 +93,17 @@ export default function ShopkeeperAnalysisPage() {
         setLoadingAnalytics(false);
 
       }, (error) => {
-        console.error("Error fetching customer data for analytics:", error);
+        console.error("Error fetching transactions for analytics:", error);
         setLoadingAnalytics(false);
       });
 
-      // Return a cleanup function for the customers listener
-      return () => unsubscribeCustomers();
+      return () => unsubscribeTransactions();
 
     }, (error) => {
       console.error("Error fetching shopkeeper data for analytics:", error);
       setLoadingAnalytics(false);
     });
 
-    // Return a cleanup function for the main shopkeeper listener
     return () => unsubscribeShopkeeper();
   }, [auth.currentUser, firestore]);
 

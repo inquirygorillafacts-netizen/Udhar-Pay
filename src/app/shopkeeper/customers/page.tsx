@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useFirebase } from '@/firebase/client-provider';
-import { doc, onSnapshot, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, onSnapshot, collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import CustomerCard from '@/app/shopkeeper/components/CustomerCard';
 import { Search, Users } from 'lucide-react';
 import Link from 'next/link';
@@ -13,18 +13,31 @@ interface UserProfile {
   email: string;
   photoURL?: string | null;
   customerCode?: string;
-  balances?: { [key: string]: number };
+}
+
+interface CustomerWithBalance extends UserProfile {
+    balance: number;
 }
 
 interface ShopkeeperProfile {
     defaultCreditLimit?: number;
     creditSettings?: { [key: string]: { limitType: 'default' | 'manual', manualLimit: number, isCreditEnabled: boolean } };
+    connections?: string[];
+}
+
+interface Transaction {
+    id: string;
+    amount: number;
+    type: 'credit' | 'payment';
+    customerId: string;
+    shopkeeperId: string;
+    timestamp: Timestamp;
 }
 
 export default function ShopkeeperCustomersPage() {
   const { auth, firestore } = useFirebase();
-  const [allCustomers, setAllCustomers] = useState<UserProfile[]>([]);
-  const [filteredCustomers, setFilteredCustomers] = useState<UserProfile[]>([]);
+  const [allCustomers, setAllCustomers] = useState<CustomerWithBalance[]>([]);
+  const [filteredCustomers, setFilteredCustomers] = useState<CustomerWithBalance[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [shopkeeperProfile, setShopkeeperProfile] = useState<ShopkeeperProfile | null>(null);
@@ -36,21 +49,41 @@ export default function ShopkeeperCustomersPage() {
     }
 
     const shopkeeperRef = doc(firestore, 'shopkeepers', auth.currentUser.uid);
-    const unsubscribe = onSnapshot(shopkeeperRef, async (shopkeeperSnap) => {
+    const unsubscribeShopkeeper = onSnapshot(shopkeeperRef, async (shopkeeperSnap) => {
         if (shopkeeperSnap.exists()) {
             const shopkeeperData = shopkeeperSnap.data() as ShopkeeperProfile;
             setShopkeeperProfile(shopkeeperData);
-            const customerIds = (shopkeeperData as any).connections || [];
+            const customerIds = shopkeeperData.connections || [];
             
             if (customerIds.length > 0) {
+                // Fetch base profiles first
                 const customersRef = collection(firestore, 'customers');
                 const q = query(customersRef, where('__name__', 'in', customerIds));
                 const customersSnap = await getDocs(q);
-                
                 const customerProfiles = customersSnap.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile));
 
-                setAllCustomers(customerProfiles);
-                setFilteredCustomers(customerProfiles);
+                // Fetch all transactions to calculate balances
+                const transQuery = query(collection(firestore, 'transactions'), where('shopkeeperId', '==', auth.currentUser!.uid));
+                const transSnap = await getDocs(transQuery);
+                const balances: {[key: string]: number} = {};
+                customerIds.forEach(id => balances[id] = 0);
+
+                transSnap.forEach(doc => {
+                    const t = doc.data() as Transaction;
+                    if(balances[t.customerId] !== undefined) {
+                        if (t.type === 'credit') balances[t.customerId] += t.amount;
+                        else if (t.type === 'payment') balances[t.customerId] -= t.amount;
+                    }
+                });
+
+                const customersWithBalance = customerProfiles.map(p => ({
+                    ...p,
+                    balance: balances[p.uid] || 0
+                }));
+                
+                setAllCustomers(customersWithBalance);
+                setFilteredCustomers(customersWithBalance);
+
             } else {
                 setAllCustomers([]);
                 setFilteredCustomers([]);
@@ -62,7 +95,7 @@ export default function ShopkeeperCustomersPage() {
         setLoading(false);
     });
     
-    return () => unsubscribe();
+    return () => unsubscribeShopkeeper();
   }, [auth.currentUser, firestore]);
 
   useEffect(() => {
@@ -140,7 +173,7 @@ export default function ShopkeeperCustomersPage() {
                 {filteredCustomers.map(customer => (
                     <Link key={customer.uid} href={`/shopkeeper/customer/${customer.uid}`} style={{textDecoration: 'none'}}>
                         <CustomerCard 
-                            customer={customer} 
+                            customer={{...customer, balances: {[auth.currentUser!.uid]: customer.balance}}} 
                             shopkeeperId={auth.currentUser!.uid}
                             creditLimit={getCreditLimitForCustomer(customer.uid)}
                             isCreditEnabled={isCreditEnabledForCustomer(customer.uid)}

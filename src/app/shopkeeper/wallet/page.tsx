@@ -2,21 +2,24 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useFirebase } from '@/firebase/client-provider';
-import { onSnapshot, doc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { onSnapshot, doc, updateDoc, collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { LifeBuoy, Phone, UploadCloud, Lock, CheckCircle, ShieldAlert, KeyRound, HelpCircle, X, AlertTriangle, SlidersHorizontal, IndianRupee } from 'lucide-react';
 import Link from 'next/link';
 import axios from 'axios';
 
 interface ShopkeeperProfile {
     connections?: string[];
-    balances?: { [key: string]: number };
     qrCodeUrl?: string;
     qrUpdatePin?: string;
 }
 
-interface CustomerProfile {
-    uid: string;
-    balances?: { [key: string]: number };
+interface Transaction {
+    id: string;
+    amount: number;
+    type: 'credit' | 'payment';
+    customerId: string;
+    shopkeeperId: string;
+    timestamp: Timestamp;
 }
 
 interface Notification {
@@ -80,27 +83,31 @@ export default function ShopkeeperWalletPage() {
                     return;
                 }
 
-                // Query all connected customers to get real-time balance updates
-                const customersRef = collection(firestore, 'customers');
-                const q = query(customersRef, where('__name__', 'in', customerIds));
+                // Query all transactions for this shopkeeper to calculate the total outstanding credit
+                const transactionsRef = collection(firestore, 'transactions');
+                const q = query(transactionsRef, where('shopkeeperId', '==', auth.currentUser!.uid));
 
-                const unsubscribeCustomers = onSnapshot(q, (customersSnapshot) => {
-                    let totalOutstanding = 0;
-                    const shopkeeperId = auth.currentUser!.uid;
+                const unsubscribeTransactions = onSnapshot(q, (transactionsSnapshot) => {
+                    const customerBalances: { [key: string]: number } = {};
+                    
+                    customerIds.forEach(id => customerBalances[id] = 0);
 
-                    customersSnapshot.forEach((customerDoc) => {
-                        const customerProfile = customerDoc.data() as CustomerProfile;
-                        const balance = customerProfile.balances?.[shopkeeperId] || 0;
-                        if (balance > 0) {
-                            totalOutstanding += balance;
+                    transactionsSnapshot.forEach((transactionDoc) => {
+                        const transaction = transactionDoc.data() as Transaction;
+                        if(customerBalances[transaction.customerId] !== undefined) {
+                            if (transaction.type === 'credit') {
+                                customerBalances[transaction.customerId] += transaction.amount;
+                            } else if (transaction.type === 'payment') {
+                                customerBalances[transaction.customerId] -= transaction.amount;
+                            }
                         }
                     });
 
+                    const totalOutstanding = Object.values(customerBalances).reduce((sum, bal) => sum + (bal > 0 ? bal : 0), 0);
                     setOutstandingCredit(totalOutstanding);
                 });
-                
-                // We should return the inner unsubscribe function for cleanup
-                // But since the outer one wraps it, this is okay for now.
+
+                return () => unsubscribeTransactions();
             }
             setLoading(false);
         }, (err) => {

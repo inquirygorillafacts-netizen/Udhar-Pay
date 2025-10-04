@@ -31,7 +31,7 @@ export default function CustomerTransactionHistoryPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // New state for separate balances based on user's logic
+  // Balances are now calculated directly from transactions
   const [netBalance, setNetBalance] = useState(0);
   const [totalPaymentReceived, setTotalPaymentReceived] = useState(0);
 
@@ -42,14 +42,19 @@ export default function CustomerTransactionHistoryPage() {
     }
 
     const fetchCustomerProfile = async () => {
-      const customerRef = doc(firestore, 'customers', customerId);
-      const customerSnap = await getDoc(customerRef);
-      if (customerSnap.exists()) {
-        setCustomer({ uid: customerId, ...customerSnap.data() } as CustomerProfile);
-      } else {
-        router.push('/shopkeeper/customers');
+      try {
+        const customerRef = doc(firestore, 'customers', customerId);
+        const customerSnap = await getDoc(customerRef);
+        if (customerSnap.exists()) {
+          setCustomer({ uid: customerId, ...customerSnap.data() } as CustomerProfile);
+        } else {
+          router.push('/shopkeeper/customers');
+        }
+      } catch (e) {
+         router.push('/shopkeeper/customers');
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
     
     fetchCustomerProfile();
@@ -67,7 +72,6 @@ export default function CustomerTransactionHistoryPage() {
         trans.push({ id: doc.id, ...doc.data() } as Transaction);
       });
       
-      // Sort transactions by timestamp client-side
       trans.sort((a, b) => {
         const timeA = a.timestamp ? a.timestamp.toMillis() : 0;
         const timeB = b.timestamp ? b.timestamp.toMillis() : 0;
@@ -75,7 +79,7 @@ export default function CustomerTransactionHistoryPage() {
       });
       setTransactions(trans);
 
-      // Calculate new balances based on the specified logic
+      // Calculate balances from the fetched transactions
       let totalCredit = 0;
       let totalPayment = 0;
       trans.forEach(tx => {
@@ -87,9 +91,6 @@ export default function CustomerTransactionHistoryPage() {
       });
       
       setNetBalance(totalCredit - totalPayment);
-      // This represents the unsettled amount the owner owes the shopkeeper for this customer
-      // In a real scenario, this would be more complex, considering settlements.
-      // For now, we assume it's the total payment collected.
       setTotalPaymentReceived(totalPayment);
 
     }, (error) => {
@@ -133,11 +134,11 @@ export default function CustomerTransactionHistoryPage() {
         <div style={{ maxWidth: '600px', margin: 'auto', marginBottom: '30px', display: 'flex', gap: '20px' }}>
             <div className="login-card" style={{ flex: 1, textAlign: 'center', padding: '20px' }}>
                 <p style={{fontSize: '0.9rem', color: '#ff3b5c', margin: 0, fontWeight: 500}}>कुल उधार (बकाया)</p>
-                <p style={{fontSize: '1.75rem', fontWeight: 'bold', margin: '5px 0', color: '#3d4468'}}>₹{netBalance > 0 ? netBalance : 0}</p>
+                <p style={{fontSize: '1.75rem', fontWeight: 'bold', margin: '5px 0', color: '#3d4468'}}>₹{netBalance > 0 ? netBalance.toLocaleString('en-IN') : 0}</p>
             </div>
             <div className="login-card" style={{ flex: 1, textAlign: 'center', padding: '20px' }}>
                  <p style={{fontSize: '0.9rem', color: '#00c896', margin: 0, fontWeight: 500}}>भुगतान मिला</p>
-                <p style={{fontSize: '1.75rem', fontWeight: 'bold', margin: '5px 0', color: '#3d4468'}}>₹{totalPaymentReceived}</p>
+                <p style={{fontSize: '1.75rem', fontWeight: 'bold', margin: '5px 0', color: '#3d4468'}}>₹{totalPaymentReceived.toLocaleString('en-IN')}</p>
             </div>
         </div>
 
@@ -163,7 +164,7 @@ export default function CustomerTransactionHistoryPage() {
                                     {tx.type === 'credit' ? 'Udhaar Given' : 'Payment Received'}
                                 </p>
                                 <p style={{fontSize: '12px', color: '#9499b7', margin: 0}}>
-                                    {tx.timestamp.toDate().toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                                    {tx.timestamp?.toDate().toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' }) || 'Processing...'}
                                 </p>
                                 {tx.notes && <p style={{fontSize: '13px', color: '#6c7293', marginTop: '5px', fontStyle: 'italic'}}>"{tx.notes}"</p>}
                             </div>

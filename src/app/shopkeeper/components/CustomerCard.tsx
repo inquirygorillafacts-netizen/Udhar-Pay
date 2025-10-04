@@ -53,7 +53,7 @@ const CustomerCard = ({ customer, shopkeeperId, creditLimit, isCreditEnabled }: 
         </div>
         <div style={{textAlign: 'right'}}>
           <p style={{color: '#9499b7', fontSize: '12px', margin: 0, fontWeight: 500}}>Used</p>
-          <p style={{ color: balance > 0 ? '#3d4468' : '#00c896', fontSize: '1.2rem', fontWeight: '700', margin: 0}}>₹{balance}</p>
+          <p style={{ color: balance > 0 ? '#3d4468' : '#00c896', fontSize: '1.2rem', fontWeight: '700', margin: 0}}>₹{balance.toLocaleString('en-IN')}</p>
         </div>
       </div>
       
@@ -63,7 +63,7 @@ const CustomerCard = ({ customer, shopkeeperId, creditLimit, isCreditEnabled }: 
               <span style={{fontSize: '12px', color: '#6c7293', fontWeight: 500}}>
                 {isCreditEnabled ? 'Credit Limit' : <span style={{display: 'flex', alignItems: 'center', gap: '4px'}}><ShieldOff size={12}/> Credit Disabled</span>}
               </span>
-              {isCreditEnabled && <span style={{fontSize: '12px', color: '#3d4468', fontWeight: 600}}>₹{creditLimit}</span>}
+              {isCreditEnabled && <span style={{fontSize: '12px', color: '#3d4468', fontWeight: 600}}>₹{creditLimit.toLocaleString('en-IN')}</span>}
           </div>
           <div style={{height: '8px', background: '#e0e5ec', borderRadius: '4px', boxShadow: 'inset 2px 2px 4px #bec3cf, inset -2px -2px 4px #ffffff', overflow: 'hidden'}}>
             <div style={{width: `${usedPercentage > 100 ? 100 : usedPercentage}%`, height: '100%', background: barColor, borderRadius: '4px', transition: 'width 0.5s ease, background-color 0.5s ease'}}></div>
