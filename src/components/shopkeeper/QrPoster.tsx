@@ -55,7 +55,7 @@ export default function QrPoster({ shopkeeperName, shopkeeperCode }: QrPosterPro
 
                 <div style={{ zIndex: 1, textAlign: 'center', padding: '10px', background: 'rgba(255, 255, 255, 0.7)', borderRadius: '15px', border: '2px solid #00c896', boxShadow: '0 4px 15px rgba(0,0,0,0.1)' }}>
                     <p style={{color: '#3d4468', margin: 0, fontSize: '15px', fontWeight: 500}}>
-                        पैसे हैं तो <span style={{color: '#007BFF', fontWeight: 'bold'}}>PhonePe</span>, नहीं है तो <span style={{color: '#00c896', fontWeight: 'bold'}}><span style={{marginRight: '2px'}}>U</span>dhar Pay</span>
+                        पैसे हैं तो <span style={{color: '#007BFF', fontWeight: 'bold'}}>PhonePe</span>, नहीं है तो <span style={{color: '#00c896', fontWeight: 'bold', letterSpacing: '1px'}}>Udhar Pay</span>
                     </p>
                 </div>
 
