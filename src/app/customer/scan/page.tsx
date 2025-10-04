@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Flashlight, CameraOff } from 'lucide-react';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { ArrowLeft, Flashlight, Camera, CameraOff } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode';
@@ -18,9 +18,18 @@ export default function CustomerScanQrPage() {
   const readerMounted = useRef(false);
   const isProcessingRef = useRef(false);
 
-  const [hasCameraPermission, setHasCameraPermission] = useState(true);
+  const [scanState, setScanState] = useState<'idle' | 'scanning' | 'permission_denied'>('idle');
   const [isTorchOn, setIsTorchOn] = useState(false);
   const [isTorchAvailable, setIsTorchAvailable] = useState(false);
+  
+  // Cleanup function to stop the scanner
+  const stopScanner = useCallback(() => {
+    if (scannerRef.current && scannerRef.current.isScanning) {
+        scannerRef.current.stop().catch(err => {
+          console.error("QR Scanner stop error:", err);
+        });
+    }
+  }, []);
 
   // Function to toggle the torch
   const toggleTorch = async () => {
@@ -52,131 +61,100 @@ export default function CustomerScanQrPage() {
     }
   };
 
+  const startScanning = useCallback(async () => {
+      if (readerMounted.current || !auth.currentUser || !firestore) return;
 
-  useEffect(() => {
-    if (readerMounted.current || !auth.currentUser || !firestore) return;
-    readerMounted.current = true;
-    
-    const qrScanner = new Html5Qrcode('reader');
-    scannerRef.current = qrScanner;
+      const qrScanner = new Html5Qrcode('reader');
+      scannerRef.current = qrScanner;
 
-    const config = {
-      fps: 10,
-      qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
-        const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-        const qrboxSize = Math.floor(minEdge * 0.7);
-        return {
-            width: qrboxSize,
-            height: qrboxSize,
-        };
-      },
-      aspectRatio: 1.0,
-      supportedScanTypes: [],
-    };
-
-    const qrCodeSuccessCallback = async (decodedText: string) => {
-        if (isProcessingRef.current) return;
-        isProcessingRef.current = true;
-  
-        try {
-          if (scannerRef.current?.getState() === Html5QrcodeScannerState.SCANNING) {
-            await scannerRef.current.stop();
-          }
-          
-          const shopkeeperCode = decodedText;
-
-          // 1. Find shopkeeper by code
-          const shopkeepersRef = collection(firestore, 'shopkeepers');
-          const q = query(shopkeepersRef, where('shopkeeperCode', '==', shopkeeperCode.toUpperCase()));
-          const shopkeeperSnapshot = await getDocs(q);
-
-          if (shopkeeperSnapshot.empty) {
-              throw new Error("Invalid QR Code. No shopkeeper found.");
-          }
-
-          const shopkeeperDoc = shopkeeperSnapshot.docs[0];
-          const shopkeeperId = shopkeeperDoc.id;
-
-          // 2. Check if customer is already connected
-          const customerRef = doc(firestore, 'customers', auth.currentUser!.uid);
-          const customerSnap = await getDoc(customerRef);
-          const customerConnections = customerSnap.data()?.connections || [];
-
-          if (customerConnections.includes(shopkeeperId)) {
-              // Already connected, go to request credit page
-              router.push(`/customer/request-credit/${shopkeeperId}`);
-          } else {
-              // Not connected, go to the new connect page
-              router.push(`/customer/connect/${shopkeeperId}`);
-          }
-  
-        } catch (err: any) {
-            toast({ 
-              variant: 'destructive', 
-              title: 'Scan Error', 
-              description: err.message || 'Could not process the QR code. Please try again.' 
-            });
-            // Adding a small delay before going back to allow the user to see the toast
-            setTimeout(() => router.back(), 2000);
-        }
+      const config = {
+          fps: 10,
+          qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
+              const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+              const qrboxSize = Math.floor(minEdge * 0.7);
+              return { width: qrboxSize, height: qrboxSize };
+          },
+          aspectRatio: 1.0,
+          supportedScanTypes: [],
       };
 
-    const qrCodeErrorCallback = (errorMessage: string) => {
-      // We can ignore 'QR code not found' errors, which are common.
-    };
+      const qrCodeSuccessCallback = async (decodedText: string) => {
+          if (isProcessingRef.current) return;
+          isProcessingRef.current = true;
+          stopScanner();
 
-    const startScanning = async () => {
-      try {
-        // First, get the list of cameras to check for permissions without starting the scanner
-        await Html5Qrcode.getCameras();
-        setHasCameraPermission(true);
+          try {
+              const shopkeeperCode = decodedText;
+              const shopkeepersRef = collection(firestore, 'shopkeepers');
+              const q = query(shopkeepersRef, where('shopkeeperCode', '==', shopkeeperCode.toUpperCase()));
+              const shopkeeperSnapshot = await getDocs(q);
 
-        await qrScanner.start(
-          { facingMode: 'environment' }, 
-          config, 
-          qrCodeSuccessCallback, 
-          qrCodeErrorCallback
-        );
-        
-        // After starting, check for torch capability
-        try {
-          // @ts-ignore
-          const track = qrScanner._getRunningTrack();
-          const capabilities = track.getCapabilities();
-          if (capabilities.torch) {
-            setIsTorchAvailable(true);
-          } else {
-            setIsTorchAvailable(false);
+              if (shopkeeperSnapshot.empty) {
+                  throw new Error("Invalid QR Code. No shopkeeper found.");
+              }
+
+              const shopkeeperDoc = shopkeeperSnapshot.docs[0];
+              const shopkeeperId = shopkeeperDoc.id;
+
+              const customerRef = doc(firestore, 'customers', auth.currentUser!.uid);
+              const customerSnap = await getDoc(customerRef);
+              const customerConnections = customerSnap.data()?.connections || [];
+
+              if (customerConnections.includes(shopkeeperId)) {
+                  router.push(`/customer/request-credit/${shopkeeperId}`);
+              } else {
+                  router.push(`/customer/connect/${shopkeeperId}`);
+              }
+          } catch (err: any) {
+              toast({ variant: 'destructive', title: 'Scan Error', description: err.message || 'Could not process QR code.' });
+              setTimeout(() => router.back(), 2000);
           }
-        } catch (e) {
-          setIsTorchAvailable(false);
-          console.log('Torch capability check failed.', e);
-        }
+      };
 
+      const qrCodeErrorCallback = (errorMessage: string) => { /* Ignore common errors */ };
+
+      try {
+          await qrScanner.start(
+              { facingMode: 'environment' },
+              config,
+              qrCodeSuccessCallback,
+              qrCodeErrorCallback
+          );
+          setScanState('scanning');
+          readerMounted.current = true; // Mark as mounted once started
+
+          // Check for torch capability after starting
+          try {
+              // @ts-ignore
+              const track = qrScanner._getRunningTrack();
+              const capabilities = track.getCapabilities();
+              setIsTorchAvailable(!!capabilities.torch);
+          } catch (e) {
+              setIsTorchAvailable(false);
+              console.log('Torch capability check failed.', e);
+          }
       } catch (err: any) {
-        if (err.name === "NotAllowedError") {
-            setHasCameraPermission(false);
-        }
-        console.error("Camera start error:", err);
-        toast({
-          variant: 'destructive',
-          title: 'Camera Access Denied',
-          description: 'Please enable camera permissions in your browser settings to scan QR codes.',
-        });
+          console.error("Camera start error:", err.name, err.message);
+          if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+              setScanState('permission_denied');
+          } else {
+              toast({
+                  variant: 'destructive',
+                  title: 'Camera Error',
+                  description: 'Could not start the camera. It might be in use by another app.',
+              });
+          }
       }
-    };
-
-    startScanning();
-
+  }, [auth.currentUser, firestore, router, stopScanner, toast]);
+  
+  // Cleanup effect
+  useEffect(() => {
     return () => {
-       if (scannerRef.current && scannerRef.current.isScanning) {
-        scannerRef.current.stop().catch(err => {
-          console.error("QR Scanner stop error:", err);
-        });
-      }
+        stopScanner();
+        readerMounted.current = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auth.currentUser, firestore]);
+  }, [stopScanner]);
+
 
   return (
     <div style={{ height: '100svh', background: '#e0e5ec', display: 'flex', flexDirection: 'column' }}>
@@ -191,34 +169,51 @@ export default function CustomerScanQrPage() {
         </header>
 
         <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden', padding: '20px' }}>
-            {hasCameraPermission ? (
-                <div className="qr-scanner-container">
-                    <div id="reader" style={{ width: '100%', height: '100%', borderRadius: '25px', overflow: 'hidden' }}></div>
-                    <div className="qr-scanner-frame">
-                        <div className="scanner-corner top-left"></div>
-                        <div className="scanner-corner top-right"></div>
-                        <div className="scanner-corner bottom-left"></div>
-                        <div className="scanner-corner bottom-right"></div>
-                        <div className="scanner-line"></div>
+            <div className="qr-scanner-container">
+                 {scanState === 'idle' && (
+                    <div className="login-card" style={{padding: '30px', margin: 0, background: 'transparent', boxShadow: 'none', textAlign: 'center'}}>
+                         <div className="neu-icon" style={{width: '100px', height: '100px', background: '#e0e5ec'}}>
+                            <Camera size={50} className="text-gray-500" />
+                        </div>
+                        <h2 style={{color: '#3d4468', fontSize: '1.5rem', marginBottom: '10px', marginTop: '20px'}}>Ready to Scan</h2>
+                        <p style={{color: '#9499b7', marginBottom: '30px', fontSize: '1rem', maxWidth: '300px', margin: 'auto'}}>
+                           Click the button below to start your camera and scan a shopkeeper's QR code.
+                        </p>
+                        <button className="neu-button" onClick={startScanning} style={{margin: 0, background: '#00c896', color: 'white'}}>
+                           Start Scanning
+                        </button>
                     </div>
-                </div>
-            ) : (
-                <div className="login-card" style={{maxWidth: '450px', textAlign: 'center'}}>
-                    <div className="neu-icon" style={{width: '80px', height: '80px', background: '#ffcdd2', color: '#c62828'}}>
-                        <CameraOff size={40}/>
+                )}
+                {scanState === 'permission_denied' && (
+                    <div className="login-card" style={{padding: '30px', margin: 0, background: 'transparent', boxShadow: 'none', textAlign: 'center'}}>
+                        <div className="neu-icon" style={{width: '100px', height: '100px', background: '#ffdfe4'}}>
+                            <CameraOff size={50} className="text-red-500"/>
+                        </div>
+                        <h2 style={{color: '#3d4468', fontSize: '1.5rem', marginBottom: '10px', marginTop: '20px'}}>Camera Access Required</h2>
+                        <p style={{color: '#9499b7', marginBottom: '30px', fontSize: '1rem', maxWidth: '300px', margin: 'auto'}}>
+                           To scan QR codes, you must allow camera access in your browser's settings for this site.
+                        </p>
+                         <button className="neu-button" onClick={() => router.back()}>
+                           Go Back
+                        </button>
                     </div>
-                     <h2 style={{color: '#3d4468', fontSize: '1.5rem', marginBottom: '10px'}}>Camera Access Required</h2>
-                    <p style={{color: '#9499b7', marginBottom: '30px', fontSize: '1rem'}}>
-                       To scan QR codes, please allow camera access in your browser's site settings.
-                    </p>
-                    <button className="neu-button" onClick={() => router.back()}>
-                        Go Back
-                    </button>
-                </div>
-            )}
+                )}
+                 {scanState === 'scanning' && (
+                     <>
+                        <div id="reader" style={{ width: '100%', height: '100%', borderRadius: '25px', overflow: 'hidden' }}></div>
+                        <div className="qr-scanner-frame">
+                            <div className="scanner-corner top-left"></div>
+                            <div className="scanner-corner top-right"></div>
+                            <div className="scanner-corner bottom-left"></div>
+                            <div className="scanner-corner bottom-right"></div>
+                            <div className="scanner-line"></div>
+                        </div>
+                    </>
+                 )}
+            </div>
         </main>
         
-        {hasCameraPermission && (
+        {scanState === 'scanning' && (
             <div style={{
                 color: '#6c7293', background: '#e0e5ec', padding: '10px 20px 20px',
                 textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px'
