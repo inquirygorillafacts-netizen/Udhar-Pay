@@ -190,7 +190,7 @@ export default function RequestCreditPage() {
   return (
     <div>
       <header className="dashboard-header" style={{ position: 'sticky', top: 0, zIndex: 10, borderRadius: '0 0 20px 20px' }}>
-        <button onClick={() => router.back()} className="neu-button" style={{width: '45px', height: '45px', padding: 0, margin: 0, flexShrink: 0}}>
+        <button onClick={() => router.back()} className="neu-button" style={{width: '45px', height: '45px', padding: 0, margin: 0, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
           <ArrowLeft size={20} />
         </button>
         <div style={{textAlign: 'center', flexGrow: 1}}>
