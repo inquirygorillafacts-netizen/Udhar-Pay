@@ -200,7 +200,7 @@ export default function CustomerScanQrPage() {
                           </div>
                       )}
                       {!isScanning && !showPermissionModal && (
-                           <div className="neu-spinner"></div>
+                           <div className="neu-spinner" style={{position: 'absolute'}}></div>
                       )}
               </div>
           </main>
