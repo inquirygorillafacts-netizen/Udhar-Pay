@@ -104,94 +104,91 @@ export default function ShopkeeperDashboardPage() {
   const [showRoleModal, setShowRoleModal] = useState(false);
 
 
-  // Effect for profile, customers, and connection requests
+  // Consolidated useEffect to prevent infinite loops
   useEffect(() => {
     if (!auth.currentUser || !firestore) {
-        setLoadingProfile(false);
-        return;
-    };
+      setLoadingProfile(false);
+      return;
+    }
 
-    const userRef = doc(firestore, 'shopkeepers', auth.currentUser.uid);
-    const unsubscribeProfile = onSnapshot(userRef, async (docSnap) => {
-      if (docSnap.exists()) {
-        const profile = { uid: docSnap.id, ...docSnap.data() } as UserProfile;
-        setShopkeeperProfile(profile);
+    const currentUserUid = auth.currentUser.uid;
+    let unsubscribeCustomers = () => {};
 
-        // Check for customer role to enable switch button
-        const customerDoc = await getDoc(doc(firestore, 'customers', auth.currentUser!.uid));
-        setHasCustomerRole(customerDoc.exists());
+    // 1. Listen to Shopkeeper Profile
+    const userRef = doc(firestore, 'shopkeepers', currentUserUid);
+    const unsubscribeProfile = onSnapshot(userRef, async (shopkeeperDoc) => {
+      if (shopkeeperDoc.exists()) {
+        const profileData = { uid: shopkeeperDoc.id, ...shopkeeperDoc.data() } as UserProfile;
+        setShopkeeperProfile(profileData);
 
-        if (!qrPosterDataUrl) {
-          const savedQr = localStorage.getItem('shopkeeperQrPosterPng');
-          if (savedQr) setQrPosterDataUrl(savedQr);
-        }
+        const customerIds = profileData.connections || [];
+        
+        // Clean up previous customers listener before creating a new one
+        unsubscribeCustomers(); 
 
-        const customerIds = profile.connections || [];
         if (customerIds.length > 0) {
           setLoadingCustomers(true);
           const customersQuery = query(collection(firestore, 'customers'), where('__name__', 'in', customerIds));
           
-          // Use onSnapshot for real-time customer data
-          const unsubscribeCustomers = onSnapshot(customersQuery, (customersSnap) => {
+          // 2. Listen to connected customers based on profile connections
+          unsubscribeCustomers = onSnapshot(customersQuery, (customersSnap) => {
             const customerProfiles = customersSnap.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile));
-            
             const customersWithBalance = customerProfiles.map(cust => ({
                 ...cust,
-                balance: profile.balances?.[cust.uid] || 0
+                balance: profileData.balances?.[cust.uid] || 0
             })) as CustomerForSelection[];
-
             setCustomers(customersWithBalance);
             setFilteredCustomers(customersWithBalance);
             setLoadingCustomers(false);
+          }, (err) => {
+            console.error("Error fetching customers:", err);
+            setLoadingCustomers(false);
           });
-          
-          // Return the cleanup function for the customers snapshot
-          return () => unsubscribeCustomers();
-
         } else {
           setCustomers([]);
           setFilteredCustomers([]);
           setLoadingCustomers(false);
         }
+
+        // Check for customer role (this doesn't need to be real-time)
+        const customerDoc = await getDoc(doc(firestore, 'customers', currentUserUid));
+        setHasCustomerRole(customerDoc.exists());
+
       }
       setLoadingProfile(false);
     }, (error) => {
-        console.error("Error fetching user document:", error);
-        setLoadingProfile(false);
+      console.error("Error fetching shopkeeper document:", error);
+      setLoadingProfile(false);
     });
 
+    // 3. Listen to Connection Requests
     const connectionsRef = collection(firestore, 'connectionRequests');
-    const qConnections = query(connectionsRef, where('shopkeeperId', '==', auth.currentUser.uid), where('status', '==', 'pending'));
-    
+    const qConnections = query(connectionsRef, where('shopkeeperId', '==', currentUserUid), where('status', '==', 'pending'));
     const unsubscribeConnections = onSnapshot(qConnections, (querySnapshot) => {
-      const newRequests: ConnectionRequest[] = [];
-      querySnapshot.forEach(docSnap => {
-          const req = { id: docSnap.id, ...docSnap.data() } as ConnectionRequest;
-          newRequests.push(req);
-      });
+      const newRequests: ConnectionRequest[] = querySnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as ConnectionRequest));
       setConnectionRequests(newRequests);
-
-    }, (error) => {
-      console.error("Error fetching connection requests:", error);
     });
     
+    // 4. Listen to Credit Requests
     const creditRequestsRef = collection(firestore, 'creditRequests');
-    const qCredit = query(creditRequestsRef, where('shopkeeperId', '==', auth.currentUser.uid), where('status', '==', 'pending'), where('requestedBy', '==', 'customer'));
-
+    const qCredit = query(creditRequestsRef, where('shopkeeperId', '==', currentUserUid), where('status', '==', 'pending'), where('requestedBy', '==', 'customer'));
     const unsubscribeCreditRequests = onSnapshot(qCredit, (snapshot) => {
-        const requests: CustomerCreditRequest[] = [];
-        snapshot.forEach(doc => {
-            requests.push({ id: doc.id, ...doc.data() } as CustomerCreditRequest);
-        });
-        setCustomerCreditRequests(requests);
+      const requests: CustomerCreditRequest[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CustomerCreditRequest));
+      setCustomerCreditRequests(requests);
     });
+
+    // Load QR from localStorage once
+    const savedQr = localStorage.getItem('shopkeeperQrPosterPng');
+    if (savedQr) setQrPosterDataUrl(savedQr);
 
     return () => {
       unsubscribeProfile();
+      unsubscribeCustomers();
       unsubscribeConnections();
       unsubscribeCreditRequests();
     };
-  }, [auth.currentUser, firestore, qrPosterDataUrl]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Separate effect for tracking the active credit request's status
   useEffect(() => {
