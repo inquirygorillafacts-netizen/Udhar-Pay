@@ -74,58 +74,55 @@ export default function CustomerScanQrPage() {
   
   useEffect(() => {
       // Ensure this only runs on the client
-      if (typeof window === 'undefined') return;
+      if (typeof window === 'undefined' || document.getElementById('reader') === null) return;
+      
+      const qrScanner = new Html5Qrcode('reader');
+      scannerRef.current = qrScanner;
 
-      const startScanner = () => {
-          if (scannerRef.current || document.getElementById('reader') === null) {
-            return;
-          }
-
-          const qrScanner = new Html5Qrcode('reader');
-          scannerRef.current = qrScanner;
-
-          const config = {
-              fps: 10,
-              qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
-                  const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-                  const qrboxSize = Math.floor(minEdge * 0.7);
-                  return { width: qrboxSize, height: qrboxSize };
-              },
-              aspectRatio: 1.0,
-              supportedScanTypes: [],
-          };
-          
-          const qrCodeErrorCallback = (errorMessage: string) => { /* Ignore common errors */ };
-          
-          qrScanner.start(
-              { facingMode: 'environment' },
-              config,
-              onScanSuccess,
-              qrCodeErrorCallback
-          ).then(() => {
-              setIsScanning(true);
-              try {
-                  // @ts-ignore - _getRunningTrack() is an internal but useful method
-                  const track = qrScanner._getRunningTrack();
-                  const capabilities = track.getCapabilities();
-                  setIsTorchAvailable(!!capabilities.torch);
-              } catch (e) {
-                  setIsTorchAvailable(false);
-              }
-          }).catch(err => {
-               if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
-                    setShowPermissionModal(true);
-                } else {
-                    toast({
-                        variant: 'destructive',
-                        title: 'Camera Error',
-                        description: 'Could not start the camera. It might be in use by another app.',
-                    });
-                }
-          });
+      const config = {
+          fps: 10,
+          qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
+              const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+              const qrboxSize = Math.floor(minEdge * 0.7);
+              return { width: qrboxSize, height: qrboxSize };
+          },
+          aspectRatio: 1.0,
+          supportedScanTypes: [],
       };
       
-      startScanner();
+      const qrCodeErrorCallback = (errorMessage: string) => { /* Ignore common errors */ };
+      
+      qrScanner.start(
+          { facingMode: 'environment' },
+          config,
+          onScanSuccess,
+          qrCodeErrorCallback
+      ).then(() => {
+          setIsScanning(true);
+          try {
+              // @ts-ignore - _getRunningTrack() is an internal but useful method
+              const track = qrScanner._getRunningTrack();
+              const capabilities = track.getCapabilities();
+              // Deeper check: Ensure both 'torch' capability and 'applyConstraints' method are supported.
+              if (capabilities && typeof capabilities.torch === 'boolean' && typeof track.applyConstraints === 'function') {
+                  setIsTorchAvailable(true);
+              } else {
+                  setIsTorchAvailable(false);
+              }
+          } catch (e) {
+              setIsTorchAvailable(false);
+          }
+      }).catch(err => {
+           if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+                setShowPermissionModal(true);
+            } else {
+                toast({
+                    variant: 'destructive',
+                    title: 'Camera Error',
+                    description: 'Could not start the camera. It might be in use by another app.',
+                });
+            }
+      });
 
       return () => {
           stopScanner();
@@ -134,16 +131,10 @@ export default function CustomerScanQrPage() {
   }, []);
 
   const toggleTorch = async () => {
-    if (scannerRef.current && scannerRef.current.getState() === Html5QrcodeScannerState.SCANNING) {
-      if (!isTorchAvailable) {
-         toast({
-            variant: 'destructive',
-            title: 'Torch Not Supported',
-            description: 'Your device does not support flashlight control from the browser.',
-        });
+    if (!isTorchAvailable || !scannerRef.current || scannerRef.current.getState() !== Html5QrcodeScannerState.SCANNING) {
         return;
-      }
-      try {
+    }
+    try {
         const newTorchState = !isTorchOn;
         // @ts-ignore - _getRunningTrack() is an internal but useful method
         const track = scannerRef.current._getRunningTrack(); 
@@ -151,14 +142,14 @@ export default function CustomerScanQrPage() {
             advanced: [{ torch: newTorchState }]
         });
         setIsTorchOn(newTorchState);
-      } catch (err) {
+    } catch (err) {
         console.error("Error toggling torch:", err);
+        setIsTorchAvailable(false); // Disable if it fails once
         toast({
             variant: 'destructive',
             title: 'Torch Error',
-            description: 'Could not control the flashlight.',
+            description: 'Could not control the flashlight on this device.',
         });
-      }
     }
   };
 
@@ -211,30 +202,29 @@ export default function CustomerScanQrPage() {
               </div>
           </main>
           
-          {isScanning && (
-              <div style={{
-                  color: '#6c7293', background: '#e0e5ec', padding: '10px 20px 20px',
-                  textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px'
-              }}>
-               <button 
-                  onClick={toggleTorch} 
-                  className={`neu-button ${isTorchOn ? 'active' : ''}`}
-                  style={{ 
-                      width: 'auto', 
-                      padding: '12px 25px',
-                      margin: 0,
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      gap: '10px'
-                  }}
-                  disabled={!isTorchAvailable}
-              >
-                  <Flashlight size={20} />
-                  <span>{isTorchOn ? 'Torch On' : 'Torch Off'}</span>
-              </button>
-              <p style={{margin:0, fontWeight: 500}}>Align QR code within the frame</p>
-          </div>
-          )}
+          <div style={{
+              color: '#6c7293', background: '#e0e5ec', padding: '10px 20px 20px',
+              textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px'
+          }}>
+           {isScanning && isTorchAvailable && (
+             <button 
+                onClick={toggleTorch} 
+                className={`neu-button ${isTorchOn ? 'active' : ''}`}
+                style={{ 
+                    width: 'auto', 
+                    padding: '12px 25px',
+                    margin: 0,
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '10px'
+                }}
+            >
+                <Flashlight size={20} />
+                <span>{isTorchOn ? 'Torch On' : 'Torch Off'}</span>
+            </button>
+           )}
+          <p style={{margin:0, fontWeight: 500}}>Align QR code within the frame</p>
+      </div>
       </div>
     </>
   );
