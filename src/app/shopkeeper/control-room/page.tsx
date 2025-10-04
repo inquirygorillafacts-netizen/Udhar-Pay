@@ -325,8 +325,8 @@ export default function ShopControlRoomPage() {
                                                 </div>
                                             </div>
                                             
-                                            {cust.settings.isCreditEnabled && (
-                                                <div style={{borderTop: '1px solid #d1d9e6', paddingTop: '15px'}}>
+                                            <div style={{borderTop: '1px solid #d1d9e6', paddingTop: '15px'}}>
+                                                {cust.settings.isCreditEnabled && (
                                                     <div style={{display: 'flex', gap: '10px', marginBottom: '15px'}}>
                                                         <button onClick={() => handleLimitTypeChange(cust.uid, 'default')} className={`neu-button ${cust.settings.limitType === 'default' ? 'active' : ''}`} style={{flex: 1, margin: 0, padding: '8px', fontSize: '12px'}}>
                                                             Default (₹{defaultCreditLimit})
@@ -335,24 +335,24 @@ export default function ShopControlRoomPage() {
                                                             Manual
                                                         </button>
                                                     </div>
+                                                )}
 
-                                                    {cust.settings.limitType === 'manual' && (
-                                                        <div className="form-group" style={{margin: '0 0 15px 0'}}>
-                                                            <div className="neu-input" style={{borderRadius: '10px'}}>
-                                                                <input type="number" value={cust.settings.manualLimit || ''} onChange={(e) => {
-                                                                    const val = parseFloat(e.target.value);
-                                                                    handleCustomerSettingChange(cust.uid, 'manualLimit', isNaN(val) ? 0 : val)
-                                                                }} style={{padding: '10px 15px', fontSize: '14px', textAlign: 'center'}} placeholder="Manual Limit (₹)" />
-                                                            </div>
+                                                {cust.settings.isCreditEnabled && cust.settings.limitType === 'manual' && (
+                                                    <div className="form-group" style={{margin: '0 0 15px 0'}}>
+                                                        <div className="neu-input" style={{borderRadius: '10px'}}>
+                                                            <input type="number" value={cust.settings.manualLimit || ''} onChange={(e) => {
+                                                                const val = parseFloat(e.target.value);
+                                                                handleCustomerSettingChange(cust.uid, 'manualLimit', isNaN(val) ? 0 : val)
+                                                            }} style={{padding: '10px 15px', fontSize: '14px', textAlign: 'center'}} placeholder="Manual Limit (₹)" />
                                                         </div>
-                                                    )}
+                                                    </div>
+                                                )}
 
-                                                    <button onClick={() => handleSaveCustomerSettings(cust.uid)} className={`neu-button ${savingStates[cust.uid] ? 'loading' : ''}`} style={{width: '100%', padding: '10px', margin: 0}} disabled={savingStates[cust.uid]}>
-                                                        <span className="btn-text"><Save size={16}/> Save for {cust.displayName.split(' ')[0]}</span>
-                                                        <div className="btn-loader"><div className="neu-spinner" style={{width: '16px', height: '16px'}}></div></div>
-                                                    </button>
-                                                </div>
-                                            )}
+                                                <button onClick={() => handleSaveCustomerSettings(cust.uid)} className={`neu-button ${savingStates[cust.uid] ? 'loading' : ''}`} style={{width: '100%', padding: '10px', margin: 0}} disabled={savingStates[cust.uid]}>
+                                                    <span className="btn-text"><Save size={16}/> Save for {cust.displayName.split(' ')[0]}</span>
+                                                    <div className="btn-loader"><div className="neu-spinner" style={{width: '16px', height: '16px'}}></div></div>
+                                                </button>
+                                            </div>
                                         </div>
                                     )) : <p style={{textAlign: 'center', color: '#9499b7'}}>कोई ग्राहक नहीं मिला।</p>}
                                 </div>
