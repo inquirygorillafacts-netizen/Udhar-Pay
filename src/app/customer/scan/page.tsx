@@ -66,7 +66,7 @@ export default function CustomerScanQrPage() {
   }, [auth.currentUser, firestore, router, stopScanner, toast]);
   
   useEffect(() => {
-    if (scanState !== 'scanning' || scannerRef.current) {
+    if (scanState !== 'scanning') {
         return;
     }
 
@@ -100,10 +100,8 @@ export default function CustomerScanQrPage() {
             setIsTorchAvailable(!!capabilities.torch);
         } catch (e) {
             setIsTorchAvailable(false);
-            console.log('Torch capability check failed.', e);
         }
     }).catch(err => {
-         console.error("Camera start error:", err);
          if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
               setScanState('permission_denied');
           } else {
