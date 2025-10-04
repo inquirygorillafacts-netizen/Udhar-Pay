@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Flashlight } from 'lucide-react';
+import { ArrowLeft, Flashlight, CameraOff } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode';
@@ -17,8 +17,10 @@ export default function CustomerScanQrPage() {
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const readerMounted = useRef(false);
   const isProcessingRef = useRef(false);
+
+  const [hasCameraPermission, setHasCameraPermission] = useState(true);
   const [isTorchOn, setIsTorchOn] = useState(false);
-  const [isTorchAvailable, setIsTorchAvailable] = useState(true);
+  const [isTorchAvailable, setIsTorchAvailable] = useState(false);
 
   // Function to toggle the torch
   const toggleTorch = async () => {
@@ -125,6 +127,10 @@ export default function CustomerScanQrPage() {
 
     const startScanning = async () => {
       try {
+        // First, get the list of cameras to check for permissions without starting the scanner
+        await Html5Qrcode.getCameras();
+        setHasCameraPermission(true);
+
         await qrScanner.start(
           { facingMode: 'environment' }, 
           config, 
@@ -137,7 +143,9 @@ export default function CustomerScanQrPage() {
           // @ts-ignore
           const track = qrScanner._getRunningTrack();
           const capabilities = track.getCapabilities();
-          if (!capabilities.torch) {
+          if (capabilities.torch) {
+            setIsTorchAvailable(true);
+          } else {
             setIsTorchAvailable(false);
           }
         } catch (e) {
@@ -145,14 +153,16 @@ export default function CustomerScanQrPage() {
           console.log('Torch capability check failed.', e);
         }
 
-      } catch (err) {
+      } catch (err: any) {
+        if (err.name === "NotAllowedError") {
+            setHasCameraPermission(false);
+        }
         console.error("Camera start error:", err);
         toast({
           variant: 'destructive',
           title: 'Camera Access Denied',
           description: 'Please enable camera permissions in your browser settings to scan QR codes.',
         });
-        setTimeout(() => router.back(), 3000);
       }
     };
 
@@ -171,7 +181,7 @@ export default function CustomerScanQrPage() {
   return (
     <div style={{ height: '100svh', background: '#e0e5ec', display: 'flex', flexDirection: 'column' }}>
         <header className="dashboard-header" style={{ position: 'sticky', top: 0, zIndex: 10, borderRadius: '0 0 20px 20px' }}>
-            <button onClick={() => router.back()} className="neu-button" style={{width: '45px', height: '45px', padding: 0, margin: 0, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+            <button onClick={() => router.back()} className="neu-button" style={{width: '45px', height: '45px', padding: 0, margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
                 <ArrowLeft size={20} />
             </button>
             <div style={{textAlign: 'center', flexGrow: 1}}>
@@ -181,19 +191,35 @@ export default function CustomerScanQrPage() {
         </header>
 
         <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden', padding: '20px' }}>
-            <div className="qr-scanner-container">
-                <div id="reader" style={{ width: '100%', height: '100%', borderRadius: '25px', overflow: 'hidden' }}></div>
-                <div className="qr-scanner-frame">
-                    <div className="scanner-corner top-left"></div>
-                    <div className="scanner-corner top-right"></div>
-                    <div className="scanner-corner bottom-left"></div>
-                    <div className="scanner-corner bottom-right"></div>
-                    <div className="scanner-line"></div>
+            {hasCameraPermission ? (
+                <div className="qr-scanner-container">
+                    <div id="reader" style={{ width: '100%', height: '100%', borderRadius: '25px', overflow: 'hidden' }}></div>
+                    <div className="qr-scanner-frame">
+                        <div className="scanner-corner top-left"></div>
+                        <div className="scanner-corner top-right"></div>
+                        <div className="scanner-corner bottom-left"></div>
+                        <div className="scanner-corner bottom-right"></div>
+                        <div className="scanner-line"></div>
+                    </div>
                 </div>
-            </div>
+            ) : (
+                <div className="login-card" style={{maxWidth: '450px', textAlign: 'center'}}>
+                    <div className="neu-icon" style={{width: '80px', height: '80px', background: '#ffcdd2', color: '#c62828'}}>
+                        <CameraOff size={40}/>
+                    </div>
+                     <h2 style={{color: '#3d4468', fontSize: '1.5rem', marginBottom: '10px'}}>Camera Access Required</h2>
+                    <p style={{color: '#9499b7', marginBottom: '30px', fontSize: '1rem'}}>
+                       To scan QR codes, please allow camera access in your browser's site settings.
+                    </p>
+                    <button className="neu-button" onClick={() => router.back()}>
+                        Go Back
+                    </button>
+                </div>
+            )}
         </main>
         
-        <div style={{
+        {hasCameraPermission && (
+            <div style={{
                 color: '#6c7293', background: '#e0e5ec', padding: '10px 20px 20px',
                 textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px'
             }}>
@@ -208,12 +234,14 @@ export default function CustomerScanQrPage() {
                     alignItems: 'center', 
                     gap: '10px'
                 }}
+                disabled={!isTorchAvailable}
             >
                 <Flashlight size={20} />
                 <span>{isTorchOn ? 'Torch On' : 'Torch Off'}</span>
             </button>
             <p style={{margin:0, fontWeight: 500}}>Align QR code within the frame</p>
         </div>
+        )}
     </div>
   );
 }
