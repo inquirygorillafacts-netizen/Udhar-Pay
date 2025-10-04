@@ -1,35 +1,21 @@
 {
-  "name": "Offline First",
-  "short_name": "OfflineFirst",
-  "description": "A Progressive Web App that works offline and syncs in the background.",
-  "icons": [
-    {
-      "src": "/icon.svg",
-      "sizes": "192x192",
-      "type": "image/svg+xml",
-      "purpose": "any"
-    },
-    {
-      "src": "/icon.svg",
-      "sizes": "512x512",
-      "type": "image/svg+xml",
-      "purpose": "any"
-    },
-    {
-      "src": "/icon.svg",
-      "sizes": "192x192",
-      "type": "image/svg+xml",
-      "purpose": "maskable"
-    },
-    {
-      "src": "/icon.svg",
-      "sizes": "512x512",
-      "type": "image/svg+xml",
-      "purpose": "maskable"
-    }
-  ],
+  "name": "Udhar Pay",
+  "short_name": "UdharPay",
+  "description": "Digital Ledger for Shopkeepers and Customers",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#F0F0F0",
-  "theme_color": "#468499"
+  "background_color": "#e0e5ec",
+  "theme_color": "#e0e5ec",
+  "icons": [
+    {
+      "src": "/logo-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
 }

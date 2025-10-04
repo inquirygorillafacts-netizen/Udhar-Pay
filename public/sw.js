@@ -1,112 +1,87 @@
-const CACHE_NAME = 'offline-first-v2';
+// This is a basic service worker that enables offline access and caching.
 
+const CACHE_NAME = 'udhar-pay-cache-v1';
+const OFFLINE_URL = 'offline.html';
+
+// Add the files you want to cache to this array
+const urlsToCache = [
+  '/',
+  '/offline.html',
+  '/logo.png',
+  '/favicon.ico',
+  '/styles/globals.css', // Adjust this path if your global css is elsewhere
+];
+
+// Install the service worker and cache the static assets
 self.addEventListener('install', (event) => {
-  console.log('[Service Worker] Install');
-  event.waitUntil(self.skipWaiting());
-});
-
-self.addEventListener('activate', (event) => {
-  console.log('[Service Worker] Activate');
   event.waitUntil(
-    (async () => {
-      const cacheNames = await caches.keys();
-      await Promise.all(
-        cacheNames
-          .filter((name) => name !== CACHE_NAME)
-          .map((name) => caches.delete(name))
-      );
-      await self.clients.claim();
-    })()
+    caches.open(CACHE_NAME)
+      .then((cache) => {
+        console.log('Opened cache');
+        // Add all the assets to the cache
+        return cache.addAll(urlsToCache);
+      })
+      .catch(err => {
+        console.error('Failed to open cache or cache some files:', err);
+      })
   );
 });
 
+
+// Serve cached content when offline
 self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET' || event.request.url.includes('/api/')) {
-    return;
-  }
-
   event.respondWith(
-    (async () => {
-      const cache = await caches.open(CACHE_NAME);
-      const cachedResponse = await cache.match(event.request);
-      
-      const fetchPromise = fetch(event.request).then((networkResponse) => {
-        if (networkResponse.ok) {
-          cache.put(event.request, networkResponse.clone());
+    caches.match(event.request)
+      .then((response) => {
+        // Cache hit - return response
+        if (response) {
+          return response;
         }
-        return networkResponse;
-      });
 
-      return cachedResponse || fetchPromise;
-    })()
+        // Clone the request to use it in the cache and for the network request
+        const fetchRequest = event.request.clone();
+
+        return fetch(fetchRequest).then(
+          (response) => {
+            // Check if we received a valid response
+            if (!response || response.status !== 200 || response.type !== 'basic') {
+              return response;
+            }
+
+            const responseToCache = response.clone();
+
+            caches.open(CACHE_NAME)
+              .then((cache) => {
+                cache.put(event.request, responseToCache);
+              });
+
+            return response;
+          }
+        );
+      })
+      .catch(() => {
+         // If both the cache and network fail, show the offline fallback page.
+         // This is especially useful for navigation requests (i.e., for different HTML pages).
+         if (event.request.mode === 'navigate') {
+            return caches.match(OFFLINE_URL);
+         }
+      })
   );
 });
 
-self.addEventListener('sync', (event) => {
-  if (event.tag === 'sync-form-data') {
-    console.log('[Service Worker] Sync event triggered for tag: sync-form-data');
-    event.waitUntil(syncFormData());
-  }
+
+// Update the service worker
+self.addEventListener('activate', (event) => {
+  const cacheWhitelist = [CACHE_NAME];
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheWhitelist.indexOf(cacheName) === -1) {
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
+  );
 });
-
-async function syncFormData() {
-  console.log('[Service Worker] Starting form data sync...');
-  
-  const openDB = () => {
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open('offline-first-db', 1);
-      request.onerror = () => reject("Error opening DB for sync");
-      request.onsuccess = () => resolve(request.result);
-      request.onupgradeneeded = event => {
-        const db = event.target.result;
-        if (!db.objectStoreNames.contains('submissions')) {
-          db.createObjectStore('submissions', { keyPath: 'id', autoIncrement: true });
-        }
-      };
-    });
-  };
-
-  try {
-    const db = await openDB();
-    const transaction = db.transaction(['submissions'], 'readwrite');
-    const store = transaction.objectStore('submissions');
-    const submissions = await new Promise((resolve, reject) => {
-      const request = store.getAll();
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject("Error getting all submissions for sync");
-    });
-
-    if (submissions.length === 0) {
-      console.log('[Service Worker] No submissions to sync.');
-      return;
-    }
-
-    console.log(`[Service Worker] Found ${submissions.length} submissions to sync.`);
-
-    const syncPromises = submissions.map(async (submission) => {
-      try {
-        const response = await fetch('/api/sync', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ formData: submission.formData }),
-        });
-
-        if (response.ok) {
-          console.log(`[Service Worker] Successfully synced submission ID: ${submission.id}`);
-          const deleteTransaction = db.transaction(['submissions'], 'readwrite');
-          const deleteStore = deleteTransaction.objectStore('submissions');
-          deleteStore.delete(submission.id);
-        } else {
-          console.error(`[Service Worker] Failed to sync submission ID: ${submission.id}`, await response.text());
-        }
-      } catch (error) {
-        console.error(`[Service Worker] Network error syncing submission ID: ${submission.id}`, error);
-      }
-    });
-
-    await Promise.all(syncPromises);
-    console.log('[Service Worker] Sync process finished.');
-  } catch (error) {
-    console.error('[Service Worker] Error during sync process:', error);
-  }
-}
