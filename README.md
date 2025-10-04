@@ -1,4 +1,6 @@
-# Firebase Studio
+git add .
+git commit -m "काम हो गया है  "
+git push# Firebase Studio
 
 This is a NextJS starter in Firebase Studio.
 
