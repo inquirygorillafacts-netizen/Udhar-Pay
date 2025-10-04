@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useFirebase } from '@/firebase/client-provider';
-import { onSnapshot, doc, updateDoc, collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { onSnapshot, doc, updateDoc, collection, query, where, getDocs, Timestamp, getDoc } from 'firebase/firestore';
 import { LifeBuoy, Phone, UploadCloud, Lock, CheckCircle, ShieldAlert, KeyRound, HelpCircle, X, AlertTriangle, SlidersHorizontal, IndianRupee } from 'lucide-react';
 import Link from 'next/link';
 import axios from 'axios';
@@ -66,35 +66,48 @@ export default function ShopkeeperWalletPage() {
         if (!firestore || !auth.currentUser) {
             setLoading(false);
             return;
-        };
-
+        }
+    
+        let unsubscribeTransactions: () => void = () => {};
         const shopkeeperRef = doc(firestore, 'shopkeepers', auth.currentUser.uid);
-        
-        const unsubscribe = onSnapshot(shopkeeperRef, (shopkeeperSnap) => {
+    
+        const unsubscribeShopkeeper = onSnapshot(shopkeeperRef, (shopkeeperSnap) => {
             if (shopkeeperSnap.exists()) {
                 const data = shopkeeperSnap.data() as ShopkeeperProfile;
                 setProfile(data);
                 setIsSetupActive(!!data.qrCodeUrl && !!data.qrUpdatePin);
-
-                const customerIds = data.connections || [];
+            }
+        }, (err) => {
+            console.error("Error fetching shopkeeper profile:", err);
+        });
+    
+        const setupTransactionListener = async () => {
+            try {
+                const shopkeeperSnap = await getDoc(shopkeeperRef);
+                if (!shopkeeperSnap.exists()) {
+                    setLoading(false);
+                    return;
+                }
+    
+                const shopkeeperData = shopkeeperSnap.data();
+                const customerIds = shopkeeperData.connections || [];
+    
                 if (customerIds.length === 0) {
                     setOutstandingCredit(0);
                     setLoading(false);
                     return;
                 }
-
-                // Query all transactions for this shopkeeper to calculate the total outstanding credit
+    
                 const transactionsRef = collection(firestore, 'transactions');
                 const q = query(transactionsRef, where('shopkeeperId', '==', auth.currentUser!.uid));
-
-                const unsubscribeTransactions = onSnapshot(q, (transactionsSnapshot) => {
+    
+                unsubscribeTransactions = onSnapshot(q, (transactionsSnapshot) => {
                     const customerBalances: { [key: string]: number } = {};
-                    
-                    customerIds.forEach(id => customerBalances[id] = 0);
-
+                    customerIds.forEach((id: string) => customerBalances[id] = 0);
+    
                     transactionsSnapshot.forEach((transactionDoc) => {
                         const transaction = transactionDoc.data() as Transaction;
-                        if(customerBalances[transaction.customerId] !== undefined) {
+                        if (customerBalances[transaction.customerId] !== undefined) {
                             if (transaction.type === 'credit') {
                                 customerBalances[transaction.customerId] += transaction.amount;
                             } else if (transaction.type === 'payment') {
@@ -102,21 +115,29 @@ export default function ShopkeeperWalletPage() {
                             }
                         }
                     });
-
+    
                     const totalOutstanding = Object.values(customerBalances).reduce((sum, bal) => sum + (bal > 0 ? bal : 0), 0);
                     setOutstandingCredit(totalOutstanding);
+                    setLoading(false);
+                }, (error) => {
+                     console.error("Error fetching transactions:", error);
+                     setLoading(false);
                 });
-
-                return () => unsubscribeTransactions();
+    
+            } catch (error) {
+                console.error("Error setting up transaction listener:", error);
+                setLoading(false);
             }
-            setLoading(false);
-        }, (err) => {
-            console.error("Error fetching shopkeeper profile:", err);
-            setLoading(false);
-        });
-        
-        return () => unsubscribe();
+        };
+    
+        setupTransactionListener();
+    
+        return () => {
+            unsubscribeShopkeeper();
+            unsubscribeTransactions();
+        };
     }, [firestore, auth.currentUser]);
+
 
     const handleToggleChange = () => {
         if (!isSetupActive) {
