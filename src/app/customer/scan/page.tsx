@@ -15,23 +15,113 @@ export default function CustomerScanQrPage() {
   const { auth, firestore } = useFirebase();
   
   const scannerRef = useRef<Html5Qrcode | null>(null);
-  const readerMounted = useRef(false);
   const isProcessingRef = useRef(false);
 
   const [scanState, setScanState] = useState<'idle' | 'scanning' | 'permission_denied'>('idle');
   const [isTorchOn, setIsTorchOn] = useState(false);
   const [isTorchAvailable, setIsTorchAvailable] = useState(false);
   
-  // Cleanup function to stop the scanner
   const stopScanner = useCallback(() => {
     if (scannerRef.current && scannerRef.current.isScanning) {
         scannerRef.current.stop().catch(err => {
           console.error("QR Scanner stop error:", err);
         });
+        scannerRef.current = null;
     }
   }, []);
 
-  // Function to toggle the torch
+  const onScanSuccess = useCallback(async (decodedText: string) => {
+      if (isProcessingRef.current) return;
+      isProcessingRef.current = true;
+      stopScanner();
+
+      try {
+          if (!auth.currentUser || !firestore) throw new Error("Authentication context not available.");
+
+          const shopkeeperCode = decodedText;
+          const shopkeepersRef = collection(firestore, 'shopkeepers');
+          const q = query(shopkeepersRef, where('shopkeeperCode', '==', shopkeeperCode.toUpperCase()));
+          const shopkeeperSnapshot = await getDocs(q);
+
+          if (shopkeeperSnapshot.empty) {
+              throw new Error("Invalid QR Code. No shopkeeper found.");
+          }
+
+          const shopkeeperDoc = shopkeeperSnapshot.docs[0];
+          const shopkeeperId = shopkeeperDoc.id;
+
+          const customerRef = doc(firestore, 'customers', auth.currentUser.uid);
+          const customerSnap = await getDoc(customerRef);
+          const customerConnections = customerSnap.data()?.connections || [];
+
+          if (customerConnections.includes(shopkeeperId)) {
+              router.push(`/customer/request-credit/${shopkeeperId}`);
+          } else {
+              router.push(`/customer/connect/${shopkeeperId}`);
+          }
+      } catch (err: any) {
+          toast({ variant: 'destructive', title: 'Scan Error', description: err.message || 'Could not process QR code.' });
+          setTimeout(() => router.back(), 2000);
+      }
+  }, [auth.currentUser, firestore, router, stopScanner, toast]);
+  
+  useEffect(() => {
+    if (scanState !== 'scanning' || scannerRef.current) {
+        return;
+    }
+
+    const qrScanner = new Html5Qrcode('reader');
+    scannerRef.current = qrScanner;
+
+    const config = {
+        fps: 10,
+        qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
+            const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+            const qrboxSize = Math.floor(minEdge * 0.7);
+            return { width: qrboxSize, height: qrboxSize };
+        },
+        aspectRatio: 1.0,
+        supportedScanTypes: [],
+    };
+    
+    const qrCodeErrorCallback = (errorMessage: string) => { /* Ignore common errors */ };
+    
+    qrScanner.start(
+        { facingMode: 'environment' },
+        config,
+        onScanSuccess,
+        qrCodeErrorCallback
+    ).then(() => {
+         // Check for torch capability after starting
+        try {
+            // @ts-ignore - _getRunningTrack() is an internal but useful method
+            const track = qrScanner._getRunningTrack();
+            const capabilities = track.getCapabilities();
+            setIsTorchAvailable(!!capabilities.torch);
+        } catch (e) {
+            setIsTorchAvailable(false);
+            console.log('Torch capability check failed.', e);
+        }
+    }).catch(err => {
+         console.error("Camera start error:", err);
+         if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+              setScanState('permission_denied');
+          } else {
+              toast({
+                  variant: 'destructive',
+                  title: 'Camera Error',
+                  description: 'Could not start the camera. It might be in use by another app.',
+              });
+          }
+    });
+
+    return () => {
+        stopScanner();
+    };
+
+  }, [scanState, onScanSuccess, stopScanner, toast]);
+
+
   const toggleTorch = async () => {
     if (scannerRef.current && scannerRef.current.getState() === Html5QrcodeScannerState.SCANNING) {
       if (!isTorchAvailable) {
@@ -61,101 +151,6 @@ export default function CustomerScanQrPage() {
     }
   };
 
-  const startScanning = useCallback(async () => {
-      if (readerMounted.current || !auth.currentUser || !firestore) return;
-
-      const qrScanner = new Html5Qrcode('reader');
-      scannerRef.current = qrScanner;
-
-      const config = {
-          fps: 10,
-          qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
-              const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-              const qrboxSize = Math.floor(minEdge * 0.7);
-              return { width: qrboxSize, height: qrboxSize };
-          },
-          aspectRatio: 1.0,
-          supportedScanTypes: [],
-      };
-
-      const qrCodeSuccessCallback = async (decodedText: string) => {
-          if (isProcessingRef.current) return;
-          isProcessingRef.current = true;
-          stopScanner();
-
-          try {
-              const shopkeeperCode = decodedText;
-              const shopkeepersRef = collection(firestore, 'shopkeepers');
-              const q = query(shopkeepersRef, where('shopkeeperCode', '==', shopkeeperCode.toUpperCase()));
-              const shopkeeperSnapshot = await getDocs(q);
-
-              if (shopkeeperSnapshot.empty) {
-                  throw new Error("Invalid QR Code. No shopkeeper found.");
-              }
-
-              const shopkeeperDoc = shopkeeperSnapshot.docs[0];
-              const shopkeeperId = shopkeeperDoc.id;
-
-              const customerRef = doc(firestore, 'customers', auth.currentUser!.uid);
-              const customerSnap = await getDoc(customerRef);
-              const customerConnections = customerSnap.data()?.connections || [];
-
-              if (customerConnections.includes(shopkeeperId)) {
-                  router.push(`/customer/request-credit/${shopkeeperId}`);
-              } else {
-                  router.push(`/customer/connect/${shopkeeperId}`);
-              }
-          } catch (err: any) {
-              toast({ variant: 'destructive', title: 'Scan Error', description: err.message || 'Could not process QR code.' });
-              setTimeout(() => router.back(), 2000);
-          }
-      };
-
-      const qrCodeErrorCallback = (errorMessage: string) => { /* Ignore common errors */ };
-
-      try {
-          await qrScanner.start(
-              { facingMode: 'environment' },
-              config,
-              qrCodeSuccessCallback,
-              qrCodeErrorCallback
-          );
-          setScanState('scanning');
-          readerMounted.current = true; // Mark as mounted once started
-
-          // Check for torch capability after starting
-          try {
-              // @ts-ignore
-              const track = qrScanner._getRunningTrack();
-              const capabilities = track.getCapabilities();
-              setIsTorchAvailable(!!capabilities.torch);
-          } catch (e) {
-              setIsTorchAvailable(false);
-              console.log('Torch capability check failed.', e);
-          }
-      } catch (err: any) {
-          console.error("Camera start error:", err.name, err.message);
-          if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
-              setScanState('permission_denied');
-          } else {
-              toast({
-                  variant: 'destructive',
-                  title: 'Camera Error',
-                  description: 'Could not start the camera. It might be in use by another app.',
-              });
-          }
-      }
-  }, [auth.currentUser, firestore, router, stopScanner, toast]);
-  
-  // Cleanup effect
-  useEffect(() => {
-    return () => {
-        stopScanner();
-        readerMounted.current = false;
-    };
-  }, [stopScanner]);
-
-
   return (
     <div style={{ height: '100svh', background: '#e0e5ec', display: 'flex', flexDirection: 'column' }}>
         <header className="dashboard-header" style={{ position: 'sticky', top: 0, zIndex: 10, borderRadius: '0 0 20px 20px' }}>
@@ -179,7 +174,7 @@ export default function CustomerScanQrPage() {
                         <p style={{color: '#9499b7', marginBottom: '30px', fontSize: '1rem', maxWidth: '300px', margin: 'auto'}}>
                            Click the button below to start your camera and scan a shopkeeper's QR code.
                         </p>
-                        <button className="neu-button" onClick={startScanning} style={{margin: 0, background: '#00c896', color: 'white'}}>
+                        <button className="neu-button" onClick={() => setScanState('scanning')} style={{margin: 0, background: '#00c896', color: 'white'}}>
                            Start Scanning
                         </button>
                     </div>
