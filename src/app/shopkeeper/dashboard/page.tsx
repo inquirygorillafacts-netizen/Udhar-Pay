@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
 import { doc, onSnapshot, collection, query, where, getDocs, addDoc, serverTimestamp, DocumentData, writeBatch, updateDoc, getDoc } from 'firebase/firestore';
 import Link from 'next/link';
-import { MessageSquare, X, Check, ArrowLeft, ArrowRight, QrCode, Share2, RefreshCw, User as UsersIcon, CheckCircle, XCircle, AlertTriangle, IndianRupee, Repeat, StickyNote } from 'lucide-react';
+import { MessageSquare, X, Check, ArrowLeft, ArrowRight, QrCode, Share2, RefreshCw, Repeat, CheckCircle, XCircle, AlertTriangle, IndianRupee, StickyNote, User } from 'lucide-react';
 import { acceptConnectionRequest, rejectConnectionRequest } from '@/lib/connections';
 import CustomerCard from '@/app/shopkeeper/components/CustomerCard';
 import QrPoster from '@/components/shopkeeper/QrPoster';
@@ -100,7 +100,7 @@ export default function ShopkeeperDashboardPage() {
   const [limitModalError, setLimitModalError] = useState('');
   
   // Role switching state
-  const [hasBothRoles, setHasBothRoles] = useState(false);
+  const [hasCustomerRole, setHasCustomerRole] = useState(false);
   const [showRoleModal, setShowRoleModal] = useState(false);
 
 
@@ -119,7 +119,7 @@ export default function ShopkeeperDashboardPage() {
 
         // Check for customer role to enable switch button
         const customerDoc = await getDoc(doc(firestore, 'customers', auth.currentUser!.uid));
-        setHasBothRoles(customerDoc.exists());
+        setHasCustomerRole(customerDoc.exists());
 
         if (!qrPosterDataUrl) {
           const savedQr = localStorage.getItem('shopkeeperQrPosterPng');
@@ -556,7 +556,7 @@ export default function ShopkeeperDashboardPage() {
   };
 
   const handleRoleSwitchClick = () => {
-    if (hasBothRoles) {
+    if (hasCustomerRole) {
         localStorage.setItem('activeRole', 'customer');
         router.push('/customer/dashboard');
     } else {
@@ -639,7 +639,7 @@ export default function ShopkeeperDashboardPage() {
   const renderSelectCustomer = () => (
     <div className="login-card" style={{ maxWidth: '600px', margin: 'auto' }}>
         <div style={{display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px'}}>
-            <button className="neu-button" onClick={resetCreditFlow} style={{width: '50px', height: '50px', margin: 0, padding: 0}}>
+            <button className="neu-button" onClick={resetCreditFlow} style={{width: '50px', height: '50px', margin: 0, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
                 <ArrowLeft/>
             </button>
             <div>
@@ -661,7 +661,7 @@ export default function ShopkeeperDashboardPage() {
                     onChange={(e) => setCustomerSearchTerm(e.target.value)}
                 />
                 <label htmlFor="search">Search Customer by Name or Code</label>
-                <div className="input-icon"><UsersIcon /></div>
+                <div className="input-icon"><User /></div>
             </div>
         </div>
         
@@ -828,7 +828,7 @@ export default function ShopkeeperDashboardPage() {
                    <button className="close-button" onClick={() => setShowRoleModal(false)}>&times;</button>
               </div>
               <p style={{color: '#6c7293', textAlign: 'center', marginBottom: '30px'}}>
-                  You do not have a customer profile yet. To switch to a customer view, you first need to enroll as one.
+                  You do not have a customer profile yet. To switch to the customer view, you first need to enroll.
               </p>
               <button className="neu-button" onClick={() => router.push('/shopkeeper/profile')} style={{margin: 0}}>
                   Go to Profile to Enroll
@@ -838,13 +838,9 @@ export default function ShopkeeperDashboardPage() {
       )}
 
     <header className="dashboard-header">
-        <Link href="/shopkeeper/profile" className="neu-button" style={{width: '45px', height: '45px', margin: 0, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0}}>
-             {shopkeeperProfile?.photoURL ? (
-                <Image src={shopkeeperProfile.photoURL} alt={shopkeeperProfile.displayName || 'Shopkeeper'} width={45} height={45} style={{borderRadius: '50%', objectFit: 'cover'}}/>
-            ) : (
-                <UsersIcon size={20} />
-            )}
-        </Link>
+        <button onClick={handleRoleSwitchClick} className="neu-button" style={{width: '45px', height: '45px', margin: 0, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0}}>
+           <Repeat size={20}/>
+        </button>
         <div 
             className="token-balance" 
             style={{padding: '10px 15px', height: 'auto', flexDirection: 'row', gap: '10px', justifyContent: 'center', alignItems: 'center', cursor: 'pointer', flexGrow: 1, margin: '0 10px'}}

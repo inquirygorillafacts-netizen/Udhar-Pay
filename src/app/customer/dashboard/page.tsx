@@ -265,15 +265,21 @@ export default function CustomerDashboardPage() {
   
   return (
     <>
-        {showRoleModal && (
-            <RoleEnrollmentModal 
-                role="shopkeeper"
-                onClose={() => setShowRoleModal(false)}
-                onSuccess={() => {
-                    localStorage.setItem('activeRole', 'shopkeeper');
-                    router.push('/shopkeeper/dashboard');
-                }}
-            />
+      {showRoleModal && (
+          <div className="modal-overlay" onClick={() => setShowRoleModal(false)}>
+            <div className="login-card modal-content" style={{maxWidth: '450px'}} onClick={(e) => e.stopPropagation()}>
+                <div className="modal-header">
+                    <h2 style={{fontSize: '1.5rem'}}>Add Shopkeeper Role</h2>
+                     <button className="close-button" onClick={() => setShowRoleModal(false)}>&times;</button>
+                </div>
+                <p style={{color: '#6c7293', textAlign: 'center', marginBottom: '30px'}}>
+                    You do not have a shopkeeper profile yet. To switch to the shopkeeper view, you first need to enroll.
+                </p>
+                <button className="neu-button" onClick={() => router.push('/customer/profile')} style={{margin: 0}}>
+                    Go to Profile to Enroll
+                </button>
+            </div>
+          </div>
         )}
         {activeRequest && (
             <div className="modal-overlay">
