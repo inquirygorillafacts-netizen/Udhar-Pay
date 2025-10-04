@@ -2,63 +2,121 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // By default, deny all reads and writes
-    match /{document=**} {
-      allow read, write: if false;
+
+    // =================================
+    // Helper Functions
+    // =================================
+    function isSignedIn() {
+      return request.auth != null;
     }
 
-    // Owners have full access to their own document
-    match /owners/{ownerId} {
-      allow read, update: if request.auth.uid == ownerId;
+    function isOwner(userId) {
+      // Hardcoded Owner UID and the secret role key for maximum security.
+      // This is the master key to the system.
+      let ownerUID = 'o2Vco2LqnvWsZijYtb4EDMNdOOC2';
+      let ownerRoleKey = '**##owner_XwJfOW27AvfN5ELUzbUPpXPcbG73_locked##**';
+      return userId == ownerUID && get(/databases/$(database)/documents/owner_$(ownerUID)/$(userId)).data.role == ownerRoleKey;
     }
 
-    // Allow owners to manage the PIN lock document
-    match /lock/{docId} {
-        allow read, write: if get(/databases/$(database)/documents/owners/$(request.auth.uid)).exists;
+    function isTheUser(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // =================================
+    // Owner Collection Security
+    // Most restrictive rules in the system.
+    // =================================
+    match /owner_o2Vco2LqnvWsZijYtb4EDMNdOOC2/{ownerId} {
+      // READ: Only the owner can read their own document. No one else can.
+      allow read: if isTheUser(ownerId) && isOwner(ownerId);
+      
+      // LIST: Absolutely forbidden. No one can list all owners.
+      allow list: if false;
+
+      // CREATE: Absolutely forbidden. New owners can only be created manually in the Firebase Console.
+      allow create: if false;
+      
+      // UPDATE: Owner can only update specific, non-critical fields. They cannot change their role or UID.
+      allow update: if isTheUser(ownerId) && isOwner(ownerId)
+                    && request.resource.data.keys().hasOnly(['displayName', 'email', 'photoURL', 'pin', 'pinEnabled', 'role'])
+                    && request.resource.data.role == resource.data.role; // Role cannot be changed.
+
+      // DELETE: Absolutely forbidden. An owner cannot be deleted via the app.
+      allow delete: if false;
+    }
+
+    // =================================
+    // Customer & Shopkeeper Profiles
+    // =================================
+    match /{collection}/{userId} {
+      // READ: Any signed-in user can read a profile (to see name/photo).
+      allow read: if isSignedIn();
+
+      // LIST: Forbidden for security. No one should be able to download a list of all users.
+      allow list: if false;
+      
+      // CREATE: Anyone can create their own user profile document upon sign-up.
+      allow create: if isTheUser(userId);
+      
+      // UPDATE: A user can only update their own document.
+      allow update: if isTheUser(userId);
+      
+      // DELETE: Users are not allowed to delete their own accounts from the app.
+      allow delete: if false;
     }
     
-    // Shopkeepers can create their profile and only read/update their own
-    match /shopkeepers/{shopkeeperId} {
-      allow create: if request.auth.uid == shopkeeperId;
-      allow read, update: if request.auth.uid == shopkeeperId;
-    }
-
-    // Customers can create their profile and only read/update their own
-    match /customers/{customerId} {
-      allow create: if request.auth.uid == customerId;
-      allow read, update: if request.auth.uid == customerId;
-    }
-
-    // Rules for connection requests between customers and shopkeepers
-    match /connectionRequests/{requestId} {
-      // Customer can create a request
-      allow create: if request.auth.uid == request.resource.data.customerId;
-      // Shopkeeper can read and update (approve/reject) the request
-      allow read, update: if request.auth.uid == resource.data.shopkeeperId;
-      // Customer who made the request can also read it to check status
-      allow read: if request.auth.uid == resource.data.customerId;
-    }
-
-    // Rules for credit requests (customer-initiated or shopkeeper-initiated)
-    match /creditRequests/{requestId} {
-      // Allow creation by either customer or shopkeeper, as long as they are part of the request
-      allow create: if (request.auth.uid == request.resource.data.customerId || request.auth.uid == request.resource.data.shopkeeperId);
-      // Allow both customer and shopkeeper involved in the request to read or update it (e.g., to approve/reject)
-      allow read, update, delete: if (request.auth.uid == resource.data.customerId || request.auth.uid == resource.data.shopkeeperId);
-    }
-    
-    // TTL policy for credit requests
-    match /creditRequests/{requestId} {
-      allow read, write; // Keep existing rules
-      @ttl(deleteAfter=expireAt)
-    }
-
-    // Rules for transactions, which are the source of truth for balances
+    // =================================
+    // Transactions - The Ledger
+    // Immutable and write-only for clients.
+    // =================================
     match /transactions/{transactionId} {
-        // Only the shopkeeper involved can create a transaction (credit or payment)
-        allow create: if request.auth.uid == request.resource.data.shopkeeperId;
-        // Both the customer and shopkeeper involved can read the transaction history
-        allow read: if request.auth.uid == resource.data.customerId || request.auth.uid == resource.data.shopkeeperId;
+      // READ: Only the customer and shopkeeper involved in the transaction can read it.
+      allow read: if isSignedIn() && (
+        resource.data.customerId == request.auth.uid || resource.data.shopkeeperId == request.auth.uid
+      );
+      
+      // CREATE: Only signed-in users who are part of the transaction can create it.
+      // Data must be valid (e.g., amount > 0).
+      allow create: if isSignedIn() && 
+                      (request.resource.data.customerId == request.auth.uid || request.resource.data.shopkeeperId == request.auth.uid) &&
+                      request.resource.data.amount > 0 &&
+                      request.resource.data.keys().hasAll(['amount', 'type', 'customerId', 'shopkeeperId', 'timestamp', 'notes', 'paymentGatewayId']) &&
+                      request.resource.data.type in ['credit', 'payment'];
+                      
+      // UPDATE, DELETE: Absolutely forbidden. Once a transaction is recorded, it cannot be changed or deleted.
+      allow update, delete: if false;
+    }
+    
+    // =================================
+    // Connection & Credit Requests
+    // =================================
+    match /connectionRequests/{requestId} {
+      // Anyone involved can read the request.
+      allow read: if isSignedIn() && (
+        resource.data.customerId == request.auth.uid || resource.data.shopkeeperId == request.auth.uid
+      );
+      // Only the customer can create the request.
+      allow create: if isTheUser(request.resource.data.customerId);
+      // Only the shopkeeper can update the status (to approve/reject).
+      allow update: if isTheUser(resource.data.shopkeeperId);
+      allow delete: if false;
+    }
+    
+    match /creditRequests/{requestId} {
+       // Anyone involved can read the request.
+      allow read: if isSignedIn() && (
+        resource.data.customerId == request.auth.uid || resource.data.shopkeeperId == request.auth.uid
+      );
+      // The person requesting the credit is the one who can create it.
+      allow create: if isTheUser(request.resource.data.get(request.resource.data.requestedBy + 'Id', ''));
+      // The person receiving the request is the one who can update it.
+      allow update: if (resource.data.requestedBy == 'customer' && isTheUser(resource.data.shopkeeperId)) || (resource.data.requestedBy == 'shopkeeper' && isTheUser(resource.data.customerId));
+      allow delete: if false;
+    }
+    
+    match /lock/{docId} {
+      allow read: if isSignedIn();
+      allow write: if false;
     }
   }
 }
