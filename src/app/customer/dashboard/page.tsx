@@ -135,7 +135,12 @@ export default function CustomerDashboardPage() {
       });
       
       const requestsRef = collection(firestore, 'creditRequests');
-      const qRequests = query(requestsRef, where('customerId', '==', currentUserUid), where('status', '==', 'pending'));
+      const qRequests = query(
+          requestsRef, 
+          where('customerId', '==', currentUserUid), 
+          where('status', '==', 'pending'),
+          where('requestedBy', '==', 'shopkeeper') // <-- CRITICAL SECURITY FIX
+      );
       
       const unsubscribeRequests = onSnapshot(qRequests, async (snapshot) => {
           const requests: CreditRequest[] = [];

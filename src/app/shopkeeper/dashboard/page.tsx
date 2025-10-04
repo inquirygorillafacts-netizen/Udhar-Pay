@@ -125,33 +125,9 @@ export default function ShopkeeperDashboardPage() {
             
             const customerDoc = await getDoc(doc(firestore, 'customers', currentUserUid));
             setHasCustomerRole(customerDoc.exists());
-        }
-        setLoadingProfile(false);
-    }, (error) => {
-        console.error("Error fetching shopkeeper document:", error);
-        setLoadingProfile(false);
-    });
 
-    const connectionsRef = collection(firestore, 'connectionRequests');
-    const qConnections = query(connectionsRef, where('shopkeeperId', '==', currentUserUid), where('status', '==', 'pending'));
-    const unsubscribeConnections = onSnapshot(qConnections, (querySnapshot) => {
-      const newRequests: ConnectionRequest[] = querySnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as ConnectionRequest));
-      setConnectionRequests(newRequests);
-    });
-    
-    const creditRequestsRef = collection(firestore, 'creditRequests');
-    const qCredit = query(creditRequestsRef, where('shopkeeperId', '==', currentUserUid), where('status', '==', 'pending'), where('requestedBy', '==', 'customer'));
-    const unsubscribeCreditRequests = onSnapshot(qCredit, (snapshot) => {
-      const requests: CustomerCreditRequest[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CustomerCreditRequest));
-      setCustomerCreditRequests(requests);
-    });
-    
-    // Separate useEffect for customers to avoid re-fetching on every profile change
-    const customerAndTransactionSetup = async () => {
-        setLoadingCustomers(true);
-        const shopkeeperDoc = await getDoc(shopkeeperRef);
-        if (shopkeeperDoc.exists()) {
-            const profileData = shopkeeperDoc.data() as UserProfile;
+            // Load connected customers and their balances
+            setLoadingCustomers(true);
             const customerIds = profileData.connections || [];
             if (customerIds.length > 0) {
                 const customersRef = collection(firestore, 'customers');
@@ -183,11 +159,33 @@ export default function ShopkeeperDashboardPage() {
                 setCustomers([]);
                 setFilteredCustomers([]);
             }
+            setLoadingCustomers(false);
         }
-        setLoadingCustomers(false);
-    };
+        setLoadingProfile(false);
+    }, (error) => {
+        console.error("Error fetching shopkeeper document:", error);
+        setLoadingProfile(false);
+    });
 
-    customerAndTransactionSetup();
+    const connectionsRef = collection(firestore, 'connectionRequests');
+    const qConnections = query(connectionsRef, where('shopkeeperId', '==', currentUserUid), where('status', '==', 'pending'));
+    const unsubscribeConnections = onSnapshot(qConnections, (querySnapshot) => {
+      const newRequests: ConnectionRequest[] = querySnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as ConnectionRequest));
+      setConnectionRequests(newRequests);
+    });
+    
+    const creditRequestsRef = collection(firestore, 'creditRequests');
+    const qCredit = query(
+        creditRequestsRef, 
+        where('shopkeeperId', '==', currentUserUid), 
+        where('status', '==', 'pending'),
+        where('requestedBy', '==', 'customer') // <-- CRITICAL SECURITY FIX
+    );
+    const unsubscribeCreditRequests = onSnapshot(qCredit, (snapshot) => {
+      const requests: CustomerCreditRequest[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CustomerCreditRequest));
+      setCustomerCreditRequests(requests);
+    });
+    
     const savedQr = localStorage.getItem('shopkeeperQrPosterPng');
     if (savedQr) setQrPosterDataUrl(savedQr);
 
