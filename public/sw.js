@@ -1,37 +1,34 @@
-// Define a version for your cache
-const CACHE_VERSION = 1;
-const CACHE_NAME = `udhar-pay-cache-v${CACHE_VERSION}`;
-
-// List of files to cache on install
-const urlsToCache = [
+const CACHE_NAME = 'udhar-pay-cache-v1';
+const APP_SHELL_URLS = [
   '/',
-  '/offline.html',
-  '/logo.png',
   '/manifest.json',
+  '/logo.png',
   '/favicon.ico',
-  // Add other critical assets like CSS, JS, and main images here
-  // Be careful not to cache everything, only the essential shell of your app
+  // Add other critical shell assets here if needed
 ];
 
-// Install the service worker and cache the essential app shell
+// 1. Install the service worker and cache the app shell
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('Opened cache');
-        return cache.addAll(urlsToCache);
+        console.log('Opened cache and caching app shell');
+        return cache.addAll(APP_SHELL_URLS);
+      })
+      .catch(err => {
+        console.error("App Shell caching failed: ", err);
       })
   );
-  self.skipWaiting();
 });
 
-// Activate event: clean up old caches
+// 2. Activate the service worker and clean up old caches
 self.addEventListener('activate', (event) => {
+  const cacheWhitelist = [CACHE_NAME];
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
+          if (cacheWhitelist.indexOf(cacheName) === -1) {
             console.log('Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
@@ -39,71 +36,50 @@ self.addEventListener('activate', (event) => {
       );
     })
   );
-  return self.clients.claim();
 });
 
-// Fetch event: serve from cache first, then network
+// 3. Intercept fetch requests
 self.addEventListener('fetch', (event) => {
-    // We only want to handle GET requests
-    if (event.request.method !== 'GET') {
-        return;
-    }
-    
+  const requestUrl = new URL(event.request.url);
+
+  // CRITICAL FIX: Never cache Firebase Firestore/Auth API calls.
+  // Always go to the network for these to ensure live data.
+  if (requestUrl.hostname.includes('googleapis.com')) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+  
+  // For other requests (app shell, static assets), use a cache-first strategy.
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
-        // If we found a match in the cache, return it
+        // If the request is in the cache, return it.
         if (response) {
           return response;
         }
 
-        // Otherwise, fetch from the network
+        // Otherwise, fetch it from the network, cache it, and return it.
         return fetch(event.request).then((networkResponse) => {
-            // Check if we received a valid response
-            if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
-                return networkResponse;
-            }
-
-            // IMPORTANT: Clone the response. A response is a stream
-            // and because we want the browser to consume the response
-            // as well as the cache consuming the response, we need
-            // to clone it so we have two streams.
-            const responseToCache = networkResponse.clone();
-
-            caches.open(CACHE_NAME)
-                .then((cache) => {
-                    // We don't want to cache API calls or Firebase auth requests
-                    if (!event.request.url.includes('/api/') && !event.request.url.includes('firebase')) {
-                         cache.put(event.request, responseToCache);
-                    }
-                });
-
+          // Check if we received a valid response
+          if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
             return networkResponse;
-        }).catch(() => {
-            // If the network request fails, and we didn't have a cache match,
-            // show the offline page for navigation requests.
-            if (event.request.mode === 'navigate') {
-                 return caches.match('/offline.html');
-            }
+          }
+
+          // Clone the response because it's a stream and can only be consumed once.
+          const responseToCache = networkResponse.clone();
+
+          caches.open(CACHE_NAME)
+            .then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+
+          return networkResponse;
         });
+      })
+      .catch(() => {
+        // If both cache and network fail, you can provide a generic fallback
+        // This is optional and depends on your app's needs.
+        // For example, return an offline page for navigation requests.
       })
   );
 });
-
-// Sync event for background data synchronization
-self.addEventListener('sync', (event) => {
-    if (event.tag === 'sync-form-data') {
-        event.waitUntil(syncFormData());
-    }
-});
-
-
-async function syncFormData() {
-    // This logic needs to be implemented:
-    // 1. Open IndexedDB
-    // 2. Get all pending submissions
-    // 3. Send them to the server via fetch POST request to '/api/sync'
-    // 4. If successful, clear the submissions from IndexedDB
-    console.log('Sync event fired for sync-form-data');
-    // Actual implementation would involve IndexedDB and fetch calls.
-}
