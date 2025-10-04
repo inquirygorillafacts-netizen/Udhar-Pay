@@ -115,31 +115,50 @@ export default function ShopkeeperDashboardPage() {
     }
 
     setLoadingProfile(true);
-    setLoadingCustomers(true);
     const currentUserUid = auth.currentUser.uid;
 
-    // --- All Listeners in one useEffect ---
-    
-    // 1. Listen to Shopkeeper Profile
     const shopkeeperRef = doc(firestore, 'shopkeepers', currentUserUid);
     const unsubscribeProfile = onSnapshot(shopkeeperRef, async (shopkeeperDoc) => {
         if (shopkeeperDoc.exists()) {
             const profileData = { uid: shopkeeperDoc.id, ...shopkeeperDoc.data() } as UserProfile;
             setShopkeeperProfile(profileData);
             
-            // Check for customer role once
             const customerDoc = await getDoc(doc(firestore, 'customers', currentUserUid));
             setHasCustomerRole(customerDoc.exists());
+        }
+        setLoadingProfile(false);
+    }, (error) => {
+        console.error("Error fetching shopkeeper document:", error);
+        setLoadingProfile(false);
+    });
 
-            // --- Load Customers & Balances based on connections ---
+    const connectionsRef = collection(firestore, 'connectionRequests');
+    const qConnections = query(connectionsRef, where('shopkeeperId', '==', currentUserUid), where('status', '==', 'pending'));
+    const unsubscribeConnections = onSnapshot(qConnections, (querySnapshot) => {
+      const newRequests: ConnectionRequest[] = querySnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as ConnectionRequest));
+      setConnectionRequests(newRequests);
+    });
+    
+    const creditRequestsRef = collection(firestore, 'creditRequests');
+    const qCredit = query(creditRequestsRef, where('shopkeeperId', '==', currentUserUid), where('status', '==', 'pending'), where('requestedBy', '==', 'customer'));
+    const unsubscribeCreditRequests = onSnapshot(qCredit, (snapshot) => {
+      const requests: CustomerCreditRequest[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CustomerCreditRequest));
+      setCustomerCreditRequests(requests);
+    });
+    
+    // Separate useEffect for customers to avoid re-fetching on every profile change
+    const customerAndTransactionSetup = async () => {
+        setLoadingCustomers(true);
+        const shopkeeperDoc = await getDoc(shopkeeperRef);
+        if (shopkeeperDoc.exists()) {
+            const profileData = shopkeeperDoc.data() as UserProfile;
             const customerIds = profileData.connections || [];
             if (customerIds.length > 0) {
                 const customersRef = collection(firestore, 'customers');
                 const q = query(customersRef, where('__name__', 'in', customerIds));
-                
                 const customersSnap = await getDocs(q);
                 const customerProfiles = customersSnap.docs.map(cDoc => ({ uid: cDoc.id, ...cDoc.data() } as UserProfile));
-                
+
                 const transQuery = query(collection(firestore, 'transactions'), where('shopkeeperId', '==', currentUserUid));
                 const transSnap = await getDocs(transQuery);
                 const balances: { [key: string]: number } = {};
@@ -164,33 +183,11 @@ export default function ShopkeeperDashboardPage() {
                 setCustomers([]);
                 setFilteredCustomers([]);
             }
-
         }
-        setLoadingProfile(false);
         setLoadingCustomers(false);
-    }, (error) => {
-        console.error("Error fetching shopkeeper document:", error);
-        setLoadingProfile(false);
-        setLoadingCustomers(false);
-    });
+    };
 
-    // 2. Listen to Connection Requests
-    const connectionsRef = collection(firestore, 'connectionRequests');
-    const qConnections = query(connectionsRef, where('shopkeeperId', '==', currentUserUid), where('status', '==', 'pending'));
-    const unsubscribeConnections = onSnapshot(qConnections, (querySnapshot) => {
-      const newRequests: ConnectionRequest[] = querySnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as ConnectionRequest));
-      setConnectionRequests(newRequests);
-    });
-    
-    // 3. Listen to Credit Requests from Customers
-    const creditRequestsRef = collection(firestore, 'creditRequests');
-    const qCredit = query(creditRequestsRef, where('shopkeeperId', '==', currentUserUid), where('status', '==', 'pending'), where('requestedBy', '==', 'customer'));
-    const unsubscribeCreditRequests = onSnapshot(qCredit, (snapshot) => {
-      const requests: CustomerCreditRequest[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CustomerCreditRequest));
-      setCustomerCreditRequests(requests);
-    });
-
-    // Load QR from localStorage once
+    customerAndTransactionSetup();
     const savedQr = localStorage.getItem('shopkeeperQrPosterPng');
     if (savedQr) setQrPosterDataUrl(savedQr);
 
@@ -605,14 +602,6 @@ export default function ShopkeeperDashboardPage() {
                 />
             </div>
             
-             <div className="form-group" style={{ marginBottom: '20px' }}>
-                <div className="neu-input">
-                    <input type="text" id="notes" value={creditNotes} onChange={(e) => setCreditNotes(e.target.value)} placeholder=" "/>
-                    <label htmlFor="notes">Notes (e.g., 1kg Sugar, 2L Milk)</label>
-                    <div className="input-icon"><StickyNote /></div>
-                </div>
-            </div>
-
             {error && <p style={{ color: '#ff3b5c', textAlign: 'center', marginBottom: '15px', animation: 'gentleShake 0.5s' }}>{error}</p>}
             
             <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>

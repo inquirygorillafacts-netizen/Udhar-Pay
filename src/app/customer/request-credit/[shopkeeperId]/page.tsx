@@ -34,7 +34,6 @@ export default function RequestCreditPage() {
   const [loading, setLoading] = useState(true);
   
   const [amount, setAmount] = useState('');
-  const [notes, setNotes] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -137,7 +136,6 @@ export default function RequestCreditPage() {
         const creditRequestsRef = collection(firestore, 'creditRequests');
         await addDoc(creditRequestsRef, {
             amount: creditAmount,
-            notes: notes,
             customerId: auth.currentUser!.uid,
             customerName: customerProfile?.displayName,
             shopkeeperId: shopkeeperId,
@@ -204,7 +202,7 @@ export default function RequestCreditPage() {
       <main className="dashboard-main-content" style={{padding: '20px'}}>
         <div className="login-card" style={{ maxWidth: '600px', margin: 'auto' }}>
             <h2 style={{textAlign: 'center', color: '#3d4468', fontWeight: 600, fontSize: '1.5rem', marginBottom: '25px'}}>Enter Udhaar Details</h2>
-            <div className="form-group">
+            <div className="form-group" style={{marginBottom: '30px'}}>
                 <div className="neu-input">
                     <div className="input-icon"><IndianRupee /></div>
                     <input
@@ -217,17 +215,7 @@ export default function RequestCreditPage() {
                     <label htmlFor="amount">Enter Amount</label>
                 </div>
             </div>
-             <div className="form-group" style={{marginBottom: '30px'}}>
-                <div className="neu-input">
-                    <input
-                        type="text"
-                        placeholder=" "
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                    />
-                    <label htmlFor="notes">Notes (e.g., 1kg Sugar, 2L Milk)</label>
-                </div>
-            </div>
+            
             {error && <p style={{ color: '#ff3b5c', textAlign: 'center', marginBottom: '15px' }}>{error}</p>}
             <button 
                 className={`neu-button ${isProcessing ? 'loading' : ''}`} 
