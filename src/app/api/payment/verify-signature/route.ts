@@ -12,6 +12,7 @@ export async function POST(request: Request) {
 
     const body = razorpay_order_id + "|" + razorpay_payment_id;
 
+    // The secret should only be used here, no need to initialize the full client
     const expectedSignature = crypto
       .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET!)
       .update(body.toString())
