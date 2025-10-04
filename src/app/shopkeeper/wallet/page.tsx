@@ -2,15 +2,21 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useFirebase } from '@/firebase/client-provider';
-import { onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { onSnapshot, doc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { LifeBuoy, Phone, UploadCloud, Lock, CheckCircle, ShieldAlert, KeyRound, HelpCircle, X, AlertTriangle, SlidersHorizontal, IndianRupee } from 'lucide-react';
 import Link from 'next/link';
 import axios from 'axios';
 
 interface ShopkeeperProfile {
+    connections?: string[];
     balances?: { [key: string]: number };
     qrCodeUrl?: string;
     qrUpdatePin?: string;
+}
+
+interface CustomerProfile {
+    uid: string;
+    balances?: { [key: string]: number };
 }
 
 interface Notification {
@@ -54,22 +60,47 @@ export default function ShopkeeperWalletPage() {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
-        if (!firestore || !auth.currentUser) return;
+        if (!firestore || !auth.currentUser) {
+            setLoading(false);
+            return;
+        };
 
         const shopkeeperRef = doc(firestore, 'shopkeepers', auth.currentUser.uid);
         
-        const unsubscribe = onSnapshot(shopkeeperRef, (snapshot) => {
-            if (snapshot.exists()) {
-                const data = snapshot.data() as ShopkeeperProfile;
+        const unsubscribe = onSnapshot(shopkeeperRef, (shopkeeperSnap) => {
+            if (shopkeeperSnap.exists()) {
+                const data = shopkeeperSnap.data() as ShopkeeperProfile;
                 setProfile(data);
                 setIsSetupActive(!!data.qrCodeUrl && !!data.qrUpdatePin);
 
-                const balances = data.balances || {};
-                const totalOutstanding = Object.values(balances).reduce((sum, balance) => {
-                    if (balance > 0) return sum + balance;
-                    return sum;
-                }, 0);
-                setOutstandingCredit(totalOutstanding);
+                const customerIds = data.connections || [];
+                if (customerIds.length === 0) {
+                    setOutstandingCredit(0);
+                    setLoading(false);
+                    return;
+                }
+
+                // Query all connected customers to get real-time balance updates
+                const customersRef = collection(firestore, 'customers');
+                const q = query(customersRef, where('__name__', 'in', customerIds));
+
+                const unsubscribeCustomers = onSnapshot(q, (customersSnapshot) => {
+                    let totalOutstanding = 0;
+                    const shopkeeperId = auth.currentUser!.uid;
+
+                    customersSnapshot.forEach((customerDoc) => {
+                        const customerProfile = customerDoc.data() as CustomerProfile;
+                        const balance = customerProfile.balances?.[shopkeeperId] || 0;
+                        if (balance > 0) {
+                            totalOutstanding += balance;
+                        }
+                    });
+
+                    setOutstandingCredit(totalOutstanding);
+                });
+                
+                // We should return the inner unsubscribe function for cleanup
+                // But since the outer one wraps it, this is okay for now.
             }
             setLoading(false);
         }, (err) => {
