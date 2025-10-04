@@ -2,13 +2,17 @@
 
 import { useEffect, useState } from 'react';
 import { useFirebase } from '@/firebase/client-provider';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, collection, query, where } from 'firebase/firestore';
 import { Users, BookUser, UserCheck, IndianRupee, PieChart } from 'lucide-react';
 
 interface ShopkeeperProfile {
   uid: string;
-  balances?: { [key: string]: number }; 
   connections?: string[];
+}
+
+interface CustomerProfile {
+    uid: string;
+    balances?: { [key: string]: number };
 }
 
 interface Analytics {
@@ -26,47 +30,68 @@ export default function ShopkeeperAnalysisPage() {
   useEffect(() => {
     if (!auth.currentUser) return;
 
-    const userRef = doc(firestore, 'shopkeepers', auth.currentUser.uid);
-    const unsubscribe = onSnapshot(userRef, (docSnap) => {
-      if (docSnap.exists()) {
-        setLoadingAnalytics(true);
-        const shopkeeperProfile = docSnap.data() as ShopkeeperProfile;
-        
-        const customerIds = shopkeeperProfile.connections || [];
-        const balances = shopkeeperProfile.balances || {};
-        
-        let customersOnCredit = 0;
-        let customersWithZeroBalance = 0;
-        let totalOutstanding = 0;
+    // Listen to the shopkeeper's document primarily to get the list of connections.
+    const shopkeeperRef = doc(firestore, 'shopkeepers', auth.currentUser.uid);
+    const unsubscribeShopkeeper = onSnapshot(shopkeeperRef, (shopkeeperSnap) => {
+      if (!shopkeeperSnap.exists()) {
+        setLoadingAnalytics(false);
+        return;
+      }
+      
+      setLoadingAnalytics(true);
+      const shopkeeperProfile = shopkeeperSnap.data() as ShopkeeperProfile;
+      const customerIds = shopkeeperProfile.connections || [];
+      
+      if (customerIds.length === 0) {
+        setAnalytics({ totalCustomers: 0, customersOnCredit: 0, customersWithZeroBalance: 0, totalOutstanding: 0 });
+        setLoadingAnalytics(false);
+        return;
+      }
 
-        customerIds.forEach(customerId => {
-            const balance = balances[customerId] || 0;
+      // Now, set up a listener for ALL connected customers.
+      // This is the key change: we get real-time balance updates from each customer.
+      const customersRef = collection(firestore, 'customers');
+      const q = query(customersRef, where('__name__', 'in', customerIds));
+
+      const unsubscribeCustomers = onSnapshot(q, (customersSnapshot) => {
+        let totalOutstanding = 0;
+        let customersOnCredit = 0;
+        const shopkeeperId = auth.currentUser!.uid;
+
+        customersSnapshot.forEach((customerDoc) => {
+            const customerProfile = customerDoc.data() as CustomerProfile;
+            const balance = customerProfile.balances?.[shopkeeperId] || 0;
             if (balance > 0) {
                 customersOnCredit++;
                 totalOutstanding += balance;
-            } else {
-                customersWithZeroBalance++;
             }
         });
-
+        
         const totalCustomers = customerIds.length;
 
         setAnalytics({
             totalCustomers,
             customersOnCredit,
-            customersWithZeroBalance,
-            totalOutstanding
+            customersWithZeroBalance: totalCustomers - customersOnCredit,
+            totalOutstanding,
         });
         setLoadingAnalytics(false);
-      } else {
+
+      }, (error) => {
+        console.error("Error fetching customer data for analytics:", error);
         setLoadingAnalytics(false);
-      }
+      });
+
+      // Return a cleanup function for the customers listener
+      return () => unsubscribeCustomers();
+
     }, (error) => {
       console.error("Error fetching shopkeeper data for analytics:", error);
       setLoadingAnalytics(false);
     });
 
-    return () => unsubscribe();
+    // Return a cleanup function for the main shopkeeper listener
+    return () => unsubscribeShopkeeper();
   }, [auth.currentUser, firestore]);
 
   return (
