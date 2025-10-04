@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useFirebase } from '@/firebase/client-provider';
-import { doc, getDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 import { ArrowLeft, Save, IndianRupee, AlertTriangle, Phone, User, Search, ToggleLeft, ToggleRight, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
