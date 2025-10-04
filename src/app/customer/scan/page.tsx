@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { ArrowLeft, Flashlight, Camera, CameraOff, X } from 'lucide-react';
+import { ArrowLeft, Flashlight, CameraOff, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode';
@@ -17,10 +17,10 @@ export default function CustomerScanQrPage() {
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const isProcessingRef = useRef(false);
 
-  const [scanState, setScanState] = useState<'idle' | 'scanning'>('idle');
   const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [isTorchOn, setIsTorchOn] = useState(false);
   const [isTorchAvailable, setIsTorchAvailable] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
   
   const stopScanner = useCallback(() => {
     if (scannerRef.current && scannerRef.current.isScanning) {
@@ -28,6 +28,7 @@ export default function CustomerScanQrPage() {
           // Errors on stop are common and can be ignored.
         });
         scannerRef.current = null;
+        setIsScanning(false);
     }
   }, []);
 
@@ -66,65 +67,64 @@ export default function CustomerScanQrPage() {
       }
   }, [auth.currentUser, firestore, router, stopScanner, toast]);
   
-  const startScanner = useCallback(() => {
-      if (scanState !== 'scanning' || scannerRef.current) {
-        return;
-      }
+  
+  useEffect(() => {
+      const startScanner = () => {
+          if (scannerRef.current) {
+            return;
+          }
 
-      const qrScanner = new Html5Qrcode('reader');
-      scannerRef.current = qrScanner;
+          const qrScanner = new Html5Qrcode('reader');
+          scannerRef.current = qrScanner;
 
-      const config = {
-          fps: 10,
-          qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
-              const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-              const qrboxSize = Math.floor(minEdge * 0.7);
-              return { width: qrboxSize, height: qrboxSize };
-          },
-          aspectRatio: 1.0,
-          supportedScanTypes: [],
+          const config = {
+              fps: 10,
+              qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
+                  const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+                  const qrboxSize = Math.floor(minEdge * 0.7);
+                  return { width: qrboxSize, height: qrboxSize };
+              },
+              aspectRatio: 1.0,
+              supportedScanTypes: [],
+          };
+          
+          const qrCodeErrorCallback = (errorMessage: string) => { /* Ignore common errors */ };
+          
+          qrScanner.start(
+              { facingMode: 'environment' },
+              config,
+              onScanSuccess,
+              qrCodeErrorCallback
+          ).then(() => {
+              setIsScanning(true);
+              try {
+                  // @ts-ignore - _getRunningTrack() is an internal but useful method
+                  const track = qrScanner._getRunningTrack();
+                  const capabilities = track.getCapabilities();
+                  setIsTorchAvailable(!!capabilities.torch);
+              } catch (e) {
+                  setIsTorchAvailable(false);
+              }
+          }).catch(err => {
+               if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+                    setShowPermissionModal(true);
+                } else {
+                    toast({
+                        variant: 'destructive',
+                        title: 'Camera Error',
+                        description: 'Could not start the camera. It might be in use by another app.',
+                    });
+                }
+          });
       };
       
-      const qrCodeErrorCallback = (errorMessage: string) => { /* Ignore common errors */ };
-      
-      qrScanner.start(
-          { facingMode: 'environment' },
-          config,
-          onScanSuccess,
-          qrCodeErrorCallback
-      ).then(() => {
-          // Check for torch capability after starting
-          try {
-              // @ts-ignore - _getRunningTrack() is an internal but useful method
-              const track = qrScanner._getRunningTrack();
-              const capabilities = track.getCapabilities();
-              setIsTorchAvailable(!!capabilities.torch);
-          } catch (e) {
-              setIsTorchAvailable(false);
-          }
-      }).catch(err => {
-           if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
-                setScanState('idle');
-                setShowPermissionModal(true);
-            } else {
-                toast({
-                    variant: 'destructive',
-                    title: 'Camera Error',
-                    description: 'Could not start the camera. It might be in use by another app.',
-                });
-                setScanState('idle');
-            }
-      });
-  }, [scanState, onScanSuccess, toast]);
+      startScanner();
 
-  useEffect(() => {
-      if (scanState === 'scanning') {
-          startScanner();
-      }
       return () => {
           stopScanner();
       };
-  }, [scanState, startScanner, stopScanner]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const toggleTorch = async () => {
     if (scannerRef.current && scannerRef.current.getState() === Html5QrcodeScannerState.SCANNING) {
@@ -158,7 +158,7 @@ export default function CustomerScanQrPage() {
   return (
     <>
       {showPermissionModal && (
-        <div className="modal-overlay" onClick={() => setShowPermissionModal(false)}>
+        <div className="modal-overlay" onClick={() => { setShowPermissionModal(false); router.back(); }}>
             <div className="login-card modal-content" style={{maxWidth: '450px'}} onClick={(e) => e.stopPropagation()}>
                 <div className="modal-header" style={{flexDirection: 'column', textAlign: 'center', marginBottom: '25px'}}>
                     <div className="neu-icon" style={{width: '70px', height: '70px', background: '#ffdfe4'}}>
@@ -189,24 +189,8 @@ export default function CustomerScanQrPage() {
 
           <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden', padding: '20px' }}>
               <div className="qr-scanner-container">
-                   {scanState === 'idle' && (
-                      <div className="login-card" style={{padding: '30px', margin: 0, background: 'transparent', boxShadow: 'none', textAlign: 'center'}}>
-                           <div className="neu-icon" style={{width: '100px', height: '100px', background: '#e0e5ec'}}>
-                              <Camera size={50} className="text-gray-500" />
-                          </div>
-                          <h2 style={{color: '#3d4468', fontSize: '1.5rem', marginBottom: '10px', marginTop: '20px'}}>Ready to Scan</h2>
-                          <p style={{color: '#9499b7', marginBottom: '30px', fontSize: '1rem', maxWidth: '300px', margin: 'auto'}}>
-                             Click the button below to start your camera and scan a shopkeeper's QR code.
-                          </p>
-                          <button className="neu-button" onClick={() => setScanState('scanning')} style={{margin: 0, background: '#00c896', color: 'white'}}>
-                             Start Scanning
-                          </button>
-                      </div>
-                  )}
-                  
-                   {scanState === 'scanning' && (
-                       <>
-                          <div id="reader" style={{ width: '100%', height: '100%', borderRadius: '25px', overflow: 'hidden' }}></div>
+                   <div id="reader" style={{ width: '100%', height: '100%', borderRadius: '25px', overflow: 'hidden' }}></div>
+                      {isScanning && (
                           <div className="qr-scanner-frame">
                               <div className="scanner-corner top-left"></div>
                               <div className="scanner-corner top-right"></div>
@@ -214,12 +198,14 @@ export default function CustomerScanQrPage() {
                               <div className="scanner-corner bottom-right"></div>
                               <div className="scanner-line"></div>
                           </div>
-                      </>
-                   )}
+                      )}
+                      {!isScanning && !showPermissionModal && (
+                           <div className="neu-spinner"></div>
+                      )}
               </div>
           </main>
           
-          {scanState === 'scanning' && (
+          {isScanning && (
               <div style={{
                   color: '#6c7293', background: '#e0e5ec', padding: '10px 20px 20px',
                   textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px'
