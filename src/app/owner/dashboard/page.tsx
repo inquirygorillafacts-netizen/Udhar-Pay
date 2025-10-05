@@ -4,7 +4,7 @@ import { useFirebase } from '@/firebase/client-provider';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { collection, onSnapshot, query, where, Timestamp, getDocs, doc } from 'firebase/firestore';
-import { Users, Store, IndianRupee, TrendingUp, ArrowLeftRight } from 'lucide-react';
+import { Users, Store, IndianRupee, TrendingUp, ArrowLeftRight, Wallet } from 'lucide-react';
 
 interface Transaction {
     amount: number;
@@ -23,7 +23,7 @@ interface StatCardProps {
 
 const StatCard = ({ title, value, icon, colorClass }: StatCardProps) => (
     <div className="login-card" style={{ padding: '20px', textAlign: 'center', flex: 1, minWidth: '140px' }}>
-        <div className={`neu-icon ${colorClass}`} style={{ width: '60px', height: '60px', margin: '0 auto 15px', color: 'white', background: colorClass, boxShadow: 'none' }}>
+        <div className={`neu-icon`} style={{ width: '60px', height: '60px', margin: '0 auto 15px', color: 'white', background: colorClass, boxShadow: 'none' }}>
             {icon}
         </div>
         <h3 style={{ color: '#6c7293', fontSize: '14px', fontWeight: 600, margin: 0, textTransform: 'uppercase' }}>{title}</h3>
@@ -85,56 +85,53 @@ export default function OwnerDashboardPage() {
         const twentyFourHoursAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
         const startOfTodayTimestamp = Timestamp.fromDate(twentyFourHoursAgo);
 
-        const unsubCustomers = onSnapshot(query(collection(firestore, 'customers')), snapshot => {
-            const newToday = snapshot.docs.filter(doc => (doc.data().createdAt as Timestamp)?.toDate() >= twentyFourHoursAgo).length;
-            setStats(prev => ({...prev, totalCustomers: snapshot.size, newCustomersToday: newToday }));
+        const unsubCustomers = onSnapshot(query(collection(firestore, 'customers'), where('createdAt', '>=', startOfTodayTimestamp)), snapshot => {
+            setStats(prev => ({ ...prev, newCustomersToday: snapshot.size }));
+        });
+        
+        const unsubShopkeepers = onSnapshot(query(collection(firestore, 'shopkeepers'), where('createdAt', '>=', startOfTodayTimestamp)), snapshot => {
+            setStats(prev => ({ ...prev, newShopkeepersToday: snapshot.size }));
         });
 
-        const unsubShopkeepers = onSnapshot(query(collection(firestore, 'shopkeepers')), snapshot => {
-             const newToday = snapshot.docs.filter(doc => (doc.data().createdAt as Timestamp)?.toDate() >= twentyFourHoursAgo).length;
-            setStats(prev => ({...prev, totalShopkeepers: snapshot.size, newShopkeepersToday: newToday}));
-        });
+        getDocs(collection(firestore, 'customers')).then(snap => setStats(prev => ({...prev, totalCustomers: snap.size})));
+        getDocs(collection(firestore, 'shopkeepers')).then(snap => setStats(prev => ({...prev, totalShopkeepers: snap.size})));
         
         const unsubTransactions = onSnapshot(query(collection(firestore, 'transactions')), async (snapshot) => {
             let totalOutstanding = 0;
+            
             const transactionsToday = snapshot.docs.filter(doc => (doc.data().timestamp as Timestamp)?.toDate() >= twentyFourHoursAgo).length;
 
-            const allTransactions: (Transaction & {id: string})[] = [];
-            const customerIdSet = new Set<string>();
-            const shopkeeperIdSet = new Set<string>();
+            const customerCache: {[key: string]: string} = {};
+            const shopkeeperCache: {[key: string]: string} = {};
+            const customerPromises: Promise<any>[] = [];
+            const shopkeeperPromises: Promise<any>[] = [];
 
+            const allTransactions: (Transaction & {id: string})[] = [];
             snapshot.forEach(txDoc => {
-                const tx = { id: txDoc.id, ...txDoc.data() } as Transaction;
-                
-                 if (tx.type === 'credit') {
+                const tx = txDoc.data() as Transaction;
+                if (tx.type === 'credit') {
                     totalOutstanding += tx.amount;
                 } else if (tx.type === 'payment') {
                     totalOutstanding -= tx.amount;
                 }
-
                 allTransactions.push({id: txDoc.id, ...tx});
-                customerIdSet.add(tx.customerId);
-                shopkeeperIdSet.add(tx.shopkeeperId);
+                if (!customerCache[tx.customerId]) {
+                    customerPromises.push(getDoc(doc(firestore, 'customers', tx.customerId)));
+                }
+                 if (!shopkeeperCache[tx.shopkeeperId]) {
+                    shopkeeperPromises.push(getDoc(doc(firestore, 'shopkeepers', tx.shopkeeperId)));
+                }
             });
             
-            const customerCache: {[key: string]: string} = {};
-            const shopkeeperCache: {[key: string]: string} = {};
-
-            const customerIds = Array.from(customerIdSet);
-            if (customerIds.length > 0) {
-                 const customerDocs = await getDocs(query(collection(firestore, 'customers'), where('__name__', 'in', customerIds)));
-                 customerDocs.forEach(doc => {
-                     customerCache[doc.id] = doc.data()?.displayName || 'Unknown';
-                 });
-            }
-
-            const shopkeeperIds = Array.from(shopkeeperIdSet);
-            if (shopkeeperIds.length > 0) {
-                const shopkeeperDocs = await getDocs(query(collection(firestore, 'shopkeepers'), where('__name__', 'in', shopkeeperIds)));
-                shopkeeperDocs.forEach(doc => {
-                    shopkeeperCache[doc.id] = doc.data()?.displayName || 'Unknown';
-                });
-            }
+            const customerDocs = await Promise.all(customerPromises);
+            customerDocs.forEach(doc => {
+                 if(doc.exists()) customerCache[doc.id] = doc.data()?.displayName || 'Unknown';
+            });
+            
+            const shopkeeperDocs = await Promise.all(shopkeeperPromises);
+             shopkeeperDocs.forEach(doc => {
+                 if(doc.exists()) shopkeeperCache[doc.id] = doc.data()?.displayName || 'Unknown';
+            });
             
             const transactionsWithNames = allTransactions.map(tx => ({
                 ...tx,
@@ -183,6 +180,15 @@ export default function OwnerDashboardPage() {
                         <StatCard title="New Customers" value={`+${stats.newCustomersToday}`} icon={<TrendingUp size={28} />} colorClass="#00c896" />
                         <StatCard title="New Shops" value={`+${stats.newShopkeepersToday}`} icon={<TrendingUp size={28} />} colorClass="#00c896" />
                         <StatCard title="Transactions" value={`${stats.totalTransactionsToday}`} icon={<ArrowLeftRight size={28} />} colorClass="#6c757d" />
+                    </div>
+                 </div>
+
+                 <div className="login-card">
+                    <h2 style={{ textAlign: 'center', color: '#3d4468', fontWeight: 600, fontSize: '1.5rem', marginBottom: '25px' }}>Profit Analytics</h2>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '20px', marginBottom: '30px' }}>
+                        <StatCard title="24h Profit" value={`₹0`} icon={<IndianRupee size={28} />} colorClass="#28a745" />
+                        <StatCard title="30d Profit" value={`₹0`} icon={<Wallet size={28} />} colorClass="#17a2b8" />
+                        <StatCard title="Total Profit" value={`₹0`} icon={<IndianRupee size={28} />} colorClass="#007bff" />
                     </div>
                  </div>
 
