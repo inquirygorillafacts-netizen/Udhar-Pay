@@ -46,9 +46,11 @@ interface ModalInfo {
 
 interface Transaction {
     amount: number;
-    type: 'credit' | 'payment';
+    type: 'credit' | 'payment' | 'commission';
     shopkeeperId: string;
 }
+
+const COMMISSION_RATE = 0.02; // 2%
 
 
 export default function CustomerDashboardPage() {
@@ -117,9 +119,9 @@ export default function CustomerDashboardPage() {
               snapshot.forEach((doc) => {
                   const tx = doc.data() as Transaction;
                   if (newBalances[tx.shopkeeperId] !== undefined) {
-                      if (tx.type === 'credit') {
+                      if (tx.type === 'credit' || tx.type === 'commission') {
                           newBalances[tx.shopkeeperId] += tx.amount;
-                      } else {
+                      } else if (tx.type === 'payment') {
                           newBalances[tx.shopkeeperId] -= tx.amount;
                       }
                   }
@@ -139,7 +141,7 @@ export default function CustomerDashboardPage() {
           requestsRef, 
           where('customerId', '==', currentUserUid), 
           where('status', '==', 'pending'),
-          where('requestedBy', '==', 'shopkeeper') // <-- CRITICAL SECURITY FIX
+          where('requestedBy', '==', 'shopkeeper')
       );
       
       const unsubscribeRequests = onSnapshot(qRequests, async (snapshot) => {
@@ -196,6 +198,10 @@ export default function CustomerDashboardPage() {
               const batch = writeBatch(firestore);
               batch.update(requestRef, { status: 'approved' });
               
+              const commissionAmount = request.amount * COMMISSION_RATE;
+              const profitAmount = Math.round(commissionAmount * 100) / 100;
+
+              // Main credit transaction
               const transactionRef = doc(collection(firestore, 'transactions'));
               batch.set(transactionRef, {
                   amount: request.amount,
@@ -204,6 +210,18 @@ export default function CustomerDashboardPage() {
                   shopkeeperId: request.shopkeeperId,
                   customerId: auth.currentUser.uid,
                   timestamp: serverTimestamp(),
+              });
+
+              // Commission transaction for platform profit
+              const commissionRef = doc(collection(firestore, 'transactions'));
+               batch.set(commissionRef, {
+                  amount: profitAmount,
+                  type: 'commission',
+                  notes: `2% commission on ₹${request.amount} credit`,
+                  shopkeeperId: request.shopkeeperId,
+                  customerId: auth.currentUser.uid,
+                  timestamp: serverTimestamp(),
+                  profit: profitAmount
               });
               
               await batch.commit();
