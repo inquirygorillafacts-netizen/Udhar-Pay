@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { collection, onSnapshot, query, where, Timestamp, getDocs, doc, getDoc } from 'firebase/firestore';
 import { Users, Store, IndianRupee, TrendingUp, TrendingDown, ArrowLeftRight } from 'lucide-react';
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface Transaction {
     amount: number;
@@ -107,8 +106,8 @@ export default function OwnerDashboardPage() {
             const customerCache: {[key: string]: string} = {};
             const shopkeeperCache: {[key: string]: string} = {};
 
-            snapshot.forEach(doc => {
-                const tx = { id: doc.id, ...doc.data() } as Transaction;
+            snapshot.forEach(txDoc => {
+                const tx = { id: txDoc.id, ...txDoc.data() } as Transaction;
                 
                  if (tx.type === 'credit') {
                     totalOutstanding += tx.amount;
