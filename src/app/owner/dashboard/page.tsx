@@ -3,7 +3,7 @@
 import { useFirebase } from '@/firebase/client-provider';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { collection, onSnapshot, query, where, Timestamp, getDocs } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, Timestamp, getDocs, doc } from 'firebase/firestore';
 import { Users, Store, IndianRupee, TrendingUp, TrendingDown, ArrowLeftRight } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
