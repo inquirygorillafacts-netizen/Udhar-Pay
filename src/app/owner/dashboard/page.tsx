@@ -3,16 +3,16 @@
 import { useFirebase } from '@/firebase/client-provider';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { collection, onSnapshot, query, where, Timestamp, getDocs, doc } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, Timestamp, getDocs, doc, getDoc } from 'firebase/firestore';
 import { Users, Store, IndianRupee, TrendingUp, ArrowLeftRight, Wallet } from 'lucide-react';
 
 interface Transaction {
     amount: number;
-    type: 'credit' | 'payment';
+    type: 'credit' | 'payment' | 'commission';
     timestamp: Timestamp;
     customerId: string;
     shopkeeperId: string;
-    profit?: number; // Profit from this transaction
+    profit?: number;
 }
 
 interface StatCardProps {
@@ -34,6 +34,9 @@ const StatCard = ({ title, value, icon, colorClass }: StatCardProps) => (
 
 const TransactionItem = ({ tx }: { tx: Transaction & { id: string, customerName?: string, shopkeeperName?: string } }) => {
     const isCredit = tx.type === 'credit';
+    const isCommission = tx.type === 'commission';
+    if(isCommission) return null; // Don't render commission transactions in this list
+
     return (
         <div className="neu-input" style={{ display: 'flex', alignItems: 'center', padding: '15px 20px', boxShadow: '5px 5px 10px #d1d9e6, -5px -5px 10px #ffffff' }}>
             <div className="neu-icon" style={{ width: '45px', height: '45px', margin: 0, marginRight: '15px', background: isCredit ? 'rgba(255, 59, 92, 0.1)' : 'rgba(0, 200, 150, 0.1)', boxShadow: 'none' }}>
@@ -88,6 +91,7 @@ export default function OwnerDashboardPage() {
         const now = new Date();
         const twentyFourHoursAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
         const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
+        
         const startOfTodayTimestamp = Timestamp.fromDate(twentyFourHoursAgo);
 
         const unsubCustomers = onSnapshot(query(collection(firestore, 'customers'), where('createdAt', '>=', startOfTodayTimestamp)), snapshot => {
@@ -117,14 +121,15 @@ export default function OwnerDashboardPage() {
             const allTransactions: (Transaction & {id: string})[] = [];
             snapshot.forEach(txDoc => {
                 const tx = txDoc.data() as Transaction;
-                if (tx.type === 'credit') {
+
+                if (tx.type === 'credit' || tx.type === 'commission') {
                     totalOutstanding += tx.amount;
                 } else if (tx.type === 'payment') {
                     totalOutstanding -= tx.amount;
                 }
                 
                 const txTimestamp = (tx.timestamp as Timestamp)?.toDate();
-                if(tx.profit && txTimestamp){
+                if(tx.type === 'commission' && tx.profit && txTimestamp){
                     totalProfit += tx.profit;
                     if(txTimestamp >= twentyFourHoursAgo) {
                         profit24h += tx.profit;
@@ -167,9 +172,9 @@ export default function OwnerDashboardPage() {
                 ...prev, 
                 totalOutstanding, 
                 totalTransactionsToday: transactionsToday,
-                profit24h,
-                profit30d,
-                totalProfit,
+                profit24h: Math.round(profit24h * 100) / 100,
+                profit30d: Math.round(profit30d * 100) / 100,
+                totalProfit: Math.round(totalProfit * 100) / 100,
             }));
             setLoading(false);
         });
