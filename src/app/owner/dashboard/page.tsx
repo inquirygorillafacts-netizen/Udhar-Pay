@@ -3,7 +3,7 @@
 import { useFirebase } from '@/firebase/client-provider';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { collection, onSnapshot, query, where, Timestamp, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, Timestamp, getDocs, doc } from 'firebase/firestore';
 import { Users, Store, IndianRupee, TrendingUp, ArrowLeftRight, Wallet } from 'lucide-react';
 
 interface Transaction {
@@ -12,6 +12,7 @@ interface Transaction {
     timestamp: Timestamp;
     customerId: string;
     shopkeeperId: string;
+    profit?: number; // Profit from this transaction
 }
 
 interface StatCardProps {
@@ -68,7 +69,10 @@ export default function OwnerDashboardPage() {
         totalOutstanding: 0,
         newCustomersToday: 0,
         newShopkeepersToday: 0,
-        totalTransactionsToday: 0
+        totalTransactionsToday: 0,
+        profit24h: 0,
+        profit30d: 0,
+        totalProfit: 0,
     });
 
     const [recentTransactions, setRecentTransactions] = useState<(Transaction & { id: string, customerName?: string, shopkeeperName?: string })[]>([]);
@@ -83,6 +87,7 @@ export default function OwnerDashboardPage() {
 
         const now = new Date();
         const twentyFourHoursAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+        const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
         const startOfTodayTimestamp = Timestamp.fromDate(twentyFourHoursAgo);
 
         const unsubCustomers = onSnapshot(query(collection(firestore, 'customers'), where('createdAt', '>=', startOfTodayTimestamp)), snapshot => {
@@ -98,6 +103,9 @@ export default function OwnerDashboardPage() {
         
         const unsubTransactions = onSnapshot(query(collection(firestore, 'transactions')), async (snapshot) => {
             let totalOutstanding = 0;
+            let profit24h = 0;
+            let profit30d = 0;
+            let totalProfit = 0;
             
             const transactionsToday = snapshot.docs.filter(doc => (doc.data().timestamp as Timestamp)?.toDate() >= twentyFourHoursAgo).length;
 
@@ -114,7 +122,20 @@ export default function OwnerDashboardPage() {
                 } else if (tx.type === 'payment') {
                     totalOutstanding -= tx.amount;
                 }
+                
+                const txTimestamp = (tx.timestamp as Timestamp)?.toDate();
+                if(tx.profit && txTimestamp){
+                    totalProfit += tx.profit;
+                    if(txTimestamp >= twentyFourHoursAgo) {
+                        profit24h += tx.profit;
+                    }
+                    if(txTimestamp >= thirtyDaysAgo) {
+                        profit30d += tx.profit;
+                    }
+                }
+
                 allTransactions.push({id: txDoc.id, ...tx});
+
                 if (!customerCache[tx.customerId]) {
                     customerPromises.push(getDoc(doc(firestore, 'customers', tx.customerId)));
                 }
@@ -142,7 +163,14 @@ export default function OwnerDashboardPage() {
             transactionsWithNames.sort((a, b) => (b.timestamp?.toMillis() || 0) - (a.timestamp?.toMillis() || 0));
             
             setRecentTransactions(transactionsWithNames.slice(0, 5));
-            setStats(prev => ({ ...prev, totalOutstanding, totalTransactionsToday: transactionsToday }));
+            setStats(prev => ({ 
+                ...prev, 
+                totalOutstanding, 
+                totalTransactionsToday: transactionsToday,
+                profit24h,
+                profit30d,
+                totalProfit,
+            }));
             setLoading(false);
         });
 
@@ -186,9 +214,9 @@ export default function OwnerDashboardPage() {
                  <div className="login-card">
                     <h2 style={{ textAlign: 'center', color: '#3d4468', fontWeight: 600, fontSize: '1.5rem', marginBottom: '25px' }}>Profit Analytics</h2>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '20px', marginBottom: '30px' }}>
-                        <StatCard title="24h Profit" value={`₹0`} icon={<IndianRupee size={28} />} colorClass="#28a745" />
-                        <StatCard title="30d Profit" value={`₹0`} icon={<Wallet size={28} />} colorClass="#17a2b8" />
-                        <StatCard title="Total Profit" value={`₹0`} icon={<IndianRupee size={28} />} colorClass="#007bff" />
+                        <StatCard title="24h Profit" value={`₹${stats.profit24h}`} icon={<IndianRupee size={28} />} colorClass="#28a745" />
+                        <StatCard title="30d Profit" value={`₹${stats.profit30d}`} icon={<Wallet size={28} />} colorClass="#17a2b8" />
+                        <StatCard title="Total Profit" value={`₹${stats.totalProfit}`} icon={<IndianRupee size={28} />} colorClass="#007bff" />
                     </div>
                  </div>
 
