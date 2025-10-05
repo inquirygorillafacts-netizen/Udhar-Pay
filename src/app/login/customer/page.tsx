@@ -15,7 +15,7 @@ import {
     updateProfile,
     sendPasswordResetEmail
 } from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { generateUniqueCustomerCode } from '@/lib/code-helpers';
 
 const GoogleIcon = () => (
@@ -84,7 +84,7 @@ export default function CustomerAuthPage() {
                 email: user.email,
                 displayName: user.displayName || name || '',
                 photoURL: user.photoURL || '',
-                createdAt: new Date(),
+                createdAt: serverTimestamp(),
                 role: 'customer',
                 customerCode: customerCode,
             });

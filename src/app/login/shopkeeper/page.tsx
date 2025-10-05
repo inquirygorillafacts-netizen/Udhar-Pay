@@ -15,7 +15,7 @@ import {
     updateProfile,
     sendPasswordResetEmail
 } from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { generateUniqueShopkeeperCode } from '@/lib/code-helpers';
 
 const GoogleIcon = () => (
@@ -84,7 +84,7 @@ export default function ShopkeeperAuthPage() {
                 email: user.email,
                 displayName: user.displayName || name || '',
                 photoURL: user.photoURL || '',
-                createdAt: new Date(),
+                createdAt: serverTimestamp(),
                 role: 'shopkeeper',
                 shopkeeperCode: shopkeeperCode,
             });

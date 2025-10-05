@@ -4,7 +4,7 @@ import { useFirebase } from '@/firebase/client-provider';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { collection, onSnapshot, query, where, Timestamp, getDocs, doc } from 'firebase/firestore';
-import { Users, Store, IndianRupee, TrendingUp, TrendingDown, ArrowLeftRight } from 'lucide-react';
+import { Users, Store, IndianRupee, TrendingUp, ArrowLeftRight } from 'lucide-react';
 
 interface Transaction {
     amount: number;
@@ -40,7 +40,7 @@ const TransactionItem = ({ tx }: { tx: Transaction & { id: string, customerName?
             </div>
             <div style={{ flexGrow: 1 }}>
                  <p style={{ fontWeight: 600, color: '#3d4468', marginBottom: '2px' }}>
-                   {tx.customerName} → {tx.shopkeeperName}
+                   {tx.customerName || 'Unknown Customer'} → {tx.shopkeeperName || 'Unknown Shop'}
                 </p>
                  <p style={{ fontSize: '12px', color: '#6c7293' }}>
                     {tx.timestamp?.toDate().toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) || 'now'}
@@ -81,23 +81,23 @@ export default function OwnerDashboardPage() {
         }
         setUser(auth.currentUser);
 
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const todayTimestamp = Timestamp.fromDate(today);
+        const now = new Date();
+        const twentyFourHoursAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+        const startOfTodayTimestamp = Timestamp.fromDate(twentyFourHoursAgo);
 
         const unsubCustomers = onSnapshot(query(collection(firestore, 'customers')), snapshot => {
-            const newToday = snapshot.docs.filter(doc => (doc.data().createdAt as Timestamp)?.toDate() >= today).length;
+            const newToday = snapshot.docs.filter(doc => (doc.data().createdAt as Timestamp)?.toDate() >= twentyFourHoursAgo).length;
             setStats(prev => ({...prev, totalCustomers: snapshot.size, newCustomersToday: newToday }));
         });
 
         const unsubShopkeepers = onSnapshot(query(collection(firestore, 'shopkeepers')), snapshot => {
-             const newToday = snapshot.docs.filter(doc => (doc.data().createdAt as Timestamp)?.toDate() >= today).length;
+             const newToday = snapshot.docs.filter(doc => (doc.data().createdAt as Timestamp)?.toDate() >= twentyFourHoursAgo).length;
             setStats(prev => ({...prev, totalShopkeepers: snapshot.size, newShopkeepersToday: newToday}));
         });
         
         const unsubTransactions = onSnapshot(query(collection(firestore, 'transactions')), async (snapshot) => {
             let totalOutstanding = 0;
-            const transactionsToday = snapshot.docs.filter(doc => (doc.data().timestamp as Timestamp)?.toDate() >= today).length;
+            const transactionsToday = snapshot.docs.filter(doc => (doc.data().timestamp as Timestamp)?.toDate() >= twentyFourHoursAgo).length;
 
             const allTransactions: (Transaction & {id: string})[] = [];
             const customerIdSet = new Set<string>();
@@ -120,22 +120,22 @@ export default function OwnerDashboardPage() {
             const customerCache: {[key: string]: string} = {};
             const shopkeeperCache: {[key: string]: string} = {};
 
-            if (customerIdSet.size > 0) {
-                 const customerPromises = Array.from(customerIdSet).map(id => getDoc(doc(firestore, 'customers', id)));
-                 const customerDocs = await Promise.all(customerPromises);
+            const customerIds = Array.from(customerIdSet);
+            if (customerIds.length > 0) {
+                 const customerDocs = await getDocs(query(collection(firestore, 'customers'), where('__name__', 'in', customerIds)));
                  customerDocs.forEach(doc => {
-                     if (doc.exists()) customerCache[doc.id] = doc.data()?.displayName || 'Unknown';
+                     customerCache[doc.id] = doc.data()?.displayName || 'Unknown';
                  });
             }
 
-            if (shopkeeperIdSet.size > 0) {
-                const shopkeeperPromises = Array.from(shopkeeperIdSet).map(id => getDoc(doc(firestore, 'shopkeepers', id)));
-                const shopkeeperDocs = await Promise.all(shopkeeperPromises);
+            const shopkeeperIds = Array.from(shopkeeperIdSet);
+            if (shopkeeperIds.length > 0) {
+                const shopkeeperDocs = await getDocs(query(collection(firestore, 'shopkeepers'), where('__name__', 'in', shopkeeperIds)));
                 shopkeeperDocs.forEach(doc => {
-                    if (doc.exists()) shopkeeperCache[doc.id] = doc.data()?.displayName || 'Unknown';
+                    shopkeeperCache[doc.id] = doc.data()?.displayName || 'Unknown';
                 });
             }
-
+            
             const transactionsWithNames = allTransactions.map(tx => ({
                 ...tx,
                 customerName: customerCache[tx.customerId],
@@ -178,7 +178,7 @@ export default function OwnerDashboardPage() {
                 </div>
 
                  <div className="login-card">
-                    <h2 style={{ textAlign: 'center', color: '#3d4468', fontWeight: 600, fontSize: '1.5rem', marginBottom: '25px' }}>Today's Snapshot</h2>
+                    <h2 style={{ textAlign: 'center', color: '#3d4468', fontWeight: 600, fontSize: '1.5rem', marginBottom: '25px' }}>Last 24 Hours</h2>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '20px', marginBottom: '30px' }}>
                         <StatCard title="New Customers" value={`+${stats.newCustomersToday}`} icon={<TrendingUp size={28} />} colorClass="#00c896" />
                         <StatCard title="New Shops" value={`+${stats.newShopkeepersToday}`} icon={<TrendingUp size={28} />} colorClass="#00c896" />

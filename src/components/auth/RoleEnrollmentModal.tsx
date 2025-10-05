@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { useFirebase } from '@/firebase/client-provider';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { generateUniqueCustomerCode, generateUniqueShopkeeperCode } from '@/lib/code-helpers';
 import { Camera, User, Phone, Store, ArrowRight, Check, AlertTriangle } from 'lucide-react';
 import axios from 'axios';
@@ -103,7 +103,7 @@ export default function RoleEnrollmentModal({ role, onClose, onSuccess }: RoleEn
                 displayName: name,
                 mobileNumber: mobile,
                 photoURL: photoURL,
-                createdAt: new Date(),
+                createdAt: serverTimestamp(),
                 role: role,
             };
 
