@@ -3,7 +3,7 @@
 import { useFirebase } from '@/firebase/client-provider';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { collection, onSnapshot, query, where, Timestamp, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, Timestamp, getDoc, doc } from 'firebase/firestore';
 import { Users, Store, IndianRupee, TrendingUp, ArrowLeftRight, Wallet } from 'lucide-react';
 
 interface Transaction {
@@ -34,8 +34,9 @@ const StatCard = ({ title, value, icon, colorClass }: StatCardProps) => (
 
 const TransactionItem = ({ tx }: { tx: Transaction & { id: string, customerName?: string, shopkeeperName?: string } }) => {
     const isCredit = tx.type === 'credit';
-    const isCommission = tx.type === 'commission';
-    if(isCommission) return null; // Don't render commission transactions in this list
+    
+    // We don't want to show commission transactions in the main feed
+    if (tx.type === 'commission') return null;
 
     return (
         <div className="neu-input" style={{ display: 'flex', alignItems: 'center', padding: '15px 20px', boxShadow: '5px 5px 10px #d1d9e6, -5px -5px 10px #ffffff' }}>
@@ -92,7 +93,7 @@ export default function OwnerDashboardPage() {
         const twentyFourHoursAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
         const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
         
-        const startOfTodayTimestamp = Timestamp.fromDate(twentyFourHoursAgo);
+        const startOfTodayTimestamp = Timestamp.fromDate(new Date(now.setHours(0,0,0,0)));
 
         const unsubCustomers = onSnapshot(query(collection(firestore, 'customers'), where('createdAt', '>=', startOfTodayTimestamp)), snapshot => {
             setStats(prev => ({ ...prev, newCustomersToday: snapshot.size }));
@@ -102,8 +103,8 @@ export default function OwnerDashboardPage() {
             setStats(prev => ({ ...prev, newShopkeepersToday: snapshot.size }));
         });
 
-        getDocs(collection(firestore, 'customers')).then(snap => setStats(prev => ({...prev, totalCustomers: snap.size})));
-        getDocs(collection(firestore, 'shopkeepers')).then(snap => setStats(prev => ({...prev, totalShopkeepers: snap.size})));
+        onSnapshot(collection(firestore, 'customers'), snap => setStats(prev => ({...prev, totalCustomers: snap.size})));
+        onSnapshot(collection(firestore, 'shopkeepers'), snap => setStats(prev => ({...prev, totalShopkeepers: snap.size})));
         
         const unsubTransactions = onSnapshot(query(collection(firestore, 'transactions')), async (snapshot) => {
             let totalOutstanding = 0;
@@ -111,7 +112,7 @@ export default function OwnerDashboardPage() {
             let profit30d = 0;
             let totalProfit = 0;
             
-            const transactionsToday = snapshot.docs.filter(doc => (doc.data().timestamp as Timestamp)?.toDate() >= twentyFourHoursAgo).length;
+            const transactionsToday = snapshot.docs.filter(doc => (doc.data().timestamp as Timestamp)?.toDate() >= startOfTodayTimestamp).length;
 
             const customerCache: {[key: string]: string} = {};
             const shopkeeperCache: {[key: string]: string} = {};
