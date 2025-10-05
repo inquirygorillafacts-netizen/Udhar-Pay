@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 
 declare const window: any;
 
+const COMMISSION_RATE = 0.02;
 
 interface ShopkeeperProfile {
   uid: string;
@@ -189,6 +190,8 @@ export default function PaymentPage() {
       const batch = writeBatch(firestore);
       
       const transactionRef = doc(collection(firestore, 'transactions'));
+      
+      // The amount recorded for the 'payment' transaction should be the full amount paid by the customer.
       batch.set(transactionRef, {
           amount: paidAmount,
           type: 'payment',
@@ -196,14 +199,19 @@ export default function PaymentPage() {
           shopkeeperId: shopkeeperId,
           customerId: auth.currentUser.uid,
           timestamp: serverTimestamp(),
-          paymentGatewayId: paymentId
+          paymentGatewayId: paymentId,
       });
 
-      // Atomically update pending settlement for shopkeeper
+      // The amount to be settled to the shopkeeper is the principal, which is the paid amount minus the commission.
+      // We calculate it by dividing by (1 + COMMISSION_RATE) to reverse the commission addition.
+      const principalAmount = paidAmount / (1 + COMMISSION_RATE);
+      const settlementAmount = Math.round(principalAmount * 100) / 100;
+
+      // Atomically update pending settlement for the shopkeeper with only the principal amount.
       const shopkeeperRef = doc(firestore, 'shopkeepers', shopkeeperId);
       const shopkeeperDoc = await getDoc(shopkeeperRef);
       const currentPending = shopkeeperDoc.data()?.pendingSettlement || 0;
-      batch.update(shopkeeperRef, { pendingSettlement: currentPending + paidAmount });
+      batch.update(shopkeeperRef, { pendingSettlement: currentPending + settlementAmount });
       
       await batch.commit();
   }

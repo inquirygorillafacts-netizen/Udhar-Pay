@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -5,6 +6,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
 import { doc, getDoc, collection, query, where, onSnapshot, Timestamp } from 'firebase/firestore';
 import { ArrowLeft, User, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
+
+const COMMISSION_RATE = 0.02;
 
 interface CustomerProfile {
   uid: string;
@@ -70,9 +73,9 @@ export default function CustomerTransactionHistoryPage() {
       const trans: Transaction[] = [];
       snapshot.forEach(doc => {
         const transactionData = doc.data();
-        // Don't show commission transactions to the shopkeeper
+        // The commission is not directly shown, but the payment amount needs to be adjusted for the shopkeeper's view.
         if (transactionData.type !== 'commission') {
-          trans.push({ id: doc.id, ...transactionData } as Transaction);
+            trans.push({ id: doc.id, ...transactionData } as Transaction);
         }
       });
       
@@ -81,21 +84,31 @@ export default function CustomerTransactionHistoryPage() {
         const timeB = b.timestamp ? b.timestamp.toMillis() : 0;
         return timeB - timeA;
       });
-      setTransactions(trans);
+      
 
-      // Calculate balances from the fetched transactions
       let totalCredit = 0;
-      let totalPayment = 0;
+      let totalPaymentPrincipal = 0;
+      
       trans.forEach(tx => {
-          if (tx.type === 'credit') { // We only consider credit for shopkeeper's view
+          if (tx.type === 'credit') {
               totalCredit += tx.amount;
           } else if (tx.type === 'payment') {
-              totalPayment += tx.amount;
+              const principalAmount = tx.amount / (1 + COMMISSION_RATE);
+              totalPaymentPrincipal += principalAmount;
           }
       });
       
-      setNetBalance(totalCredit - totalPayment);
-      setTotalPaymentReceived(totalPayment);
+      const adjustedTransactions = trans.map(tx => {
+        if (tx.type === 'payment') {
+            const principalAmount = tx.amount / (1 + COMMISSION_RATE);
+            return {...tx, amount: Math.round(principalAmount * 100) / 100};
+        }
+        return tx;
+      });
+
+      setTransactions(adjustedTransactions);
+      setNetBalance(totalCredit - totalPaymentPrincipal);
+      setTotalPaymentReceived(totalPaymentPrincipal);
 
     }, (error) => {
         console.error("Error fetching transactions: ", error);
@@ -138,11 +151,11 @@ export default function CustomerTransactionHistoryPage() {
         <div style={{ maxWidth: '600px', margin: 'auto', marginBottom: '30px', display: 'flex', gap: '20px' }}>
             <div className="login-card" style={{ flex: 1, textAlign: 'center', padding: '20px' }}>
                 <p style={{fontSize: '0.9rem', color: '#ff3b5c', margin: 0, fontWeight: 500}}>कुल उधार (बकाया)</p>
-                <p style={{fontSize: '1.75rem', fontWeight: 'bold', margin: '5px 0', color: '#3d4468'}}>₹{netBalance > 0 ? netBalance.toLocaleString('en-IN') : 0}</p>
+                <p style={{fontSize: '1.75rem', fontWeight: 'bold', margin: '5px 0', color: '#3d4468'}}>₹{netBalance > 0 ? netBalance.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00'}</p>
             </div>
             <div className="login-card" style={{ flex: 1, textAlign: 'center', padding: '20px' }}>
                  <p style={{fontSize: '0.9rem', color: '#00c896', margin: 0, fontWeight: 500}}>भुगतान मिला</p>
-                <p style={{fontSize: '1.75rem', fontWeight: 'bold', margin: '5px 0', color: '#3d4468'}}>₹{totalPaymentReceived.toLocaleString('en-IN')}</p>
+                <p style={{fontSize: '1.75rem', fontWeight: 'bold', margin: '5px 0', color: '#3d4468'}}>₹{totalPaymentReceived.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
             </div>
         </div>
 
@@ -173,7 +186,7 @@ export default function CustomerTransactionHistoryPage() {
                                 {tx.notes && <p style={{fontSize: '13px', color: '#6c7293', marginTop: '5px', fontStyle: 'italic'}}>"{tx.notes}"</p>}
                             </div>
                             <p style={{fontWeight: 'bold', fontSize: '1.2rem', color: tx.type === 'payment' ? '#00c896' : '#ff3b5c'}}>
-                                ₹{tx.amount}
+                                ₹{tx.amount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                             </p>
                         </div>
                     ))}
