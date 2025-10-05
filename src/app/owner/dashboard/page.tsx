@@ -3,7 +3,7 @@
 import { useFirebase } from '@/firebase/client-provider';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { collection, onSnapshot, query, where, Timestamp, getDoc, doc } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, Timestamp, getDocs, doc } from 'firebase/firestore';
 import { Users, Store, IndianRupee, TrendingUp, ArrowLeftRight, Wallet } from 'lucide-react';
 
 interface Transaction {
@@ -89,29 +89,17 @@ export default function OwnerDashboardPage() {
         }
         setUser(auth.currentUser);
 
-        const now = new Date();
-        const twentyFourHoursAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
-        const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
-        
-        const unsubCustomers = onSnapshot(query(collection(firestore, 'customers'), where('createdAt', '>=', Timestamp.fromDate(twentyFourHoursAgo))), snapshot => {
-            setStats(prev => ({ ...prev, newCustomers24h: snapshot.size }));
-        });
-        
-        const unsubShopkeepers = onSnapshot(query(collection(firestore, 'shopkeepers'), where('createdAt', '>=', Timestamp.fromDate(twentyFourHoursAgo))), snapshot => {
-            setStats(prev => ({ ...prev, newShopkeepers24h: snapshot.size }));
-        });
-
-        onSnapshot(collection(firestore, 'customers'), snap => setStats(prev => ({...prev, totalCustomers: snap.size})));
-        onSnapshot(collection(firestore, 'shopkeepers'), snap => setStats(prev => ({...prev, totalShopkeepers: snap.size})));
-        
         const unsubTransactions = onSnapshot(query(collection(firestore, 'transactions')), async (snapshot) => {
+            const now = new Date();
+            const twentyFourHoursAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+            const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
+            
             let totalOutstanding = 0;
             let profit24h = 0;
             let profit30d = 0;
             let totalProfit = 0;
+            let transactionsToday = 0;
             
-            const transactionsToday = snapshot.docs.filter(doc => (doc.data().timestamp as Timestamp)?.toDate() >= twentyFourHoursAgo).length;
-
             const customerCache: {[key: string]: string} = {};
             const shopkeeperCache: {[key: string]: string} = {};
             
@@ -119,34 +107,33 @@ export default function OwnerDashboardPage() {
 
             for (const txDoc of snapshot.docs) {
                 const tx = txDoc.data() as Transaction;
-                 if (tx.type === 'credit') {
-                    totalOutstanding += tx.amount;
-                } else if (tx.type === 'commission') {
+                const txTimestamp = (tx.timestamp as Timestamp)?.toDate();
+                
+                if (tx.type === 'credit' || tx.type === 'commission') {
                     totalOutstanding += tx.amount;
                 } else if (tx.type === 'payment') {
                     totalOutstanding -= tx.amount;
                 }
                 
-                const txTimestamp = (tx.timestamp as Timestamp)?.toDate();
                 if(tx.type === 'commission' && tx.profit && txTimestamp){
                     totalProfit += tx.profit;
-                    if(txTimestamp >= twentyFourHoursAgo) {
-                        profit24h += tx.profit;
-                    }
-                    if(txTimestamp >= thirtyDaysAgo) {
-                        profit30d += tx.profit;
-                    }
+                    if(txTimestamp >= twentyFourHoursAgo) profit24h += tx.profit;
+                    if(txTimestamp >= thirtyDaysAgo) profit30d += tx.profit;
+                }
+                
+                if(txTimestamp && txTimestamp >= twentyFourHoursAgo) {
+                    transactionsToday++;
                 }
 
                 allTransactions.push({id: txDoc.id, ...tx});
 
                  if (!customerCache[tx.customerId]) {
-                    const custDoc = await getDoc(doc(firestore, 'customers', tx.customerId));
-                    if(custDoc.exists()) customerCache[tx.customerId] = custDoc.data()?.displayName || 'Unknown';
+                    const custDoc = await getDocs(query(collection(firestore, 'customers'), where('__name__', '==', tx.customerId)));
+                    if(!custDoc.empty) customerCache[tx.customerId] = custDoc.docs[0].data()?.displayName || 'Unknown';
                 }
                  if (!shopkeeperCache[tx.shopkeeperId]) {
-                    const shopDoc = await getDoc(doc(firestore, 'shopkeepers', tx.shopkeeperId));
-                    if(shopDoc.exists()) shopkeeperCache[tx.shopkeeperId] = shopDoc.data()?.displayName || 'Unknown';
+                    const shopDoc = await getDocs(query(collection(firestore, 'shopkeepers'), where('__name__', '==', tx.shopkeeperId)));
+                    if(!shopDoc.empty) shopkeeperCache[tx.shopkeeperId] = shopDoc.docs[0].data()?.displayName || 'Unknown';
                 }
             }
             
@@ -159,22 +146,34 @@ export default function OwnerDashboardPage() {
             transactionsWithNames.sort((a, b) => (b.timestamp?.toMillis() || 0) - (a.timestamp?.toMillis() || 0));
             
             const filteredRecentTransactions = transactionsWithNames.filter(tx => tx.type !== 'commission').slice(0, 5);
-
             setRecentTransactions(filteredRecentTransactions);
-            setStats(prev => ({ 
-                ...prev, 
-                totalOutstanding,
+            
+            // Fetch user counts
+            const customersSnap = await getDocs(collection(firestore, 'customers'));
+            const shopkeepersSnap = await getDocs(collection(firestore, 'shopkeepers'));
+
+            const newCustomersQuery = query(collection(firestore, 'customers'), where('createdAt', '>=', Timestamp.fromDate(twentyFourHoursAgo)));
+            const newCustomersSnap = await getDocs(newCustomersQuery);
+
+            const newShopkeepersQuery = query(collection(firestore, 'shopkeepers'), where('createdAt', '>=', Timestamp.fromDate(twentyFourHoursAgo)));
+            const newShopkeepersSnap = await getDocs(newShopkeepersQuery);
+
+            setStats({
+                totalCustomers: customersSnap.size,
+                totalShopkeepers: shopkeepersSnap.size,
+                newCustomers24h: newCustomersSnap.size,
+                newShopkeepers24h: newShopkeepersSnap.size,
                 totalTransactions24h: transactionsToday,
+                totalOutstanding,
                 profit24h: Math.round(profit24h * 100) / 100,
                 profit30d: Math.round(profit30d * 100) / 100,
                 totalProfit: Math.round(totalProfit * 100) / 100,
-            }));
+            });
+
             setLoading(false);
         });
 
         return () => {
-            unsubCustomers();
-            unsubShopkeepers();
             unsubTransactions();
         };
 
