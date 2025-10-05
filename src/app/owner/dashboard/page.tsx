@@ -40,7 +40,7 @@ const TransactionItem = ({ tx }: { tx: Transaction & { id: string, customerName?
             </div>
             <div style={{ flexGrow: 1 }}>
                  <p style={{ fontWeight: 600, color: '#3d4468', marginBottom: '2px' }}>
-                   {isCredit ? `From ${tx.shopkeeperName}` : `To ${tx.shopkeeperName}`}
+                   {tx.customerName} → {tx.shopkeeperName}
                 </p>
                  <p style={{ fontSize: '12px', color: '#6c7293' }}>
                     {tx.timestamp?.toDate().toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) || 'now'}
@@ -99,12 +99,9 @@ export default function OwnerDashboardPage() {
             let totalOutstanding = 0;
             const transactionsToday = snapshot.docs.filter(doc => doc.data().timestamp?.toDate() >= today).length;
 
-            const allTransactions: (Transaction & {id: string, customerName?: string, shopkeeperName?: string })[] = [];
-
-            const customerPromises: Promise<any>[] = [];
-            const shopkeeperPromises: Promise<any>[] = [];
-            const customerCache: {[key: string]: string} = {};
-            const shopkeeperCache: {[key: string]: string} = {};
+            const allTransactions: (Transaction & {id: string})[] = [];
+            const customerIdSet = new Set<string>();
+            const shopkeeperIdSet = new Set<string>();
 
             snapshot.forEach(txDoc => {
                 const tx = { id: txDoc.id, ...txDoc.data() } as Transaction;
@@ -115,26 +112,30 @@ export default function OwnerDashboardPage() {
                     totalOutstanding -= tx.amount;
                 }
 
-                allTransactions.push(tx);
-
-                if (!customerCache[tx.customerId]) {
-                    customerPromises.push(getDoc(doc(firestore, 'customers', tx.customerId)));
-                }
-                 if (!shopkeeperCache[tx.shopkeeperId]) {
-                    shopkeeperPromises.push(getDoc(doc(firestore, 'shopkeepers', tx.shopkeeperId)));
-                }
+                allTransactions.push({id: txDoc.id, ...tx});
+                customerIdSet.add(tx.customerId);
+                shopkeeperIdSet.add(tx.shopkeeperId);
             });
+            
+            const customerCache: {[key: string]: string} = {};
+            const shopkeeperCache: {[key: string]: string} = {};
 
-            const customerDocs = await Promise.all(customerPromises);
-            customerDocs.forEach(doc => customerCache[doc.id] = doc.data()?.displayName || 'Unknown');
+            if (customerIdSet.size > 0) {
+                 const customerQuery = query(collection(firestore, 'customers'), where('__name__', 'in', Array.from(customerIdSet)));
+                 const customerDocs = await getDocs(customerQuery);
+                 customerDocs.forEach(doc => customerCache[doc.id] = doc.data()?.displayName || 'Unknown');
+            }
 
-            const shopkeeperDocs = await Promise.all(shopkeeperPromises);
-            shopkeeperDocs.forEach(doc => shopkeeperCache[doc.id] = doc.data()?.displayName || 'Unknown');
+            if (shopkeeperIdSet.size > 0) {
+                const shopkeeperQuery = query(collection(firestore, 'shopkeepers'), where('__name__', 'in', Array.from(shopkeeperIdSet)));
+                const shopkeeperDocs = await getDocs(shopkeeperQuery);
+                shopkeeperDocs.forEach(doc => shopkeeperCache[doc.id] = doc.data()?.displayName || 'Unknown');
+            }
 
             const transactionsWithNames = allTransactions.map(tx => ({
                 ...tx,
-                customerName: customerCache[tx.customerId as string],
-                shopkeeperName: shopkeeperCache[tx.shopkeeperId as string],
+                customerName: customerCache[tx.customerId],
+                shopkeeperName: shopkeeperCache[tx.shopkeeperId],
             }));
 
             transactionsWithNames.sort((a, b) => (b.timestamp?.toMillis() || 0) - (a.timestamp?.toMillis() || 0));
