@@ -23,7 +23,7 @@ interface ShopkeeperProfile {
 
 interface Transaction {
   id: string;
-  type: 'credit' | 'payment';
+  type: 'credit' | 'payment' | 'commission';
   amount: number;
   timestamp: Timestamp;
   notes?: string;
@@ -83,9 +83,9 @@ export default function PaymentPage() {
       snapshot.forEach(doc => {
         const tx = { id: doc.id, ...doc.data() } as Transaction;
         trans.push(tx);
-        if (tx.type === 'credit') {
+        if (tx.type === 'credit' || tx.type === 'commission') {
             balance += tx.amount;
-        } else {
+        } else if (tx.type === 'payment') {
             balance -= tx.amount;
         }
       });
@@ -301,7 +301,7 @@ export default function PaymentPage() {
                       {transactions.map(tx => (
                         <div key={tx.id} className="neu-input" style={{display: 'flex', alignItems: 'center', padding: '15px 20px', boxShadow: '5px 5px 10px #d1d9e6, -5px -5px 10px #ffffff' }}>
                            <div style={{ marginRight: '15px' }}>
-                                {tx.type === 'credit' ? (
+                                {tx.type === 'credit' || tx.type === 'commission' ? (
                                     <div className="neu-icon" style={{ width: '45px', height: '45px', margin: 0, background: 'rgba(255, 59, 92, 0.1)', boxShadow: 'none' }}>
                                         <ArrowUpCircle size={24} color="#ff3b5c" />
                                     </div>
@@ -313,14 +313,14 @@ export default function PaymentPage() {
                             </div>
                             <div style={{flexGrow: 1}}>
                                 <p style={{fontWeight: 600, color: '#3d4468', textTransform: 'capitalize', marginBottom: '2px'}}>
-                                    {tx.type === 'credit' ? 'Udhaar Taken' : 'Payment Made'}
+                                    {tx.type === 'credit' ? 'Udhaar Taken' : tx.type === 'commission' ? 'Platform Fee' : 'Payment Made'}
                                 </p>
                                 <p style={{fontSize: '12px', color: '#9499b7', margin: 0}}>
                                     {tx.timestamp ? tx.timestamp.toDate().toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Processing...'}
                                 </p>
                                 {tx.notes && <p style={{fontSize: '13px', color: '#6c7293', marginTop: '5px', fontStyle: 'italic'}}>"{tx.notes}"</p>}
                             </div>
-                            <p style={{fontWeight: 'bold', fontSize: '1.2rem', color: tx.type === 'credit' ? '#ff3b5c' : '#00c896'}}>
+                            <p style={{fontWeight: 'bold', fontSize: '1.2rem', color: tx.type === 'payment' ? '#00c896' : '#ff3b5c'}}>
                                 ₹{tx.amount}
                             </p>
                         </div>
