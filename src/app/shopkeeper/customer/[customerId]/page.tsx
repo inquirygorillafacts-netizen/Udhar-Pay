@@ -69,7 +69,11 @@ export default function CustomerTransactionHistoryPage() {
     const unsubscribeTransactions = onSnapshot(q, (snapshot) => {
       const trans: Transaction[] = [];
       snapshot.forEach(doc => {
-        trans.push({ id: doc.id, ...doc.data() } as Transaction);
+        const transactionData = doc.data();
+        // Don't show commission transactions to the shopkeeper
+        if (transactionData.type !== 'commission') {
+          trans.push({ id: doc.id, ...transactionData } as Transaction);
+        }
       });
       
       trans.sort((a, b) => {
@@ -83,7 +87,7 @@ export default function CustomerTransactionHistoryPage() {
       let totalCredit = 0;
       let totalPayment = 0;
       trans.forEach(tx => {
-          if (tx.type === 'credit' || tx.type === 'commission') {
+          if (tx.type === 'credit') { // We only consider credit for shopkeeper's view
               totalCredit += tx.amount;
           } else if (tx.type === 'payment') {
               totalPayment += tx.amount;
@@ -149,7 +153,7 @@ export default function CustomerTransactionHistoryPage() {
                     {transactions.map(tx => (
                         <div key={tx.id} className="neu-input" style={{display: 'flex', alignItems: 'center', padding: '15px 20px', boxShadow: '5px 5px 10px #d1d9e6, -5px -5px 10px #ffffff' }}>
                            <div style={{ marginRight: '15px' }}>
-                                {tx.type === 'credit' || tx.type === 'commission' ? (
+                                {tx.type === 'credit' ? (
                                     <div className="neu-icon" style={{ width: '45px', height: '45px', margin: 0, background: 'rgba(255, 59, 92, 0.1)', boxShadow: 'none' }}>
                                         <ArrowUpCircle size={24} color="#ff3b5c" />
                                     </div>
@@ -161,7 +165,7 @@ export default function CustomerTransactionHistoryPage() {
                             </div>
                             <div style={{flexGrow: 1}}>
                                 <p style={{fontWeight: 600, color: '#3d4468', textTransform: 'capitalize', marginBottom: '2px'}}>
-                                    {tx.type === 'credit' ? 'Udhaar Given' : tx.type === 'commission' ? 'Platform Fee' : 'Payment Received'}
+                                    {tx.type === 'credit' ? 'Udhaar Given' : 'Payment Received'}
                                 </p>
                                 <p style={{fontSize: '12px', color: '#9499b7', margin: 0}}>
                                     {tx.timestamp?.toDate().toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' }) || 'Processing...'}

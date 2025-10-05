@@ -50,8 +50,8 @@ const CustomerCard = ({ customer, shopkeeperId, creditLimit, isCreditEnabled }: 
           </p>
         </div>
         <div style={{textAlign: 'right'}}>
-          <p style={{color: '#9499b7', fontSize: '12px', margin: 0, fontWeight: 500}}>Used</p>
-          <p style={{ color: balance > 0 ? '#3d4468' : '#00c896', fontSize: '1.2rem', fontWeight: '700', margin: 0}}>₹{balance.toLocaleString('en-IN')}</p>
+          <p style={{color: '#9499b7', fontSize: '12px', margin: 0, fontWeight: 500}}>Udhaar</p>
+          <p style={{ color: balance > 0 ? '#3d4468' : '#00c896', fontSize: '1.2rem', fontWeight: '700', margin: 0}}>₹{balance > 0 ? balance.toLocaleString('en-IN') : 0}</p>
         </div>
       </div>
       

@@ -62,7 +62,7 @@ export default function ShopkeeperCustomersPage() {
                 const customersSnap = await getDocs(q);
                 const customerProfiles = customersSnap.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile));
 
-                // Fetch all transactions to calculate balances
+                // Fetch all transactions to calculate balances for the shopkeeper's view
                 const transQuery = query(collection(firestore, 'transactions'), where('shopkeeperId', '==', auth.currentUser!.uid));
                 const transSnap = await getDocs(transQuery);
                 const balances: {[key: string]: number} = {};
@@ -71,6 +71,8 @@ export default function ShopkeeperCustomersPage() {
                 transSnap.forEach(doc => {
                     const t = doc.data() as Transaction;
                     if(balances[t.customerId] !== undefined) {
+                        // For the shopkeeper, only their principal credit and payments matter.
+                        // Commission is invisible to them.
                         if (t.type === 'credit') balances[t.customerId] += t.amount;
                         else if (t.type === 'payment') balances[t.customerId] -= t.amount;
                     }
@@ -173,7 +175,7 @@ export default function ShopkeeperCustomersPage() {
                 {filteredCustomers.map(customer => (
                     <Link key={customer.uid} href={`/shopkeeper/customer/${customer.uid}`} style={{textDecoration: 'none'}}>
                         <CustomerCard 
-                            customer={{...customer, balances: {[auth.currentUser!.uid]: customer.balance}}} 
+                            customer={customer}
                             shopkeeperId={auth.currentUser!.uid}
                             creditLimit={getCreditLimitForCustomer(customer.uid)}
                             isCreditEnabled={isCreditEnabledForCustomer(customer.uid)}
