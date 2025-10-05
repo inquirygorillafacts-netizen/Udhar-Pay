@@ -3,7 +3,7 @@
 import { useFirebase } from '@/firebase/client-provider';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { collection, onSnapshot, query, where, Timestamp, getDocs, doc } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, Timestamp, getDocs, doc, getDoc } from 'firebase/firestore';
 import { Users, Store, IndianRupee, TrendingUp, TrendingDown, ArrowLeftRight } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
@@ -11,6 +11,8 @@ interface Transaction {
     amount: number;
     type: 'credit' | 'payment';
     timestamp: Timestamp;
+    customerId: string;
+    shopkeeperId: string;
 }
 
 interface StatCardProps {
@@ -49,7 +51,7 @@ const TransactionItem = ({ tx }: { tx: Transaction & { id: string, customerName?
                 <p style={{ fontWeight: 'bold', fontSize: '1.2rem', color: isCredit ? '#ff3b5c' : '#00c896' }}>
                     ₹{tx.amount}
                 </p>
-                <p style={{ fontSize: '13px', fontWeight: 500, color: '#9499b7' }}>
+                <p style={{ fontSize: '13px', fontWeight: 500, color: isCredit ? '#ff3b5c' : '#00c896' }}>
                     {isCredit ? 'Udhaar' : 'Payment'}
                 </p>
             </div>
@@ -98,7 +100,7 @@ export default function OwnerDashboardPage() {
             let totalOutstanding = 0;
             const transactionsToday = snapshot.docs.filter(doc => doc.data().timestamp?.toDate() >= today).length;
 
-            const allTransactions: (Transaction & {id: string, customerName?: string, shopkeeperName?: string})[] = [];
+            const allTransactions: (Transaction & {id: string, customerName?: string, shopkeeperName?: string })[] = [];
 
             const customerPromises: Promise<any>[] = [];
             const shopkeeperPromises: Promise<any>[] = [];
@@ -106,7 +108,7 @@ export default function OwnerDashboardPage() {
             const shopkeeperCache: {[key: string]: string} = {};
 
             snapshot.forEach(doc => {
-                const tx = { id: doc.id, ...doc.data() } as Transaction & { id: string, customerId: string, shopkeeperId: string };
+                const tx = { id: doc.id, ...doc.data() } as Transaction;
                 
                  if (tx.type === 'credit') {
                     totalOutstanding += tx.amount;
