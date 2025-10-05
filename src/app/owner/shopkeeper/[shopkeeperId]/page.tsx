@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, collection, query, where, getDocs, onSnapshot, Timestamp } from 'firebase/firestore';
 import { ArrowLeft, User, Users, BookUser, UserCheck, IndianRupee, KeyRound, QrCode, Lock, ShieldCheck, Edit, Save, X } from 'lucide-react';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
@@ -28,7 +28,6 @@ interface ShopkeeperProfile {
     qrCodeUrl?: string;
     mobileNumber?: string;
     connections?: string[];
-    balances?: { [key: string]: number };
     pendingSettlement?: number;
 }
 
@@ -40,8 +39,19 @@ interface Analytics {
     totalCustomers: number;
     customersOnCredit: number;
     customersWithZeroBalance: number;
-    totalOutstanding: number;
+    totalOutstanding: number; // Total amount customers owe to this shopkeeper (Principal + Commission)
 }
+
+interface Transaction {
+    id: string;
+    amount: number;
+    type: 'credit' | 'payment' | 'commission';
+    customerId: string;
+    shopkeeperId: string;
+    timestamp: Timestamp;
+}
+
+const COMMISSION_RATE = 0.02;
 
 export default function ShopkeeperJeevanKundliPage() {
     const router = useRouter();
@@ -54,6 +64,7 @@ export default function ShopkeeperJeevanKundliPage() {
     const [customerStatus, setCustomerStatus] = useState<CustomerCheck | null>(null);
     const [analytics, setAnalytics] = useState<Analytics | null>(null);
     const [loading, setLoading] = useState(true);
+    const [livePendingSettlement, setLivePendingSettlement] = useState(0);
 
     // Modal States for actions
     const [viewingQr, setViewingQr] = useState<string | null>(null);
@@ -67,43 +78,83 @@ export default function ShopkeeperJeevanKundliPage() {
             return;
         }
 
-        const fetchShopkeeperData = async () => {
-            setLoading(true);
+        let unsubscribe: (() => void)[] = [];
+        setLoading(true);
+
+        const fetchInitialData = async () => {
             try {
+                // 1. Fetch Shopkeeper Profile
                 const shopkeeperRef = doc(firestore, 'shopkeepers', shopkeeperId);
                 const shopkeeperSnap = await getDoc(shopkeeperRef);
 
                 if (!shopkeeperSnap.exists()) {
                     throw new Error('Shopkeeper not found');
                 }
+                const shopkeeperData = { uid: shopkeeperId, ...shopkeeperSnap.data() } as ShopkeeperProfile;
+                setShopkeeper(shopkeeperData);
 
-                const data = shopkeeperSnap.data() as ShopkeeperProfile;
-                data.uid = shopkeeperId;
-                setShopkeeper(data);
-
+                // 2. Check if shopkeeper is also a customer
                 const customerRef = doc(firestore, 'customers', shopkeeperId);
                 const customerSnap = await getDoc(customerRef);
                 setCustomerStatus({ isCustomer: customerSnap.exists() });
 
-                const customerIds = data.connections || [];
-                const balances = data.balances || {};
-                let customersOnCredit = 0;
-                let totalOutstanding = 0;
+                // 3. Set up a real-time listener for all transactions involving this shopkeeper
+                const transactionsRef = collection(firestore, 'transactions');
+                const q = query(transactionsRef, where('shopkeeperId', '==', shopkeeperId));
+                
+                const unsubscribeTransactions = onSnapshot(q, (snapshot) => {
+                    const customerBalances: { [customerId: string]: number } = {};
+                    let totalPendingSettlement = 0;
 
-                customerIds.forEach(id => {
-                    const balance = balances[id] || 0;
-                    if (balance > 0) {
-                        customersOnCredit++;
-                        totalOutstanding += balance;
-                    }
-                });
+                    snapshot.docs.forEach(doc => {
+                        const tx = doc.data() as Transaction;
+                        
+                        // Initialize balance if not present
+                        if (customerBalances[tx.customerId] === undefined) {
+                            customerBalances[tx.customerId] = 0;
+                        }
 
-                setAnalytics({
-                    totalCustomers: customerIds.length,
-                    customersOnCredit: customersOnCredit,
-                    customersWithZeroBalance: customerIds.length - customersOnCredit,
-                    totalOutstanding: totalOutstanding,
+                        // Calculate balance from customer's perspective (Principal + Commission)
+                        if (tx.type === 'credit' || tx.type === 'commission') {
+                            customerBalances[tx.customerId] += tx.amount;
+                        } else if (tx.type === 'payment') {
+                            customerBalances[tx.customerId] -= tx.amount;
+                        }
+
+                        // Calculate total pending settlement for the owner
+                        if (tx.type === 'payment') {
+                            const principalAmount = tx.amount / (1 + COMMISSION_RATE);
+                            totalPendingSettlement += principalAmount;
+                        }
+                    });
+                    
+                    let customersOnCredit = 0;
+                    const totalOutstanding = Object.values(customerBalances).reduce((acc, balance) => {
+                        if (balance > 0) {
+                            customersOnCredit++;
+                            return acc + balance;
+                        }
+                        return acc;
+                    }, 0);
+
+                    const totalCustomers = shopkeeperData.connections?.length || 0;
+                    
+                    setAnalytics({
+                        totalCustomers: totalCustomers,
+                        customersOnCredit: customersOnCredit,
+                        customersWithZeroBalance: totalCustomers - customersOnCredit,
+                        totalOutstanding: totalOutstanding,
+                    });
+                    
+                    // We directly use the pending settlement from the shopkeeper doc, as it's updated atomically
+                    // But we can also calculate it for verification if needed. Let's use the doc value for consistency.
+                    setLivePendingSettlement(shopkeeperSnap.data()?.pendingSettlement || 0);
+
+                }, (error) => {
+                    console.error("Error listening to transactions:", error);
                 });
+                
+                unsubscribe.push(unsubscribeTransactions);
 
             } catch (error) {
                 console.error("Error fetching shopkeeper details:", error);
@@ -113,7 +164,20 @@ export default function ShopkeeperJeevanKundliPage() {
             }
         };
 
-        fetchShopkeeperData();
+        fetchInitialData();
+        
+        // Setup listener for shopkeeper document itself to get settlement updates
+        const shopkeeperRef = doc(firestore, 'shopkeepers', shopkeeperId);
+        const unsubscribeShopkeeper = onSnapshot(shopkeeperRef, (docSnap) => {
+            if (docSnap.exists()) {
+                 setLivePendingSettlement(docSnap.data()?.pendingSettlement || 0);
+            }
+        });
+        unsubscribe.push(unsubscribeShopkeeper);
+
+        return () => {
+            unsubscribe.forEach(unsub => unsub());
+        };
     }, [firestore, shopkeeperId, router]);
     
     const openWhatsApp = () => {
@@ -144,7 +208,7 @@ export default function ShopkeeperJeevanKundliPage() {
             await updateDoc(shopkeeperRef, {
                 pendingSettlement: amount
             });
-            setShopkeeper(prev => prev ? { ...prev, pendingSettlement: amount } : null);
+            setLivePendingSettlement(amount);
             toast({ title: "Success", description: "Pending settlement updated." });
             setIsEditingAmount(false);
             setNewAmount('');
@@ -240,7 +304,7 @@ export default function ShopkeeperJeevanKundliPage() {
                              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px'}}>
                                 <div className="neu-input" style={{padding: '20px', textAlign: 'center'}}>
                                     <p style={{color: '#ff3b5c', fontSize: '14px', fontWeight: 500, margin: 0}}>Pending Settlement</p>
-                                    <p style={{color: '#3d4468', fontSize: '1.75rem', fontWeight: 700}}>₹{shopkeeper.pendingSettlement?.toLocaleString('en-IN') || 0}</p>
+                                    <p style={{color: '#3d4468', fontSize: '1.75rem', fontWeight: 700}}>₹{livePendingSettlement.toLocaleString('en-IN') || 0}</p>
                                 </div>
                                 <div className="neu-input" style={{padding: '20px', textAlign: 'center'}}>
                                     <p style={{color: '#007BFF', fontSize: '14px', fontWeight: 500, margin: 0}}>Outstanding Credit</p>
@@ -251,7 +315,7 @@ export default function ShopkeeperJeevanKundliPage() {
                                <button onClick={() => shopkeeper.qrCodeUrl && setViewingQr(shopkeeper.qrCodeUrl)} disabled={!shopkeeper.qrCodeUrl} className="neu-button" style={{margin: 0, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px', padding: '12px'}}>
                                     <QrCode size={16}/> View QR
                                 </button>
-                                <button onClick={() => { setIsEditingAmount(true); setNewAmount(shopkeeper.pendingSettlement?.toString() || '0'); }} className="neu-button" style={{margin: 0, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px', padding: '12px'}}>
+                                <button onClick={() => { setIsEditingAmount(true); setNewAmount(livePendingSettlement?.toString() || '0'); }} className="neu-button" style={{margin: 0, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px', padding: '12px'}}>
                                     <Edit size={16}/> Update
                                 </button>
                                 <button onClick={openWhatsApp} className="neu-button" style={{margin: 0, flex: 1, background: '#25D366', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px', padding: '12px'}}>
