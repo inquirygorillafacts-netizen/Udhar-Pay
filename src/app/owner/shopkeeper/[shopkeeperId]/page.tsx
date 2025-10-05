@@ -83,7 +83,6 @@ export default function ShopkeeperJeevanKundliPage() {
 
         const fetchInitialData = async () => {
             try {
-                // 1. Fetch Shopkeeper Profile
                 const shopkeeperRef = doc(firestore, 'shopkeepers', shopkeeperId);
                 const shopkeeperSnap = await getDoc(shopkeeperRef);
 
@@ -93,12 +92,10 @@ export default function ShopkeeperJeevanKundliPage() {
                 const shopkeeperData = { uid: shopkeeperId, ...shopkeeperSnap.data() } as ShopkeeperProfile;
                 setShopkeeper(shopkeeperData);
 
-                // 2. Check if shopkeeper is also a customer
                 const customerRef = doc(firestore, 'customers', shopkeeperId);
                 const customerSnap = await getDoc(customerRef);
                 setCustomerStatus({ isCustomer: customerSnap.exists() });
 
-                // 3. Set up a real-time listener for all transactions involving this shopkeeper
                 const transactionsRef = collection(firestore, 'transactions');
                 const q = query(transactionsRef, where('shopkeeperId', '==', shopkeeperId));
                 
@@ -106,25 +103,19 @@ export default function ShopkeeperJeevanKundliPage() {
                     const customerBalances: { [customerId: string]: number } = {};
                     let totalPendingSettlement = 0;
 
+                    shopkeeperData.connections?.forEach(id => customerBalances[id] = 0);
+
                     snapshot.docs.forEach(doc => {
                         const tx = doc.data() as Transaction;
                         
-                        // Initialize balance if not present
-                        if (customerBalances[tx.customerId] === undefined) {
-                            customerBalances[tx.customerId] = 0;
-                        }
-
-                        // Calculate balance from customer's perspective (Principal + Commission)
-                        if (tx.type === 'credit' || tx.type === 'commission') {
-                            customerBalances[tx.customerId] += tx.amount;
-                        } else if (tx.type === 'payment') {
-                            customerBalances[tx.customerId] -= tx.amount;
-                        }
-
-                        // Calculate total pending settlement for the owner
-                        if (tx.type === 'payment') {
-                            const principalAmount = tx.amount / (1 + COMMISSION_RATE);
-                            totalPendingSettlement += principalAmount;
+                        if (customerBalances[tx.customerId] !== undefined) {
+                            if (tx.type === 'credit' || tx.type === 'commission') {
+                                customerBalances[tx.customerId] += tx.amount;
+                            } else if (tx.type === 'payment') {
+                                customerBalances[tx.customerId] -= tx.amount;
+                                const principalAmount = tx.amount / (1 + COMMISSION_RATE);
+                                totalPendingSettlement += principalAmount;
+                            }
                         }
                     });
                     
@@ -146,9 +137,7 @@ export default function ShopkeeperJeevanKundliPage() {
                         totalOutstanding: totalOutstanding,
                     });
                     
-                    // We directly use the pending settlement from the shopkeeper doc, as it's updated atomically
-                    // But we can also calculate it for verification if needed. Let's use the doc value for consistency.
-                    setLivePendingSettlement(shopkeeperSnap.data()?.pendingSettlement || 0);
+                    setLivePendingSettlement(totalPendingSettlement);
 
                 }, (error) => {
                     console.error("Error listening to transactions:", error);
@@ -165,15 +154,6 @@ export default function ShopkeeperJeevanKundliPage() {
         };
 
         fetchInitialData();
-        
-        // Setup listener for shopkeeper document itself to get settlement updates
-        const shopkeeperRef = doc(firestore, 'shopkeepers', shopkeeperId);
-        const unsubscribeShopkeeper = onSnapshot(shopkeeperRef, (docSnap) => {
-            if (docSnap.exists()) {
-                 setLivePendingSettlement(docSnap.data()?.pendingSettlement || 0);
-            }
-        });
-        unsubscribe.push(unsubscribeShopkeeper);
 
         return () => {
             unsubscribe.forEach(unsub => unsub());
@@ -208,7 +188,7 @@ export default function ShopkeeperJeevanKundliPage() {
             await updateDoc(shopkeeperRef, {
                 pendingSettlement: amount
             });
-            setLivePendingSettlement(amount);
+            // The onSnapshot listener will update the livePendingSettlement state automatically.
             toast({ title: "Success", description: "Pending settlement updated." });
             setIsEditingAmount(false);
             setNewAmount('');
@@ -304,11 +284,11 @@ export default function ShopkeeperJeevanKundliPage() {
                              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px'}}>
                                 <div className="neu-input" style={{padding: '20px', textAlign: 'center'}}>
                                     <p style={{color: '#ff3b5c', fontSize: '14px', fontWeight: 500, margin: 0}}>Pending Settlement</p>
-                                    <p style={{color: '#3d4468', fontSize: '1.75rem', fontWeight: 700}}>₹{livePendingSettlement.toLocaleString('en-IN') || 0}</p>
+                                    <p style={{color: '#3d4468', fontSize: '1.75rem', fontWeight: 700}}>₹{livePendingSettlement.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                                 </div>
                                 <div className="neu-input" style={{padding: '20px', textAlign: 'center'}}>
                                     <p style={{color: '#007BFF', fontSize: '14px', fontWeight: 500, margin: 0}}>Outstanding Credit</p>
-                                    <p style={{color: '#3d4468', fontSize: '1.75rem', fontWeight: 700}}>₹{analytics?.totalOutstanding.toLocaleString('en-IN') || 0}</p>
+                                    <p style={{color: '#3d4468', fontSize: '1.75rem', fontWeight: 700}}>₹{analytics?.totalOutstanding.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}) || 0}</p>
                                 </div>
                              </div>
                              <div style={{borderTop: '1px solid #d1d9e6', marginTop: '20px', paddingTop: '20px', display: 'flex', justifyContent: 'space-around', gap: '10px'}}>
@@ -372,3 +352,5 @@ export default function ShopkeeperJeevanKundliPage() {
         </>
     );
 }
+
+    
