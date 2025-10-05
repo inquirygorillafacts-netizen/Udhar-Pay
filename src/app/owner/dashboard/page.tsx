@@ -93,13 +93,11 @@ export default function OwnerDashboardPage() {
         const twentyFourHoursAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
         const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
         
-        const twentyFourHoursAgoTimestamp = Timestamp.fromDate(twentyFourHoursAgo);
-
-        const unsubCustomers = onSnapshot(query(collection(firestore, 'customers'), where('createdAt', '>=', twentyFourHoursAgoTimestamp)), snapshot => {
+        const unsubCustomers = onSnapshot(query(collection(firestore, 'customers'), where('createdAt', '>=', Timestamp.fromDate(twentyFourHoursAgo))), snapshot => {
             setStats(prev => ({ ...prev, newCustomers24h: snapshot.size }));
         });
         
-        const unsubShopkeepers = onSnapshot(query(collection(firestore, 'shopkeepers'), where('createdAt', '>=', twentyFourHoursAgoTimestamp)), snapshot => {
+        const unsubShopkeepers = onSnapshot(query(collection(firestore, 'shopkeepers'), where('createdAt', '>=', Timestamp.fromDate(twentyFourHoursAgo))), snapshot => {
             setStats(prev => ({ ...prev, newShopkeepers24h: snapshot.size }));
         });
 
@@ -160,10 +158,12 @@ export default function OwnerDashboardPage() {
 
             transactionsWithNames.sort((a, b) => (b.timestamp?.toMillis() || 0) - (a.timestamp?.toMillis() || 0));
             
-            setRecentTransactions(transactionsWithNames.slice(0, 5));
+            const filteredRecentTransactions = transactionsWithNames.filter(tx => tx.type !== 'commission').slice(0, 5);
+
+            setRecentTransactions(filteredRecentTransactions);
             setStats(prev => ({ 
                 ...prev, 
-                totalOutstanding, 
+                totalOutstanding,
                 totalTransactions24h: transactionsToday,
                 profit24h: Math.round(profit24h * 100) / 100,
                 profit30d: Math.round(profit30d * 100) / 100,
