@@ -71,9 +71,9 @@ export default function OwnerDashboardPage() {
         totalCustomers: 0,
         totalShopkeepers: 0,
         totalOutstanding: 0,
-        newCustomersToday: 0,
-        newShopkeepersToday: 0,
-        totalTransactionsToday: 0,
+        newCustomers24h: 0,
+        newShopkeepers24h: 0,
+        totalTransactions24h: 0,
         profit24h: 0,
         profit30d: 0,
         totalProfit: 0,
@@ -93,14 +93,14 @@ export default function OwnerDashboardPage() {
         const twentyFourHoursAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
         const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
         
-        const startOfTodayTimestamp = Timestamp.fromDate(new Date(now.setHours(0,0,0,0)));
+        const twentyFourHoursAgoTimestamp = Timestamp.fromDate(twentyFourHoursAgo);
 
-        const unsubCustomers = onSnapshot(query(collection(firestore, 'customers'), where('createdAt', '>=', startOfTodayTimestamp)), snapshot => {
-            setStats(prev => ({ ...prev, newCustomersToday: snapshot.size }));
+        const unsubCustomers = onSnapshot(query(collection(firestore, 'customers'), where('createdAt', '>=', twentyFourHoursAgoTimestamp)), snapshot => {
+            setStats(prev => ({ ...prev, newCustomers24h: snapshot.size }));
         });
         
-        const unsubShopkeepers = onSnapshot(query(collection(firestore, 'shopkeepers'), where('createdAt', '>=', startOfTodayTimestamp)), snapshot => {
-            setStats(prev => ({ ...prev, newShopkeepersToday: snapshot.size }));
+        const unsubShopkeepers = onSnapshot(query(collection(firestore, 'shopkeepers'), where('createdAt', '>=', twentyFourHoursAgoTimestamp)), snapshot => {
+            setStats(prev => ({ ...prev, newShopkeepers24h: snapshot.size }));
         });
 
         onSnapshot(collection(firestore, 'customers'), snap => setStats(prev => ({...prev, totalCustomers: snap.size})));
@@ -112,18 +112,18 @@ export default function OwnerDashboardPage() {
             let profit30d = 0;
             let totalProfit = 0;
             
-            const transactionsToday = snapshot.docs.filter(doc => (doc.data().timestamp as Timestamp)?.toDate() >= startOfTodayTimestamp).length;
+            const transactionsToday = snapshot.docs.filter(doc => (doc.data().timestamp as Timestamp)?.toDate() >= twentyFourHoursAgo).length;
 
             const customerCache: {[key: string]: string} = {};
             const shopkeeperCache: {[key: string]: string} = {};
-            const customerPromises: Promise<any>[] = [];
-            const shopkeeperPromises: Promise<any>[] = [];
-
+            
             const allTransactions: (Transaction & {id: string})[] = [];
-            snapshot.forEach(txDoc => {
-                const tx = txDoc.data() as Transaction;
 
-                if (tx.type === 'credit' || tx.type === 'commission') {
+            for (const txDoc of snapshot.docs) {
+                const tx = txDoc.data() as Transaction;
+                 if (tx.type === 'credit') {
+                    totalOutstanding += tx.amount;
+                } else if (tx.type === 'commission') {
                     totalOutstanding += tx.amount;
                 } else if (tx.type === 'payment') {
                     totalOutstanding -= tx.amount;
@@ -142,23 +142,15 @@ export default function OwnerDashboardPage() {
 
                 allTransactions.push({id: txDoc.id, ...tx});
 
-                if (!customerCache[tx.customerId]) {
-                    customerPromises.push(getDoc(doc(firestore, 'customers', tx.customerId)));
+                 if (!customerCache[tx.customerId]) {
+                    const custDoc = await getDoc(doc(firestore, 'customers', tx.customerId));
+                    if(custDoc.exists()) customerCache[tx.customerId] = custDoc.data()?.displayName || 'Unknown';
                 }
                  if (!shopkeeperCache[tx.shopkeeperId]) {
-                    shopkeeperPromises.push(getDoc(doc(firestore, 'shopkeepers', tx.shopkeeperId)));
+                    const shopDoc = await getDoc(doc(firestore, 'shopkeepers', tx.shopkeeperId));
+                    if(shopDoc.exists()) shopkeeperCache[tx.shopkeeperId] = shopDoc.data()?.displayName || 'Unknown';
                 }
-            });
-            
-            const customerDocs = await Promise.all(customerPromises);
-            customerDocs.forEach(doc => {
-                 if(doc.exists()) customerCache[doc.id] = doc.data()?.displayName || 'Unknown';
-            });
-            
-            const shopkeeperDocs = await Promise.all(shopkeeperPromises);
-             shopkeeperDocs.forEach(doc => {
-                 if(doc.exists()) shopkeeperCache[doc.id] = doc.data()?.displayName || 'Unknown';
-            });
+            }
             
             const transactionsWithNames = allTransactions.map(tx => ({
                 ...tx,
@@ -172,7 +164,7 @@ export default function OwnerDashboardPage() {
             setStats(prev => ({ 
                 ...prev, 
                 totalOutstanding, 
-                totalTransactionsToday: transactionsToday,
+                totalTransactions24h: transactionsToday,
                 profit24h: Math.round(profit24h * 100) / 100,
                 profit30d: Math.round(profit30d * 100) / 100,
                 totalProfit: Math.round(totalProfit * 100) / 100,
@@ -211,9 +203,9 @@ export default function OwnerDashboardPage() {
                  <div className="login-card">
                     <h2 style={{ textAlign: 'center', color: '#3d4468', fontWeight: 600, fontSize: '1.5rem', marginBottom: '25px' }}>Last 24 Hours</h2>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '20px', marginBottom: '30px' }}>
-                        <StatCard title="New Customers" value={`+${stats.newCustomersToday}`} icon={<TrendingUp size={28} />} colorClass="#00c896" />
-                        <StatCard title="New Shops" value={`+${stats.newShopkeepersToday}`} icon={<TrendingUp size={28} />} colorClass="#00c896" />
-                        <StatCard title="Transactions" value={`${stats.totalTransactionsToday}`} icon={<ArrowLeftRight size={28} />} colorClass="#6c757d" />
+                        <StatCard title="New Customers" value={`+${stats.newCustomers24h}`} icon={<TrendingUp size={28} />} colorClass="#00c896" />
+                        <StatCard title="New Shops" value={`+${stats.newShopkeepers24h}`} icon={<TrendingUp size={28} />} colorClass="#00c896" />
+                        <StatCard title="Transactions" value={`${stats.totalTransactions24h}`} icon={<ArrowLeftRight size={28} />} colorClass="#6c757d" />
                     </div>
                  </div>
 
