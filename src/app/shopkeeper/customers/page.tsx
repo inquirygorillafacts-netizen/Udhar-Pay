@@ -28,7 +28,7 @@ interface ShopkeeperProfile {
 interface Transaction {
     id: string;
     amount: number;
-    type: 'credit' | 'payment';
+    type: 'credit' | 'payment' | 'commission';
     customerId: string;
     shopkeeperId: string;
     timestamp: Timestamp;
@@ -71,10 +71,14 @@ export default function ShopkeeperCustomersPage() {
                 transSnap.forEach(doc => {
                     const t = doc.data() as Transaction;
                     if(balances[t.customerId] !== undefined) {
-                        // For the shopkeeper, only their principal credit and payments matter.
-                        // Commission is invisible to them.
-                        if (t.type === 'credit') balances[t.customerId] += t.amount;
-                        else if (t.type === 'payment') balances[t.customerId] -= t.amount;
+                        // For the shopkeeper's view, we only care about principal credit and payments.
+                        // Commission is invisible to the shopkeeper's balance calculation.
+                        if (t.type === 'credit') {
+                            balances[t.customerId] += t.amount;
+                        } else if (t.type === 'payment') {
+                             const principalAmount = t.amount / (1 + 0.02);
+                             balances[t.customerId] -= principalAmount;
+                        }
                     }
                 });
 
@@ -187,3 +191,5 @@ export default function ShopkeeperCustomersPage() {
     </main>
   );
 }
+
+    
