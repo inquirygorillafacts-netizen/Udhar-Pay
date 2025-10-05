@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useFirebase } from '@/firebase/client-provider';
-import { collection, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, updateDoc, query, where, Timestamp } from 'firebase/firestore';
 import { Network, ChevronRight, User, Search, Users, QrCode, IndianRupee, Edit, Save, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -24,6 +24,14 @@ interface Shopkeeper {
   mobileNumber?: string;
 }
 
+interface Transaction {
+    type: 'payment';
+    amount: number;
+    shopkeeperId: string;
+}
+
+const COMMISSION_RATE = 0.02;
+
 export default function EcosystemPage() {
   const { firestore } = useFirebase();
   const router = useRouter();
@@ -40,33 +48,76 @@ export default function EcosystemPage() {
   const [newAmount, setNewAmount] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
 
-  useEffect(() => {
+   useEffect(() => {
     if (!firestore) return;
 
-    const shopkeepersRef = collection(firestore, 'shopkeepers');
-    const unsubscribe = onSnapshot(shopkeepersRef, (snapshot) => {
-      const shopkeeperList: Shopkeeper[] = [];
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        shopkeeperList.push({
-          uid: doc.id,
-          displayName: data.displayName || 'Unnamed Shopkeeper',
-          photoURL: data.photoURL,
-          pendingSettlement: data.pendingSettlement || 0,
-          shopkeeperCode: data.shopkeeperCode,
-          qrCodeUrl: data.qrCodeUrl,
-          mobileNumber: data.mobileNumber
-        });
-      });
-      setAllShopkeepers(shopkeeperList);
-      setFilteredShopkeepers(shopkeeperList);
-      setLoading(false);
-    }, (error) => {
-      console.error("Error fetching shopkeepers:", error);
-      setLoading(false);
-    });
+    let unsubShopkeepers: () => void;
+    let unsubTransactions: () => void;
 
-    return () => unsubscribe();
+    const fetchAndCalculate = () => {
+      setLoading(true);
+      const shopkeepersRef = collection(firestore, 'shopkeepers');
+      const transactionsRef = collection(firestore, 'transactions');
+      const qPayments = query(transactionsRef, where('type', '==', 'payment'));
+
+      let shopkeepersData: Omit<Shopkeeper, 'pendingSettlement'>[] = [];
+      let settlementData: { [shopkeeperId: string]: number } = {};
+
+      const processData = () => {
+          if (!shopkeepersData.length) return;
+          
+          const combinedData = shopkeepersData.map(shopkeeper => ({
+              ...shopkeeper,
+              pendingSettlement: settlementData[shopkeeper.uid] || 0
+          }));
+
+          setAllShopkeepers(combinedData);
+          setFilteredShopkeepers(combinedData);
+          setLoading(false);
+      }
+
+      unsubShopkeepers = onSnapshot(shopkeepersRef, (snapshot) => {
+        shopkeepersData = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                uid: doc.id,
+                displayName: data.displayName || 'Unnamed Shopkeeper',
+                photoURL: data.photoURL,
+                shopkeeperCode: data.shopkeeperCode,
+                qrCodeUrl: data.qrCodeUrl,
+                mobileNumber: data.mobileNumber
+            }
+        });
+        processData();
+      }, (error) => {
+        console.error("Error fetching shopkeepers:", error);
+        setLoading(false);
+      });
+      
+      unsubTransactions = onSnapshot(qPayments, (snapshot) => {
+          settlementData = {}; // Reset on new data
+          snapshot.forEach(doc => {
+              const tx = doc.data() as Transaction;
+              const principalAmount = tx.amount / (1 + COMMISSION_RATE);
+              if (settlementData[tx.shopkeeperId]) {
+                  settlementData[tx.shopkeeperId] += principalAmount;
+              } else {
+                  settlementData[tx.shopkeeperId] = principalAmount;
+              }
+          });
+          processData();
+      }, (error) => {
+          console.error("Error fetching transactions:", error);
+          setLoading(false);
+      });
+    }
+
+    fetchAndCalculate();
+
+    return () => {
+      if(unsubShopkeepers) unsubShopkeepers();
+      if(unsubTransactions) unsubTransactions();
+    };
   }, [firestore]);
 
   useEffect(() => {
@@ -114,7 +165,7 @@ export default function EcosystemPage() {
         await updateDoc(shopkeeperRef, {
             pendingSettlement: amount
         });
-        toast({ title: "Success", description: "Pending settlement updated." });
+        toast({ title: "Success", description: "This is a manual override. The live value will update on the next transaction." });
         setEditingShopkeeper(null);
         setNewAmount('');
     } catch (error) {
@@ -142,10 +193,10 @@ export default function EcosystemPage() {
             <div className="modal-overlay" onClick={() => setEditingShopkeeper(null)}>
                  <div className="login-card modal-content" style={{maxWidth: '420px'}} onClick={(e) => e.stopPropagation()}>
                      <div className="modal-header">
-                        <h2>Update Settlement</h2>
+                        <h2>Override Settlement</h2>
                         <button className="close-button" onClick={() => setEditingShopkeeper(null)}>&times;</button>
                      </div>
-                     <p style={{color: '#6c7293', textAlign: 'center', marginBottom: '20px'}}>Manually set pending settlement for <strong>{editingShopkeeper.displayName}</strong>.</p>
+                     <p style={{color: '#6c7293', textAlign: 'center', marginBottom: '20px'}}>Manually set pending settlement for <strong>{editingShopkeeper.displayName}</strong>. Note: This is an override and will be recalculated on the next payment.</p>
                       <div className="form-group">
                         <div className="neu-input">
                             <input type="number" id="settlement-amount" value={newAmount} onChange={(e) => setNewAmount(e.target.value)} placeholder=" " required />
@@ -195,7 +246,7 @@ export default function EcosystemPage() {
             {loading ? (
             <div className="loading-container" style={{ minHeight: '300px' }}>
                 <div className="neu-spinner"></div>
-                <p style={{ marginTop: '20px', color: '#6c7293' }}>Loading Shopkeepers...</p>
+                <p style={{ marginTop: '20px', color: '#9499b7' }}>Loading Shopkeepers...</p>
             </div>
             ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
@@ -219,7 +270,7 @@ export default function EcosystemPage() {
                         <div style={{ flex: 1 }}>
                             <h3 style={{ color: '#3d4468', fontWeight: 600, margin: 0 }}>{shopkeeper.displayName}</h3>
                              <p style={{ color: '#6c7293', fontSize: '14px', margin: '2px 0 0 0' }}>
-                                Pending: <span style={{ fontWeight: 'bold', color: shopkeeper.pendingSettlement > 0 ? '#ff3b5c' : '#00c896' }}>₹{shopkeeper.pendingSettlement}</span>
+                                Pending: <span style={{ fontWeight: 'bold', color: shopkeeper.pendingSettlement > 0 ? '#ff3b5c' : '#00c896' }}>₹{shopkeeper.pendingSettlement.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                             </p>
                         </div>
                         <ChevronRight size={24} style={{ color: '#9499b7' }} />
@@ -228,8 +279,8 @@ export default function EcosystemPage() {
                        <button onClick={() => shopkeeper.qrCodeUrl && setViewingQr(shopkeeper.qrCodeUrl)} disabled={!shopkeeper.qrCodeUrl} className="neu-button" style={{margin: 0, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px', padding: '12px'}}>
                             <QrCode size={16}/> View QR
                         </button>
-                        <button onClick={() => { setEditingShopkeeper(shopkeeper); setNewAmount(shopkeeper.pendingSettlement.toString()); }} className="neu-button" style={{margin: 0, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px', padding: '12px'}}>
-                            <Edit size={16}/> Update
+                        <button onClick={() => { setEditingShopkeeper(shopkeeper); setNewAmount(shopkeeper.pendingSettlement.toFixed(2)); }} className="neu-button" style={{margin: 0, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px', padding: '12px'}}>
+                            <Edit size={16}/> Override
                         </button>
                         <button onClick={() => openWhatsApp(shopkeeper.mobileNumber)} className="neu-button" style={{margin: 0, flex: 1, background: '#25D366', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px', padding: '12px'}}>
                             <WhatsAppIcon />
