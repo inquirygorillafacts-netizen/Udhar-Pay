@@ -3,8 +3,8 @@
 import { useFirebase } from '@/firebase/client-provider';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { collection, onSnapshot, query, where, Timestamp } from 'firebase/firestore';
-import { Users, Store, IndianRupee, TrendingUp, TrendingDown, ArrowRight, ArrowLeftRight } from 'lucide-react';
+import { collection, onSnapshot, query, where, Timestamp, getDocs } from 'firebase/firestore';
+import { Users, Store, IndianRupee, TrendingUp, TrendingDown, ArrowLeftRight } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface Transaction {
@@ -22,10 +22,10 @@ interface StatCardProps {
 
 const StatCard = ({ title, value, icon, colorClass }: StatCardProps) => (
     <div className="login-card" style={{ padding: '20px', textAlign: 'center', flex: 1, minWidth: '140px' }}>
-        <div className={`neu-icon ${colorClass}`} style={{ width: '60px', height: '60px', margin: '0 auto 15px', color: 'white' }}>
+        <div className={`neu-icon ${colorClass}`} style={{ width: '60px', height: '60px', margin: '0 auto 15px', color: 'white', background: colorClass, boxShadow: 'none' }}>
             {icon}
         </div>
-        <h3 style={{ color: '#6c7293', fontSize: '14px', fontWeight: 600, margin: 0 }}>{title}</h3>
+        <h3 style={{ color: '#6c7293', fontSize: '14px', fontWeight: 600, margin: 0, textTransform: 'uppercase' }}>{title}</h3>
         <p style={{ color: '#3d4468', fontSize: '1.75rem', fontWeight: 700, margin: '5px 0 0 0' }}>{value}</p>
     </div>
 );
@@ -38,15 +38,20 @@ const TransactionItem = ({ tx }: { tx: Transaction & { id: string, customerName?
                 <ArrowLeftRight size={20} color={isCredit ? '#ff3b5c' : '#00c896'} />
             </div>
             <div style={{ flexGrow: 1 }}>
-                <p style={{ fontWeight: 600, color: '#3d4468', marginBottom: '2px' }}>
-                    ₹{tx.amount.toLocaleString('en-IN')}
+                 <p style={{ fontWeight: 600, color: '#3d4468', marginBottom: '2px' }}>
+                   {isCredit ? `From ${tx.shopkeeperName}` : `To ${tx.shopkeeperName}`}
                 </p>
                  <p style={{ fontSize: '12px', color: '#6c7293' }}>
-                    {tx.timestamp?.toDate().toLocaleString('en-IN', { day: 'short', month: 'short', hour: 'numeric', minute: '2-digit' }) || 'now'}
+                    {tx.timestamp?.toDate().toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) || 'now'}
                 </p>
             </div>
-            <div style={{ fontSize: '13px', fontWeight: 500, color: isCredit ? '#ff3b5c' : '#00c896' }}>
-                {isCredit ? 'Udhaar' : 'Payment'}
+            <div style={{textAlign: 'right'}}>
+                <p style={{ fontWeight: 'bold', fontSize: '1.2rem', color: isCredit ? '#ff3b5c' : '#00c896' }}>
+                    ₹{tx.amount}
+                </p>
+                <p style={{ fontSize: '13px', fontWeight: 500, color: '#9499b7' }}>
+                    {isCredit ? 'Udhaar' : 'Payment'}
+                </p>
             </div>
         </div>
     );
@@ -60,13 +65,12 @@ export default function OwnerDashboardPage() {
         totalCustomers: 0,
         totalShopkeepers: 0,
         totalOutstanding: 0,
+        newCustomersToday: 0,
+        newShopkeepersToday: 0,
+        totalTransactionsToday: 0
     });
-    const [todayStats, setTodayStats] = useState({
-        transactions: 0,
-        udhaar: 0,
-        payments: 0,
-    });
-    const [recentTransactions, setRecentTransactions] = useState<(Transaction & { id: string })[]>([]);
+
+    const [recentTransactions, setRecentTransactions] = useState<(Transaction & { id: string, customerName?: string, shopkeeperName?: string })[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -76,50 +80,66 @@ export default function OwnerDashboardPage() {
         }
         setUser(auth.currentUser);
 
-        const customersQuery = query(collection(firestore, 'customers'));
-        const shopkeepersQuery = query(collection(firestore, 'shopkeepers'));
-        const transactionsQuery = query(collection(firestore, 'transactions'), where('timestamp', '!=', null));
-        
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const todayTimestamp = Timestamp.fromDate(today);
 
-        const unsubCustomers = onSnapshot(customersQuery, snapshot => setStats(prev => ({...prev, totalCustomers: snapshot.size})));
-        const unsubShopkeepers = onSnapshot(shopkeepersQuery, snapshot => setStats(prev => ({...prev, totalShopkeepers: snapshot.size})));
-        
-        const unsubTransactions = onSnapshot(transactionsQuery, snapshot => {
-            let totalOutstanding = 0;
-            let todayTxCount = 0;
-            let todayUdhaar = 0;
-            let todayPayments = 0;
+        const unsubCustomers = onSnapshot(query(collection(firestore, 'customers')), snapshot => {
+            const newToday = snapshot.docs.filter(doc => doc.data().createdAt?.toDate() >= today).length;
+            setStats(prev => ({...prev, totalCustomers: snapshot.size, newCustomersToday: newToday }));
+        });
 
-            const allTransactions: (Transaction & {id: string})[] = [];
+        const unsubShopkeepers = onSnapshot(query(collection(firestore, 'shopkeepers')), snapshot => {
+             const newToday = snapshot.docs.filter(doc => doc.data().createdAt?.toDate() >= today).length;
+            setStats(prev => ({...prev, totalShopkeepers: snapshot.size, newShopkeepersToday: newToday}));
+        });
+        
+        const unsubTransactions = onSnapshot(query(collection(firestore, 'transactions')), async (snapshot) => {
+            let totalOutstanding = 0;
+            const transactionsToday = snapshot.docs.filter(doc => doc.data().timestamp?.toDate() >= today).length;
+
+            const allTransactions: (Transaction & {id: string, customerName?: string, shopkeeperName?: string})[] = [];
+
+            const customerPromises: Promise<any>[] = [];
+            const shopkeeperPromises: Promise<any>[] = [];
+            const customerCache: {[key: string]: string} = {};
+            const shopkeeperCache: {[key: string]: string} = {};
 
             snapshot.forEach(doc => {
-                const tx = { id: doc.id, ...doc.data() } as Transaction & {id: string};
-                allTransactions.push(tx);
-
-                if (tx.type === 'credit') {
+                const tx = { id: doc.id, ...doc.data() } as Transaction & { id: string, customerId: string, shopkeeperId: string };
+                
+                 if (tx.type === 'credit') {
                     totalOutstanding += tx.amount;
                 } else if (tx.type === 'payment') {
                     totalOutstanding -= tx.amount;
                 }
 
-                if (tx.timestamp && tx.timestamp >= todayTimestamp) {
-                    todayTxCount++;
-                    if (tx.type === 'credit') {
-                        todayUdhaar += tx.amount;
-                    } else {
-                        todayPayments += tx.amount;
-                    }
+                allTransactions.push(tx);
+
+                if (!customerCache[tx.customerId]) {
+                    customerPromises.push(getDoc(doc(firestore, 'customers', tx.customerId)));
+                }
+                 if (!shopkeeperCache[tx.shopkeeperId]) {
+                    shopkeeperPromises.push(getDoc(doc(firestore, 'shopkeepers', tx.shopkeeperId)));
                 }
             });
 
-            allTransactions.sort((a, b) => b.timestamp.toMillis() - a.timestamp.toMillis());
+            const customerDocs = await Promise.all(customerPromises);
+            customerDocs.forEach(doc => customerCache[doc.id] = doc.data()?.displayName || 'Unknown');
+
+            const shopkeeperDocs = await Promise.all(shopkeeperPromises);
+            shopkeeperDocs.forEach(doc => shopkeeperCache[doc.id] = doc.data()?.displayName || 'Unknown');
+
+            const transactionsWithNames = allTransactions.map(tx => ({
+                ...tx,
+                customerName: customerCache[tx.customerId as string],
+                shopkeeperName: shopkeeperCache[tx.shopkeeperId as string],
+            }));
+
+            transactionsWithNames.sort((a, b) => (b.timestamp?.toMillis() || 0) - (a.timestamp?.toMillis() || 0));
             
-            setRecentTransactions(allTransactions.slice(0, 5));
-            setStats(prev => ({ ...prev, totalOutstanding }));
-            setTodayStats({ transactions: todayTxCount, udhaar: todayUdhaar, payments: todayPayments });
+            setRecentTransactions(transactionsWithNames.slice(0, 5));
+            setStats(prev => ({ ...prev, totalOutstanding, totalTransactionsToday: transactionsToday }));
             setLoading(false);
         });
 
@@ -131,11 +151,6 @@ export default function OwnerDashboardPage() {
 
     }, [auth.currentUser, firestore]);
     
-    const chartData = [
-        { name: 'Today', Udhaar: todayStats.udhaar, Payments: todayStats.payments },
-    ];
-
-
     if (loading) {
         return <div className="loading-container"><div className="neu-spinner"></div></div>;
     }
@@ -149,40 +164,24 @@ export default function OwnerDashboardPage() {
                         <p style={{ color: '#9499b7' }}>Welcome, {user?.displayName || user?.email || 'Owner'}</p>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '20px' }}>
-                        <StatCard title="Total Customers" value={stats.totalCustomers.toString()} icon={<Users size={28} />} colorClass="bg-blue-500" />
-                        <StatCard title="Total Shopkeepers" value={stats.totalShopkeepers.toString()} icon={<Store size={28} />} colorClass="bg-purple-500" />
-                        <StatCard title="Total Udhaar" value={`₹${Math.round(stats.totalOutstanding / 1000)}k`} icon={<IndianRupee size={28} />} colorClass="bg-red-500" />
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '20px' }}>
+                        <StatCard title="Total Customers" value={stats.totalCustomers.toString()} icon={<Users size={28} />} colorClass="#007BFF" />
+                        <StatCard title="Total Shopkeepers" value={stats.totalShopkeepers.toString()} icon={<Store size={28} />} colorClass="#6f42c1" />
+                        <StatCard title="Total Udhaar" value={`₹${Math.round(stats.totalOutstanding / 1000)}k`} icon={<IndianRupee size={28} />} colorClass="#ff3b5c" />
                     </div>
                 </div>
 
                  <div className="login-card">
                     <h2 style={{ textAlign: 'center', color: '#3d4468', fontWeight: 600, fontSize: '1.5rem', marginBottom: '25px' }}>Today's Snapshot</h2>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '20px', marginBottom: '30px' }}>
-                        <StatCard title="Udhaar Given" value={`₹${(todayStats.udhaar / 1000).toFixed(1)}k`} icon={<TrendingUp size={28} />} colorClass="bg-orange-500" />
-                        <StatCard title="Payments Rec'd" value={`₹${(todayStats.payments / 1000).toFixed(1)}k`} icon={<TrendingDown size={28} />} colorClass="bg-green-500" />
-                         <StatCard title="Transactions" value={todayStats.transactions.toString()} icon={<ArrowLeftRight size={28} />} colorClass="bg-gray-500" />
-                    </div>
-                    <div style={{ height: '200px' }}>
-                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={chartData}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#d1d9e6" />
-                                <XAxis dataKey="name" tick={{ fill: '#6c7293', fontSize: 12 }} />
-                                <YAxis tick={{ fill: '#6c7293', fontSize: 12 }} tickFormatter={(value) => `₹${Number(value) / 1000}k`}/>
-                                <Tooltip
-                                    contentStyle={{ background: '#e0e5ec', border: 'none', borderRadius: '15px', boxShadow: '5px 5px 15px #bec3cf, -5px -5px 15px #ffffff' }}
-                                    formatter={(value) => [`₹${value}`, null]}
-                                />
-                                <Legend wrapperStyle={{ fontSize: '14px', color: '#3d4468' }} />
-                                <Bar dataKey="Udhaar" fill="#ff3b5c" radius={[10, 10, 0, 0]} />
-                                <Bar dataKey="Payments" fill="#00c896" radius={[10, 10, 0, 0]} />
-                            </BarChart>
-                        </ResponsiveContainer>
+                        <StatCard title="New Customers" value={`+${stats.newCustomersToday}`} icon={<TrendingUp size={28} />} colorClass="#00c896" />
+                        <StatCard title="New Shops" value={`+${stats.newShopkeepersToday}`} icon={<TrendingUp size={28} />} colorClass="#00c896" />
+                        <StatCard title="Transactions" value={`${stats.totalTransactionsToday}`} icon={<ArrowLeftRight size={28} />} colorClass="#6c757d" />
                     </div>
                  </div>
 
                 <div className="login-card">
-                    <h2 style={{ textAlign: 'center', color: '#3d4468', fontWeight: 600, fontSize: '1.5rem', marginBottom: '25px' }}>Recent Transactions</h2>
+                    <h2 style={{ textAlign: 'center', color: '#3d4468', fontWeight: 600, fontSize: '1.5rem', marginBottom: '25px' }}>Recent Platform Activity</h2>
                     {recentTransactions.length > 0 ? (
                          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                             {recentTransactions.map(tx => <TransactionItem key={tx.id} tx={tx} />)}
