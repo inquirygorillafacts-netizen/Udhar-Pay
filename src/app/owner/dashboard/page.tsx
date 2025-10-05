@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useFirebase } from '@/firebase/client-provider';
@@ -89,53 +90,54 @@ export default function OwnerDashboardPage() {
         }
         setUser(auth.currentUser);
 
-        const unsubTransactions = onSnapshot(query(collection(firestore, 'transactions')), async (snapshot) => {
+        const transQuery = query(collection(firestore, 'transactions'));
+        const unsubscribe = onSnapshot(transQuery, async (snapshot) => {
+            setLoading(true);
             const now = new Date();
             const twentyFourHoursAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
             const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
-            
+
             let totalOutstanding = 0;
             let profit24h = 0;
             let profit30d = 0;
             let totalProfit = 0;
             let transactionsToday = 0;
-            
-            const customerCache: {[key: string]: string} = {};
-            const shopkeeperCache: {[key: string]: string} = {};
-            
+
             const allTransactions: (Transaction & {id: string})[] = [];
 
             for (const txDoc of snapshot.docs) {
                 const tx = txDoc.data() as Transaction;
                 const txTimestamp = (tx.timestamp as Timestamp)?.toDate();
                 
+                // Correct calculation for total outstanding balance
                 if (tx.type === 'credit' || tx.type === 'commission') {
                     totalOutstanding += tx.amount;
                 } else if (tx.type === 'payment') {
                     totalOutstanding -= tx.amount;
                 }
                 
-                if(tx.type === 'commission' && tx.profit && txTimestamp){
+                if (tx.type === 'commission' && tx.profit && txTimestamp) {
                     totalProfit += tx.profit;
-                    if(txTimestamp >= twentyFourHoursAgo) profit24h += tx.profit;
-                    if(txTimestamp >= thirtyDaysAgo) profit30d += tx.profit;
+                    if (txTimestamp >= twentyFourHoursAgo) profit24h += tx.profit;
+                    if (txTimestamp >= thirtyDaysAgo) profit30d += tx.profit;
                 }
                 
-                if(txTimestamp && txTimestamp >= twentyFourHoursAgo) {
+                if (txTimestamp && txTimestamp >= twentyFourHoursAgo) {
                     transactionsToday++;
                 }
 
                 allTransactions.push({id: txDoc.id, ...tx});
-
-                 if (!customerCache[tx.customerId]) {
-                    const custDoc = await getDocs(query(collection(firestore, 'customers'), where('__name__', '==', tx.customerId)));
-                    if(!custDoc.empty) customerCache[tx.customerId] = custDoc.docs[0].data()?.displayName || 'Unknown';
-                }
-                 if (!shopkeeperCache[tx.shopkeeperId]) {
-                    const shopDoc = await getDocs(query(collection(firestore, 'shopkeepers'), where('__name__', '==', tx.shopkeeperId)));
-                    if(!shopDoc.empty) shopkeeperCache[tx.shopkeeperId] = shopDoc.docs[0].data()?.displayName || 'Unknown';
-                }
             }
+
+            const customerCache: {[key: string]: string} = {};
+            const shopkeeperCache: {[key: string]: string} = {};
+
+            // Fetch all customers and shopkeepers at once to build a cache
+            const customersSnap = await getDocs(collection(firestore, 'customers'));
+            customersSnap.forEach(doc => customerCache[doc.id] = doc.data()?.displayName || 'Unknown');
+            
+            const shopkeepersSnap = await getDocs(collection(firestore, 'shopkeepers'));
+            shopkeepersSnap.forEach(doc => shopkeeperCache[doc.id] = doc.data()?.displayName || 'Unknown');
             
             const transactionsWithNames = allTransactions.map(tx => ({
                 ...tx,
@@ -148,10 +150,6 @@ export default function OwnerDashboardPage() {
             const filteredRecentTransactions = transactionsWithNames.filter(tx => tx.type !== 'commission').slice(0, 5);
             setRecentTransactions(filteredRecentTransactions);
             
-            // Fetch user counts
-            const customersSnap = await getDocs(collection(firestore, 'customers'));
-            const shopkeepersSnap = await getDocs(collection(firestore, 'shopkeepers'));
-
             const newCustomersQuery = query(collection(firestore, 'customers'), where('createdAt', '>=', Timestamp.fromDate(twentyFourHoursAgo)));
             const newCustomersSnap = await getDocs(newCustomersQuery);
 
@@ -164,7 +162,7 @@ export default function OwnerDashboardPage() {
                 newCustomers24h: newCustomersSnap.size,
                 newShopkeepers24h: newShopkeepersSnap.size,
                 totalTransactions24h: transactionsToday,
-                totalOutstanding,
+                totalOutstanding, // This is now correctly calculated and will be set
                 profit24h: Math.round(profit24h * 100) / 100,
                 profit30d: Math.round(profit30d * 100) / 100,
                 totalProfit: Math.round(totalProfit * 100) / 100,
@@ -173,10 +171,7 @@ export default function OwnerDashboardPage() {
             setLoading(false);
         });
 
-        return () => {
-            unsubTransactions();
-        };
-
+        return () => unsubscribe();
     }, [auth.currentUser, firestore]);
     
     if (loading) {
@@ -195,7 +190,7 @@ export default function OwnerDashboardPage() {
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '20px' }}>
                         <StatCard title="Total Customers" value={stats.totalCustomers.toString()} icon={<Users size={28} />} colorClass="#007BFF" />
                         <StatCard title="Total Shopkeepers" value={stats.totalShopkeepers.toString()} icon={<Store size={28} />} colorClass="#6f42c1" />
-                        <StatCard title="Total Udhaar" value={`₹${Math.round(stats.totalOutstanding / 1000)}k`} icon={<IndianRupee size={28} />} colorClass="#ff3b5c" />
+                        <StatCard title="Total Udhaar" value={`₹${stats.totalOutstanding.toLocaleString('en-IN')}`} icon={<IndianRupee size={28} />} colorClass="#ff3b5c" />
                     </div>
                 </div>
 
