@@ -31,28 +31,24 @@ export default function CustomerAuthPage() {
     const [loading, setLoading] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
     
-    // We'll use state to hold the confirmation result, as it's more React-idiomatic
     const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
-    
     const [isRecaptchaReady, setIsRecaptchaReady] = useState(false);
+
     const cardRef = useRef<HTMLDivElement>(null);
 
     const [selectedCountry, setSelectedCountry] = useState(countryCodes[0]);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     
-    // Set up reCAPTCHA verifier only once on component mount
     useEffect(() => {
         if (!auth || (window as any).recaptchaVerifier) return;
         
-        // Ensure the container exists
-        const recaptchaContainer = document.getElementById('recaptcha-container');
-        if (!recaptchaContainer) return;
-
-        const recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+        // This is crucial. We are creating the verifier instance once and attaching it to the window.
+        // It's tied to the button that will trigger the OTP flow.
+        const recaptchaVerifier = new RecaptchaVerifier(auth, 'send-code-btn', {
             'size': 'invisible',
             'callback': () => {
-                // reCAPTCHA solved.
+                // reCAPTCHA solved. This is usually handled by signInWithPhoneNumber.
                 setIsRecaptchaReady(true);
             },
             'expired-callback': () => {
@@ -63,6 +59,7 @@ export default function CustomerAuthPage() {
         
         (window as any).recaptchaVerifier = recaptchaVerifier;
         
+        // We render it once to prepare it.
         recaptchaVerifier.render().then(() => {
             setIsRecaptchaReady(true);
         }).catch((error) => {
@@ -156,9 +153,15 @@ export default function CustomerAuthPage() {
             } else if (error.code === 'auth/invalid-phone-number') {
                 errorMessage = "The phone number is not valid.";
             } else if (error.code === 'auth/captcha-check-failed' || error.code === 'auth/network-request-failed') {
-                errorMessage = "Verification failed. This can happen with ad-blockers, network issues, or if the authorized domain is not set in Firebase. Please check your connection or contact support.";
+                 errorMessage = "Verification failed. This can happen with ad-blockers, network issues, or if the authorized domain is not set in Firebase. Please check your connection or contact support.";
             }
             setErrors({ form: errorMessage });
+            // Attempt to reset reCAPTCHA on failure
+            appVerifier.render().then((widgetId: any) => {
+                if((window as any).grecaptcha) {
+                    (window as any).grecaptcha.reset(widgetId);
+                }
+            });
         } finally {
             setLoading(false);
         }
@@ -202,7 +205,6 @@ export default function CustomerAuthPage() {
 
     return (
         <div className="login-container-wrapper">
-            <div id="recaptcha-container" style={{ position: 'fixed', bottom: 0, right: 0 }}></div>
             <div className="login-container">
                 <div className="login-card" ref={cardRef}>
                     {!showSuccess ? (
@@ -263,7 +265,7 @@ export default function CustomerAuthPage() {
                                         </div>
                                         {errors.phone && <span className="error-message show">{errors.phone}</span>}
                                     </div>
-                                    <button type="submit" className={`neu-button ${loading ? 'loading' : ''}`} disabled={loading || !isRecaptchaReady}>
+                                    <button id="send-code-btn" type="submit" className={`neu-button ${loading ? 'loading' : ''}`} disabled={loading || !isRecaptchaReady}>
                                         <span className="btn-text">{isRecaptchaReady ? 'Send OTP' : 'Initializing...'}</span>
                                         <div className="btn-loader"><div className="neu-spinner"></div></div>
                                     </button>

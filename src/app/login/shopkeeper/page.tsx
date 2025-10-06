@@ -36,18 +36,14 @@ export default function ShopkeeperAuthPage() {
     const cardRef = useRef<HTMLDivElement>(null);
     const [isRecaptchaReady, setIsRecaptchaReady] = useState(false);
 
-
     const [selectedCountry, setSelectedCountry] = useState(countryCodes[0]);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (!auth || (window as any).recaptchaVerifier) return;
-
-        const recaptchaContainer = document.getElementById('recaptcha-container');
-        if (!recaptchaContainer) return;
-
-        const recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+        
+        const recaptchaVerifier = new RecaptchaVerifier(auth, 'send-code-btn-shopkeeper', {
             'size': 'invisible',
             'callback': () => {
                 setIsRecaptchaReady(true);
@@ -153,6 +149,11 @@ export default function ShopkeeperAuthPage() {
                  errorMessage = "Verification failed. This can happen with ad-blockers, network issues, or if the authorized domain is not set in Firebase. Please check your connection or contact support.";
             }
             setErrors({ form: errorMessage });
+             appVerifier.render().then((widgetId: any) => {
+                if((window as any).grecaptcha) {
+                    (window as any).grecaptcha.reset(widgetId);
+                }
+            });
         } finally {
             setLoading(false);
         }
@@ -195,7 +196,6 @@ export default function ShopkeeperAuthPage() {
 
     return (
         <div className="login-container-wrapper">
-             <div id="recaptcha-container" style={{ position: 'fixed', bottom: 0, right: 0 }}></div>
             <div className="login-container">
                 <div className="login-card" ref={cardRef}>
                     {!showSuccess ? (
@@ -254,7 +254,7 @@ export default function ShopkeeperAuthPage() {
                                         </div>
                                         {errors.phone && <span className="error-message show">{errors.phone}</span>}
                                     </div>
-                                    <button type="submit" className={`neu-button ${loading ? 'loading' : ''}`} disabled={loading || !isRecaptchaReady}>
+                                    <button id="send-code-btn-shopkeeper" type="submit" className={`neu-button ${loading ? 'loading' : ''}`} disabled={loading || !isRecaptchaReady}>
                                         <span className="btn-text">{isRecaptchaReady ? 'Send OTP' : 'Initializing...'}</span>
                                         <div className="btn-loader"><div className="neu-spinner"></div></div>
                                     </button>
