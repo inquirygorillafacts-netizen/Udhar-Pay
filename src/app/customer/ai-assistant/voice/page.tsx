@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Loader, Bot, Volume2, MessageSquare, Waves, Shuffle } from 'lucide-react';
+import { Bot, MessageSquare, Shuffle, User } from 'lucide-react';
 import { askAiAssistant } from '@/ai/flows/assistant-flow';
 import TextAssistantModal from '@/components/assistant/TextAssistantModal';
 import { getHistory, addMessage, ChatMessage } from '@/lib/ai-memory';
@@ -24,14 +24,24 @@ const SpeechRecognition =
 export default function VoiceAssistantPage() {
     const [status, setStatus] = useState<Status>('idle');
     const [isAssistantOn, setIsAssistantOn] = useState(false);
-    const [aiResponse, setAiResponse] = useState('');
+    const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [isTextModalOpen, setIsTextModalOpen] = useState(false);
     const [currentVoiceIndex, setCurrentVoiceIndex] = useState(0);
 
     const recognitionRef = useRef<any>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
 
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    };
+
+    useEffect(() => {
+        setMessages(getHistory());
+    }, []);
+
+    useEffect(scrollToBottom, [messages]);
 
     const currentVoiceId = availableVoices[currentVoiceIndex].voiceId;
     
@@ -47,18 +57,18 @@ export default function VoiceAssistantPage() {
         stopAudio(); 
 
         addMessage({ sender: 'user', text });
-        const history = getHistory();
+        setMessages(getHistory());
         
         try {
             const response = await askAiAssistant({
                 query: text,
-                history,
+                history: getHistory(),
                 generateAudio: true,
                 voiceId: currentVoiceId,
             });
 
             addMessage({ sender: 'ai', text: response.text });
-            setAiResponse(response.text);
+            setMessages(getHistory());
 
 
             if (response.audio && audioRef.current) {
@@ -84,7 +94,7 @@ export default function VoiceAssistantPage() {
             console.error('Error with AI Assistant:', error);
             const errorMessage = "माफ़ कीजिए, कोई त्रुटि हुई। कृपया फिर प्रयास करें।";
             addMessage({sender: 'ai', text: errorMessage});
-            setAiResponse(errorMessage);
+            setMessages(getHistory());
              if (isAssistantOn) {
                 setStatus('listening');
             } else {
@@ -159,7 +169,9 @@ export default function VoiceAssistantPage() {
                 return;
             }
             console.error('Speech recognition error:', event.error);
-            setAiResponse("माफ़ कीजिए, मैं आपकी बात नहीं सुन सका।");
+            const errorMessage = "माफ़ कीजिए, मैं आपकी बात नहीं सुन सका।";
+            addMessage({sender: 'ai', text: errorMessage});
+            setMessages(getHistory());
             setStatus('idle');
         };
         
@@ -241,45 +253,63 @@ export default function VoiceAssistantPage() {
 
     return (
       <>
-        <main className="login-container" style={{ position: 'relative', background: '#000000', padding: '50px 40px' }}>
-            <div style={{maxWidth: '500px', width: '100%', margin: 'auto' }}>
-                 <div style={{ position: 'absolute', top: '20px', right: '20px', display: 'flex', gap: '10px', zIndex: 10 }}>
-                    <button onClick={() => setIsTextModalOpen(true)} className="neu-button" style={{margin: 0, width: 'auto', padding: '10px 15px', background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)'}}>
-                        <MessageSquare size={18}/>
-                    </button>
-                    <button onClick={() => setCurrentVoiceIndex((prev) => (prev + 1) % availableVoices.length)} className="neu-button" style={{margin: 0, width: 'auto', padding: '10px 15px', background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)'}}>
-                        <Shuffle size={18}/>
-                    </button>
+        <main className="login-container" style={{ position: 'relative', background: '#000000', padding: '20px', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ position: 'absolute', top: '20px', right: '20px', display: 'flex', gap: '10px', zIndex: 10 }}>
+                <button onClick={() => setIsTextModalOpen(true)} className="neu-button" style={{margin: 0, width: 'auto', padding: '10px 15px', background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)'}}>
+                    <MessageSquare size={18}/>
+                </button>
+                <button onClick={() => setCurrentVoiceIndex((prev) => (prev + 1) % availableVoices.length)} className="neu-button" style={{margin: 0, width: 'auto', padding: '10px 15px', background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)'}}>
+                    <Shuffle size={18}/>
+                </button>
+            </div>
+
+            <header className="login-header" style={{flexShrink: 0, padding: '20px 0'}}>
+                 <div className="neu-icon" style={{width: '250px', height: '250px', position: 'relative', overflow: 'hidden', border: 'none', boxShadow: 'none', background: 'transparent'}}>
+                     <video 
+                        src="/1.mp4" 
+                        autoPlay 
+                        loop 
+                        muted 
+                        playsInline
+                        style={{ 
+                          width: '100%', 
+                          height: '100%', 
+                          objectFit: 'cover' 
+                        }}
+                      />
                 </div>
-                <header className="login-header">
-                     <div className="neu-icon" style={{width: '250px', height: '250px', position: 'relative', overflow: 'hidden', border: 'none', boxShadow: 'none', background: 'transparent'}}>
-                         <video 
-                            src="/1.mp4" 
-                            autoPlay 
-                            loop 
-                            muted 
-                            playsInline
-                            style={{ 
-                              width: '100%', 
-                              height: '100%', 
-                              objectFit: 'cover' 
-                            }}
-                          />
-                    </div>
-                    <h1 style={{color: 'white'}}>Voice Assistant</h1>
-                    <p style={{color: '#a0a0a0'}}>{getStatusText()}</p>
-                </header>
-                
-                 {aiResponse && (
-                    <div style={{marginBottom: '30px', padding: '20px', background: '#1a1a1a', borderRadius: '15px', border: '1px solid #333'}}>
-                        <div style={{display: 'flex', alignItems: 'flex-start', gap: '15px'}}>
-                             <div className="neu-icon" style={{width: '40px', height: '40px', margin: 0, flexShrink: 0, background: '#00c896'}}>
-                                <MessageSquare size={20} color="white"/>
-                             </div>
-                             <p style={{color: 'white', fontSize: '15px', lineHeight: 1.6, paddingTop: '5px'}}>{aiResponse}</p>
+                <h1 style={{color: 'white'}}>Voice Assistant</h1>
+                <p style={{color: '#a0a0a0'}}>{getStatusText()}</p>
+            </header>
+            
+            <div style={{ flex: 1, overflowY: 'auto', padding: '0 10px 20px', width: '100%', maxWidth: '700px', margin: '0 auto' }}>
+                <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
+                    {messages.map((msg, index) => (
+                      <div key={index} style={{display: 'flex', gap: '15px', alignItems: 'flex-start', justifyContent: msg.sender === 'user' ? 'flex-end' : 'flex-start' }}>
+                        {msg.sender === 'ai' && (
+                          <div className="neu-icon" style={{width: '40px', height: '40px', margin: 0, flexShrink: 0, background: 'rgba(0, 200, 150, 0.2)'}}>
+                              <Bot size={20} color="#00c896"/>
+                          </div>
+                        )}
+                        <div style={{
+                          padding: '12px 18px',
+                          background: msg.sender === 'user' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 200, 150, 0.15)',
+                          color: 'white',
+                          borderRadius: '20px',
+                          border: `1px solid ${msg.sender === 'user' ? 'rgba(255,255,255,0.2)' : 'rgba(0, 200, 150, 0.3)'}`,
+                          maxWidth: '80%'
+                        }}>
+                          <p style={{ margin: 0, lineHeight: 1.5, fontSize: '15px', color: 'inherit' }}>{msg.text}</p>
                         </div>
-                    </div>
-                 )}
+                         {msg.sender === 'user' && (
+                          <div className="neu-icon" style={{width: '40px', height: '40px', margin: 0, flexShrink: 0, background: 'rgba(255, 255, 255, 0.1)'}}>
+                              <User size={20} color="white"/>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    <div ref={messagesEndRef} />
+                </div>
             </div>
         </main>
         {isTextModalOpen && <TextAssistantModal onClose={() => setIsTextModalOpen(false)} />}
