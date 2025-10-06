@@ -267,7 +267,7 @@ export default function VoiceAssistantPage() {
             </div>
 
             <header className="login-header" style={{flexShrink: 0, padding: '20px 0'}}>
-                <div className="neu-icon" style={{width: '250px', height: '250px', position: 'relative', overflow: 'hidden', border: 'none', boxShadow: 'none', background: 'transparent'}}>
+                <div className="neu-icon" style={{width: '300px', height: '300px', position: 'relative', overflow: 'hidden', border: 'none', boxShadow: 'none', background: 'transparent'}}>
                      <video 
                         src="/1.mp4" 
                         autoPlay 
