@@ -31,7 +31,6 @@ export default function CustomerAuthPage() {
 
     // Initialize reCAPTCHA
     useEffect(() => {
-        const auth = useFirebase().auth;
         if (auth && !recaptchaVerifierRef.current) {
             recaptchaVerifierRef.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
                 'size': 'invisible',
@@ -40,7 +39,7 @@ export default function CustomerAuthPage() {
                 }
             });
         }
-    }, []);
+    }, [auth]);
 
 
     const handleFormTransition = () => {
@@ -102,7 +101,7 @@ export default function CustomerAuthPage() {
 
         try {
             const fullPhoneNumber = `+91${phone}`;
-            const confirmation = await signInWithPhoneNumber(useFirebase().auth, fullPhoneNumber, recaptchaVerifierRef.current);
+            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifierRef.current);
             setConfirmationResult(confirmation);
         } catch (error: any) {
             console.error("OTP send error:", error);
