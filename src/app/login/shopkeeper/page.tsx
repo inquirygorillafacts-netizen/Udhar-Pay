@@ -75,8 +75,8 @@ export default function ShopkeeperAuthPage() {
     }
 
     const handleAuthSuccess = async (user: any) => {
+        const userDocRef = doc(firestore, 'shopkeepers', user.uid);
         try {
-            const userDocRef = doc(firestore, 'shopkeepers', user.uid);
             const userDoc = await getDoc(userDocRef);
     
             if (!userDoc.exists()) {
@@ -92,10 +92,10 @@ export default function ShopkeeperAuthPage() {
                 });
             }
             handleFormTransition();
-        } catch (dbError) {
+        } catch (dbError: any) {
             console.error("Database operation failed:", dbError);
-            setErrors({ form: "Could not sync your profile. Please check your connection and try again." });
-            setLoading(false);
+            setErrors({ form: "Could not sync your profile. Check your connection." });
+            throw dbError; // Rethrow to be caught by the caller's catch block
         }
     };
 
@@ -175,6 +175,7 @@ export default function ShopkeeperAuthPage() {
              }
              console.error("OTP Verification Error: ", error);
              setErrors({ form: errorMessage });
+        } finally {
              setLoading(false);
         }
     };
