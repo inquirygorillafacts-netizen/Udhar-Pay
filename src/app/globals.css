@@ -626,9 +626,8 @@ body {
 }
 
 .admin-nav-item-primary.active {
-    background: #00c896;
-    color: white;
-    box-shadow: inset 4px 4px 10px #00a078, inset -4px -4px 10px #00f0b4, 5px 5px 15px #bec3cf;
+    box-shadow: inset 4px 4px 10px #bec3cf, inset -4px -4px 10px #ffffff, 5px 5px 15px #bec3cf;
+    color: #00c896;
 }
 
 .admin-nav-item-primary:not(.active) {
