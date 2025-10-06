@@ -7,6 +7,7 @@ import { Store, Key, Check, User, ArrowLeft, ChevronDown } from 'lucide-react';
 import { useFirebase } from '@/firebase/client-provider';
 import { 
     signInWithPhoneNumber,
+    RecaptchaVerifier,
     type ConfirmationResult
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
@@ -22,6 +23,7 @@ const countryCodes = [
 declare global {
     interface Window {
         confirmationResult?: ConfirmationResult;
+        recaptchaVerifier?: RecaptchaVerifier;
     }
 }
 
@@ -121,10 +123,11 @@ export default function ShopkeeperAuthPage() {
         }
 
         try {
-            // This is for development environments to bypass reCAPTCHA.
-            auth.settings.appVerificationDisabledForTesting = true;
+            const recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+                'size': 'invisible',
+            });
             const fullPhoneNumber = `${selectedCountry.code}${phone}`;
-            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, undefined);
+            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifier);
             window.confirmationResult = confirmation;
             setConfirmationResultState(confirmation);
         } catch (error: any) {
@@ -134,8 +137,8 @@ export default function ShopkeeperAuthPage() {
                 errorMessage = "Too many requests. Please try again later.";
             } else if (error.code === 'auth/invalid-phone-number') {
                 errorMessage = "The phone number is not valid.";
-            } else if (error.code === 'auth/captcha-check-failed' || error.code === 'auth/invalid-app-credential') {
-                errorMessage = "Security check failed. Please ensure your domain is authorized in Firebase."
+            } else if (error.code === 'auth/captcha-check-failed' || error.code === 'auth/invalid-app-credential' || error.code === 'auth/argument-error') {
+                errorMessage = "Security check failed. Please refresh and try again."
             }
             setErrors({ form: errorMessage });
         } finally {
