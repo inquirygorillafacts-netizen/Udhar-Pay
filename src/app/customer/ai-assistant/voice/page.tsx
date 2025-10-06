@@ -271,8 +271,19 @@ export default function VoiceAssistantPage() {
             </button>
             <div className="login-card" style={{maxWidth: '500px'}}>
                 <header className="login-header">
-                     <div className="neu-icon" style={{width: '100px', height: '100px', position: 'relative'}}>
-                        <div className="icon-inner" style={{width: '50px', height: '50px'}}>🤖</div>
+                     <div className="neu-icon" style={{width: '100px', height: '100px', position: 'relative', overflow: 'hidden'}}>
+                         <video 
+                            src="/2.mp4" 
+                            autoPlay 
+                            loop 
+                            muted 
+                            playsInline
+                            style={{ 
+                              width: '100%', 
+                              height: '100%', 
+                              objectFit: 'cover' 
+                            }}
+                          />
                     </div>
                     <h1>Voice Assistant</h1>
                     <p>{getStatusText()}</p>
