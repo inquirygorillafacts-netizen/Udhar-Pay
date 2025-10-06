@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import './shopkeeper.css';
-import { Store, Key, Check, User, ArrowLeft, Phone } from 'lucide-react';
+import { Store, Key, Check, User, ArrowLeft, ChevronDown } from 'lucide-react';
 import { useFirebase } from '@/firebase/client-provider';
 import { 
     signInWithPhoneNumber,
@@ -12,6 +12,13 @@ import {
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { generateUniqueShopkeeperCode } from '@/lib/code-helpers';
+
+
+const countryCodes = [
+    { code: '+91', country: 'IN', flag: '🇮🇳' },
+    { code: '+92', country: 'PK', flag: '🇵🇰' },
+    { code: '+1', country: 'US', flag: '🇺🇸' },
+];
 
 
 export default function ShopkeeperAuthPage() {
@@ -28,6 +35,23 @@ export default function ShopkeeperAuthPage() {
 
     const cardRef = useRef<HTMLDivElement>(null);
     const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
+
+    const [selectedCountry, setSelectedCountry] = useState(countryCodes[0]);
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsDropdownOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, []);
 
 
     const handleFormTransition = () => {
@@ -85,7 +109,7 @@ export default function ShopkeeperAuthPage() {
                     'size': 'invisible'
                 });
             }
-            const fullPhoneNumber = `+91${phone}`;
+            const fullPhoneNumber = `${selectedCountry.code}${phone}`;
             const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifierRef.current);
             setConfirmationResult(confirmation);
         } catch (error: any) {
@@ -176,11 +200,27 @@ export default function ShopkeeperAuthPage() {
                             ) : (
                                 <form className="login-form" noValidate onSubmit={handleSendOtp}>
                                     {errors.form && <div className="error-message show" style={{textAlign: 'center', marginBottom: '1rem', marginLeft: 0}}>{errors.form}</div>}
-                                    <div className={`form-group ${errors.phone ? 'error' : ''}`}>
-                                        <div className="neu-input">
-                                             <span style={{position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)', color: '#6c7293', fontWeight: 500}}>+91</span>
-                                            <input type="tel" id="phone" name="phone" required autoComplete="tel" placeholder=" " value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g, ''))} maxLength={10} style={{paddingLeft: '65px'}} />
-                                            <label htmlFor="phone" style={{left: '65px'}}>Mobile Number</label>
+                                     <div className={`form-group ${errors.phone ? 'error' : ''}`}>
+                                        <div className="neu-input" style={{display: 'flex', alignItems: 'center'}}>
+                                            <div ref={dropdownRef} style={{position: 'relative'}}>
+                                                <button type="button" onClick={() => setIsDropdownOpen(!isDropdownOpen)} style={{display: 'flex', alignItems: 'center', gap: '8px', padding: '0 15px', height: '60px', background: 'transparent', border: 'none', cursor: 'pointer'}}>
+                                                    <span>{selectedCountry.flag}</span>
+                                                    <ChevronDown size={16} style={{color: '#9499b7', transition: 'transform 0.2s', transform: isDropdownOpen ? 'rotate(180deg)' : 'none'}}/>
+                                                </button>
+                                                {isDropdownOpen && (
+                                                    <div style={{position: 'absolute', top: '110%', left: '0', background: '#e0e5ec', borderRadius: '15px', boxShadow: '8px 8px 20px #bec3cf, -8px -8px 20px #ffffff', zIndex: 10, overflow: 'hidden'}}>
+                                                        {countryCodes.map(country => (
+                                                            <div key={country.code} onClick={() => { setSelectedCountry(country); setIsDropdownOpen(false); }} style={{display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 18px', cursor: 'pointer', hover: {background: '#d1d9e6'}}}>
+                                                                <span>{country.flag}</span>
+                                                                <span style={{color: '#3d4468', fontWeight: 500}}>{country.code}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div style={{width: '2px', height: '30px', background: '#d1d9e6'}}></div>
+                                            <input type="tel" id="phone" name="phone" required autoComplete="tel" placeholder=" " value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g, ''))} maxLength={10} style={{flex: 1, paddingLeft: '15px', border: 'none', background: 'transparent', outline: 'none'}} />
+                                            <label htmlFor="phone" style={{left: '120px'}}>Mobile Number</label>
                                         </div>
                                         {errors.phone && <span className="error-message show">{errors.phone}</span>}
                                     </div>
