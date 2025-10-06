@@ -29,10 +29,6 @@ export default function AuthRoleSelectionPage() {
         }
     }, []);
 
-    const handleRoleSelect = (role: 'customer' | 'shopkeeper' | 'owner') => {
-        router.push(`/login/${role}`);
-    };
-
     const handlePinSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!pin) {
@@ -99,20 +95,20 @@ export default function AuthRoleSelectionPage() {
                 </div>
 
                 <div className="role-buttons-wrapper">
-                    <button className="neu-button role-btn" onClick={() => handleRoleSelect('customer')}>
+                    <Link href="/login/customer" className="neu-button role-btn">
                         <User className="role-icon" />
                         <span>I am a Customer</span>
-                    </button>
-                    <button className="neu-button role-btn" onClick={() => handleRoleSelect('shopkeeper')}>
+                    </Link>
+                    <Link href="/login/shopkeeper" className="neu-button role-btn">
                         <Store className="role-icon" />
                         <span>I am a Shopkeeper</span>
-                    </button>
+                    </Link>
                     
                     {isOwnerUnlocked && (
-                         <button className="neu-button role-btn owner-btn" onClick={() => handleRoleSelect('owner')}>
+                         <Link href="/login/owner" className="neu-button role-btn owner-btn">
                             <Shield className="role-icon" />
                             <span>Owner Login</span>
-                        </button>
+                        </Link>
                     )}
                 </div>
             </div>
