@@ -20,6 +20,13 @@ const countryCodes = [
     { code: '+1', country: 'US', flag: '🇺🇸' },
 ];
 
+declare global {
+    interface Window {
+        recaptchaVerifier?: RecaptchaVerifier;
+        confirmationResult?: ConfirmationResult;
+    }
+}
+
 
 export default function ShopkeeperAuthPage() {
     const { auth, firestore } = useFirebase();
@@ -31,10 +38,7 @@ export default function ShopkeeperAuthPage() {
     const [loading, setLoading] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
     
-    const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
-
-    const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
-    const recaptchaContainerRef = useRef<HTMLDivElement>(null);
+    const [confirmationResultState, setConfirmationResultState] = useState<ConfirmationResult | null>(null);
 
 
     const [selectedCountry, setSelectedCountry] = useState(countryCodes[0]);
@@ -54,14 +58,14 @@ export default function ShopkeeperAuthPage() {
     }, []);
 
     useEffect(() => {
-        if (!auth || !recaptchaContainerRef.current) return;
-        if (recaptchaVerifierRef.current) return;
+        if (!auth) return;
 
         try {
-            const verifier = new RecaptchaVerifier(auth, recaptchaContainerRef.current, {
-                'size': 'invisible',
-            });
-            recaptchaVerifierRef.current = verifier;
+            if (!window.recaptchaVerifier) {
+                 window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+                    'size': 'invisible'
+                 });
+            }
         } catch (error) {
             console.error("Failed to initialize RecaptchaVerifier:", error);
             setErrors({form: "Failed to load verification service. Please refresh."});
@@ -117,7 +121,7 @@ export default function ShopkeeperAuthPage() {
         setLoading(true);
         setErrors({});
 
-        if (!auth || !recaptchaVerifierRef.current) {
+        if (!auth || !window.recaptchaVerifier) {
             setErrors({ form: "Firebase not initialized. Please refresh." });
             setLoading(false);
             return;
@@ -125,8 +129,9 @@ export default function ShopkeeperAuthPage() {
 
         try {
             const fullPhoneNumber = `${selectedCountry.code}${phone}`;
-            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifierRef.current);
-            setConfirmationResult(confirmation);
+            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, window.recaptchaVerifier);
+            window.confirmationResult = confirmation;
+            setConfirmationResultState(confirmation);
         } catch (error: any) {
             console.error("OTP send error:", error);
             let errorMessage = "Failed to send OTP. Please try again.";
@@ -151,14 +156,14 @@ export default function ShopkeeperAuthPage() {
             return;
         }
 
-        if (!confirmationResult) {
+        if (!window.confirmationResult) {
             setErrors({ form: "Something went wrong. Please try sending OTP again." });
             return;
         }
 
         setLoading(true);
         try {
-            const result = await confirmationResult.confirm(otp);
+            const result = await window.confirmationResult.confirm(otp);
             const user = result.user;
 
             const userDocRef = doc(firestore, 'shopkeepers', user.uid);
@@ -172,6 +177,7 @@ export default function ShopkeeperAuthPage() {
              } else if (error.code === 'auth/code-expired') {
                 errorMessage = "The OTP has expired. Please request a new one."
              }
+             console.error("OTP Verification Error: ", error);
              setErrors({ form: errorMessage });
         } finally {
             setLoading(false);
@@ -181,7 +187,7 @@ export default function ShopkeeperAuthPage() {
     return (
         <div className="login-container-wrapper">
             <div className="login-container">
-                 <div ref={recaptchaContainerRef}></div>
+                 <div id="recaptcha-container"></div>
                 <div className="login-card">
                     {!showSuccess ? (
                         <>
@@ -190,10 +196,10 @@ export default function ShopkeeperAuthPage() {
                                     <div className="icon-inner"><Store /></div>
                                 </div>
                                 <h2>Shopkeeper Portal</h2>
-                                <p>{confirmationResult ? 'Enter OTP to continue' : 'Sign in with your mobile number'}</p>
+                                <p>{confirmationResultState ? 'Enter OTP to continue' : 'Sign in with your mobile number'}</p>
                             </div>
                             
-                            {confirmationResult ? (
+                            {confirmationResultState ? (
                                 <form className="login-form" noValidate onSubmit={handleVerifyOtp}>
                                      {errors.form && <div className="error-message show" style={{textAlign: 'center', marginBottom: '1rem', marginLeft: 0}}>{errors.form}</div>}
                                      <div className={`form-group ${errors.otp ? 'error' : ''}`}>
@@ -208,7 +214,7 @@ export default function ShopkeeperAuthPage() {
                                         <span className="btn-text">Verify & Continue</span>
                                         <div className="btn-loader"><div className="neu-spinner"></div></div>
                                     </button>
-                                     <button type="button" className="neu-button" style={{margin: 0, background: 'transparent', boxShadow: 'none'}} onClick={() => { setConfirmationResult(null); setOtp(''); setErrors({}); }}>
+                                     <button type="button" className="neu-button" style={{margin: 0, background: 'transparent', boxShadow: 'none'}} onClick={() => { setConfirmationResultState(null); setOtp(''); setErrors({}); }}>
                                         <span style={{display: 'flex', alignItems: 'center', gap: '8px'}}><ArrowLeft size={16}/> Back</span>
                                     </button>
                                 </form>
