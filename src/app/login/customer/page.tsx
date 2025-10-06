@@ -121,29 +121,34 @@ export default function CustomerAuthPage() {
         }
 
         try {
-            // This is the most forceful way to disable reCAPTCHA for testing.
-            auth.settings.appVerificationDisabledForTesting = true;
             const fullPhoneNumber = `${selectedCountry.code}${phone}`;
-            
-            // We still create a verifier object because the function requires it.
             const recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'invisible' });
             
-            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifier);
-            window.confirmationResult = confirmation;
-            setConfirmationResultState(confirmation);
+            // This ensures the verifier is ready before we sign in
+            recaptchaVerifier.render().then(async (widgetId) => {
+                try {
+                    const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifier);
+                    window.confirmationResult = confirmation;
+                    setConfirmationResultState(confirmation);
+                } catch (error: any) {
+                     console.error("OTP send error (inner):", error);
+                    let errorMessage = "Failed to send OTP. Please try again.";
+                     if (error.code === 'auth/too-many-requests') {
+                        errorMessage = "Too many requests. Please try again later.";
+                    } else if (error.code === 'auth/invalid-phone-number') {
+                        errorMessage = "The phone number is not valid.";
+                    } else if (error.code === 'auth/captcha-check-failed') {
+                        errorMessage = "Security check failed. Please refresh and try again."
+                    }
+                    setErrors({ form: errorMessage });
+                } finally {
+                    setLoading(false);
+                }
+            });
 
         } catch (error: any) {
             console.error("OTP send error (outer):", error);
-            let errorMessage = "Failed to send OTP. Please try again.";
-             if (error.code === 'auth/too-many-requests') {
-                errorMessage = "Too many requests. Please try again later.";
-            } else if (error.code === 'auth/invalid-phone-number') {
-                errorMessage = "The phone number is not valid.";
-            } else if (error.code === 'auth/captcha-check-failed' || error.code === 'auth/invalid-app-credential') {
-                errorMessage = "Security check failed. Please refresh and try again."
-            }
-            setErrors({ form: errorMessage });
-        } finally {
+            setErrors({ form: "Failed to initialize OTP verification. Please refresh." });
             setLoading(false);
         }
     };
@@ -194,21 +199,6 @@ export default function CustomerAuthPage() {
                                 </div>
                                 <h2>Customer Portal</h2>
                                 <p>{confirmationResultState ? 'Enter OTP to continue' : 'Sign in with your mobile number'}</p>
-                            </div>
-
-                            <div style={{
-                                padding: '10px 15px',
-                                background: 'rgba(0, 123, 255, 0.05)',
-                                border: '1px solid rgba(0, 123, 255, 0.2)',
-                                borderRadius: '15px',
-                                textAlign: 'center',
-                                marginBottom: '25px',
-                                fontSize: '13px',
-                                color: '#0056b3'
-                            }}>
-                                <p style={{margin: 0, fontWeight: 500}}>
-                                    <strong>For testing:</strong> Use number <strong>+91 9876543210</strong> and OTP <strong>123456</strong>.
-                                </p>
                             </div>
                             
                             {confirmationResultState ? (
