@@ -122,15 +122,25 @@ export default function ShopkeeperAuthPage() {
         }
 
         try {
-            // This is the definitive way to disable CAPTCHA for testing/development.
-            auth.settings.appVerificationDisabledForTesting = true;
             const fullPhoneNumber = `${selectedCountry.code}${phone}`;
             const recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'invisible' });
-            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifier);
-            window.confirmationResult = confirmation;
-            setConfirmationResultState(confirmation);
+            
+            // Render the reCAPTCHA and then sign in
+            recaptchaVerifier.render().then(async (widgetId) => {
+                try {
+                    const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifier);
+                    window.confirmationResult = confirmation;
+                    setConfirmationResultState(confirmation);
+                } catch (error) {
+                     console.error("OTP send error (inner):", error);
+                     setErrors({ form: "Failed to send OTP. The phone number may be invalid or blocked." });
+                } finally {
+                    setLoading(false);
+                }
+            });
+
         } catch (error: any) {
-            console.error("OTP send error:", error);
+            console.error("OTP send error (outer):", error);
             let errorMessage = "Failed to send OTP. Please try again.";
              if (error.code === 'auth/too-many-requests') {
                 errorMessage = "Too many requests. Please try again later.";
@@ -140,7 +150,6 @@ export default function ShopkeeperAuthPage() {
                 errorMessage = "Security check failed. Please refresh and try again."
             }
             setErrors({ form: errorMessage });
-        } finally {
             setLoading(false);
         }
     };
