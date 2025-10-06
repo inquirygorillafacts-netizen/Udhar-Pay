@@ -122,6 +122,7 @@ export default function CustomerAuthPage() {
 
         try {
             const fullPhoneNumber = `${selectedCountry.code}${phone}`;
+            // Use an invisible reCAPTCHA
             const recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'invisible' });
             
             // Render the reCAPTCHA and then sign in
@@ -197,6 +198,21 @@ export default function CustomerAuthPage() {
                                 </div>
                                 <h2>Customer Portal</h2>
                                 <p>{confirmationResultState ? 'Enter OTP to continue' : 'Sign in with your mobile number'}</p>
+                            </div>
+
+                            <div style={{
+                                padding: '10px 15px',
+                                background: 'rgba(0, 123, 255, 0.05)',
+                                border: '1px solid rgba(0, 123, 255, 0.2)',
+                                borderRadius: '15px',
+                                textAlign: 'center',
+                                marginBottom: '25px',
+                                fontSize: '13px',
+                                color: '#0056b3'
+                            }}>
+                                <p style={{margin: 0, fontWeight: 500}}>
+                                    <strong>For testing:</strong> Use number <strong>+91 9876543210</strong> and OTP <strong>123456</strong>.
+                                </p>
                             </div>
                             
                             {confirmationResultState ? (
