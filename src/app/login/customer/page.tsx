@@ -80,7 +80,6 @@ export default function CustomerAuthPage() {
             const userDoc = await getDoc(userDocRef);
     
             if (!userDoc.exists()) {
-                // If user document doesn't exist, create it.
                 const customerCode = await generateUniqueCustomerCode(firestore);
                 await setDoc(userDocRef, {
                     email: user.email || '',
@@ -92,12 +91,11 @@ export default function CustomerAuthPage() {
                     customerCode: customerCode,
                 });
             }
-            // Whether the user was new or existing, proceed to the dashboard.
             handleFormTransition();
         } catch (dbError: any) {
             console.error("Database operation failed:", dbError);
             setErrors({ form: "Could not sync your profile. Check your connection." });
-            throw dbError; // Rethrow to be caught by the caller's catch block
+            throw dbError;
         }
     };
 
@@ -127,7 +125,6 @@ export default function CustomerAuthPage() {
         }
 
         try {
-             // Use an invisible reCAPTCHA attached to the button
             const recaptchaVerifier = new RecaptchaVerifier(auth, 'send-code-btn', {
                 'size': 'invisible'
             });
@@ -135,7 +132,7 @@ export default function CustomerAuthPage() {
             
             const fullPhoneNumber = `${selectedCountry.code}${phone}`;
             
-            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, window.recaptchaVerifier);
+            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifier);
             window.confirmationResult = confirmation;
             setConfirmationResultState(confirmation);
         } catch (error: any) {
@@ -170,9 +167,7 @@ export default function CustomerAuthPage() {
         setLoading(true);
         try {
             const result = await window.confirmationResult.confirm(otp);
-            // On successful OTP verification, immediately handle profile creation/check
             await handleAuthSuccess(result.user);
-
         } catch (error: any) {
              let errorMessage = "Invalid OTP or request expired. Please try again.";
              if (error.code === 'auth/invalid-verification-code') {
