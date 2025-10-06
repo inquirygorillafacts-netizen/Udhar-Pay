@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
 import { doc, onSnapshot, collection, query, where, getDocs, writeBatch, updateDoc, getDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import Link from 'next/link';
-import { Paperclip, X, User, Check, AlertCircle, Send, IndianRupee, ArrowRight, Repeat } from 'lucide-react';
+import { Paperclip, X, User, Check, AlertCircle, Send, IndianRupee, ArrowRight, Repeat, Bell } from 'lucide-react';
 import ShopkeeperCard from '@/app/customer/components/ShopkeeperCard';
 import { sendConnectionRequest } from '@/lib/connections';
 import RoleEnrollmentModal from '@/components/auth/RoleEnrollmentModal';
@@ -50,6 +50,12 @@ interface Transaction {
     shopkeeperId: string;
 }
 
+interface OwnerMessage {
+  id: string;
+  text: string;
+  updatedAt: Timestamp;
+}
+
 const COMMISSION_RATE = 0.025; // 2.5%
 
 
@@ -73,6 +79,10 @@ export default function CustomerDashboardPage() {
   
   const [hasShopkeeperRole, setHasShopkeeperRole] = useState(false);
   const [showRoleModal, setShowRoleModal] = useState(false);
+  
+  const [ownerMessage, setOwnerMessage] = useState<OwnerMessage | null>(null);
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [notificationViewCount, setNotificationViewCount] = useState(0);
 
   const totalBalance = Object.values(balances).reduce((sum, bal) => sum + (bal > 0 ? bal : 0), 0);
 
@@ -160,11 +170,31 @@ export default function CustomerDashboardPage() {
           }
           setCreditRequests(requests);
       });
+      
+      const ownerMessageRef = doc(firestore, 'notifications', 'ownerMessage');
+      const unsubscribeOwnerMessage = onSnapshot(ownerMessageRef, (docSnap) => {
+        if(docSnap.exists()) {
+            const messageData = { id: docSnap.id, ...docSnap.data() } as OwnerMessage;
+            setOwnerMessage(messageData);
+
+            const viewCountStr = localStorage.getItem(`notification_view_count_${messageData.updatedAt.toMillis()}`);
+            const count = viewCountStr ? parseInt(viewCountStr, 10) : 0;
+
+            if (count < 2) {
+              setNotificationViewCount(count);
+            } else {
+              setOwnerMessage(null); // Already seen twice
+            }
+        } else {
+            setOwnerMessage(null);
+        }
+      });
 
       return () => {
           unsubscribeUser();
           unsubscribeRequests();
           unsubscribeTransactions();
+          unsubscribeOwnerMessage();
       }
   }, [auth.currentUser, firestore]);
 
@@ -184,6 +214,17 @@ export default function CustomerDashboardPage() {
         setShowRoleModal(true);
     }
   };
+  
+  const handleOpenNotification = () => {
+    if(!ownerMessage) return;
+    setShowNotificationModal(true);
+    const newCount = notificationViewCount + 1;
+    setNotificationViewCount(newCount);
+    localStorage.setItem(`notification_view_count_${ownerMessage.updatedAt.toMillis()}`, newCount.toString());
+    if(newCount >= 2) {
+      setTimeout(() => setOwnerMessage(null), 500); // Remove bell after modal closes
+    }
+  }
 
 
   const handleCreditRequestResponse = async (request: CreditRequest, response: 'approved' | 'rejected') => {
@@ -372,9 +413,26 @@ export default function CustomerDashboardPage() {
                 </div>
             </div>
         )}
+        
+        {showNotificationModal && ownerMessage && (
+             <div className="modal-overlay" onClick={() => setShowNotificationModal(false)}>
+                <div className="login-card modal-content" style={{maxWidth: '450px'}} onClick={(e) => e.stopPropagation()}>
+                    <div className="modal-header">
+                        <h2 style={{fontSize: '1.5rem'}}>Message from Owner</h2>
+                        <button className="close-button" onClick={() => setShowNotificationModal(false)}>&times;</button>
+                    </div>
+                    <p style={{color: '#6c7293', textAlign: 'center', marginBottom: '30px', whiteSpace: 'pre-wrap'}}>
+                        {ownerMessage.text}
+                    </p>
+                    <button className="neu-button" style={{width: '100%', margin: 0}} onClick={() => setShowNotificationModal(false)}>
+                        Close
+                    </button>
+                </div>
+            </div>
+        )}
 
         <div style={{ position: 'sticky', top: 0, zIndex: 10, background: 'transparent', padding: '20px 20px 10px 20px' }}>
-            <div style={{maxWidth: '600px', margin: 'auto', display: 'flex', alignItems: 'center', gap: '16px'}}>
+             <div style={{maxWidth: '600px', margin: 'auto', display: 'flex', alignItems: 'center', gap: '16px'}}>
                <button onClick={handleRoleSwitchClick} className="neu-button" style={{width: '45px', height: '45px', margin: 0, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0}}>
                   <Repeat size={20}/>
                </button>
@@ -383,6 +441,10 @@ export default function CustomerDashboardPage() {
                     {userProfile.displayName}
                 </h1>
               </div>
+               <button onClick={handleOpenNotification} className="neu-button" style={{width: '45px', height: '45px', margin: 0, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, position: 'relative', overflow: 'visible', visibility: ownerMessage ? 'visible' : 'hidden'}}>
+                  <Bell size={20}/>
+                  {notificationViewCount === 0 && ownerMessage && <span style={{position: 'absolute', top: 5, right: 5, width: '10px', height: '10px', background: '#ff3b5c', borderRadius: '50%', border: '2px solid #e0e5ec'}}></span>}
+               </button>
             </div>
         </div>
         
