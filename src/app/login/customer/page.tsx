@@ -34,7 +34,6 @@ export default function CustomerAuthPage() {
     const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
     
     const cardRef = useRef<HTMLDivElement>(null);
-    const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
 
     const [selectedCountry, setSelectedCountry] = useState(countryCodes[0]);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -105,13 +104,12 @@ export default function CustomerAuthPage() {
 
         try {
             auth.settings.appVerificationDisabledForTesting = true;
-            if (!recaptchaVerifierRef.current) {
-                recaptchaVerifierRef.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
-                    'size': 'invisible'
-                });
-            }
+            const recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+                'size': 'invisible'
+            });
+
             const fullPhoneNumber = `${selectedCountry.code}${phone}`;
-            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifierRef.current);
+            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifier);
             setConfirmationResult(confirmation);
         } catch (error: any) {
             console.error("OTP send error:", error);
