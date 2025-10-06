@@ -12,7 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 
 declare const window: any;
 
-const COMMISSION_RATE = 0.02;
+const COMMISSION_RATE = 0.025;
 
 interface ShopkeeperProfile {
   uid: string;

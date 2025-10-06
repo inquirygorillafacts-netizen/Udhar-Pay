@@ -53,7 +53,7 @@ interface ActiveCreditRequest extends DocumentData {
     status: CreditRequestStatus;
 }
 
-const COMMISSION_RATE = 0.02; // 2%
+const COMMISSION_RATE = 0.025; // 2.5%
 
 
 export default function ShopkeeperDashboardPage() {
@@ -321,7 +321,7 @@ export default function ShopkeeperDashboardPage() {
                 batch.set(commissionRef, {
                   amount: profitAmount,
                   type: 'commission',
-                  notes: `2% commission on ₹${request.amount} credit`,
+                  notes: `2.5% commission on ₹${request.amount} credit`,
                   shopkeeperId: auth.currentUser.uid,
                   customerId: request.customerId,
                   timestamp: serverTimestamp(),

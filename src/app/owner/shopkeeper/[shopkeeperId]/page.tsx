@@ -51,7 +51,7 @@ interface Transaction {
     timestamp: Timestamp;
 }
 
-const COMMISSION_RATE = 0.02;
+const COMMISSION_RATE = 0.025;
 
 export default function ShopkeeperJeevanKundliPage() {
     const router = useRouter();

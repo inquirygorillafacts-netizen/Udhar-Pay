@@ -7,7 +7,7 @@ import { useFirebase } from '@/firebase/client-provider';
 import { doc, getDoc, collection, query, where, onSnapshot, Timestamp } from 'firebase/firestore';
 import { ArrowLeft, User, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
 
-const COMMISSION_RATE = 0.02;
+const COMMISSION_RATE = 0.025;
 
 interface CustomerProfile {
   uid: string;

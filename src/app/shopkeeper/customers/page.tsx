@@ -34,6 +34,8 @@ interface Transaction {
     timestamp: Timestamp;
 }
 
+const COMMISSION_RATE = 0.025;
+
 export default function ShopkeeperCustomersPage() {
   const { auth, firestore } = useFirebase();
   const [allCustomers, setAllCustomers] = useState<CustomerWithBalance[]>([]);
@@ -76,7 +78,7 @@ export default function ShopkeeperCustomersPage() {
                         if (t.type === 'credit') {
                             balances[t.customerId] += t.amount;
                         } else if (t.type === 'payment') {
-                             const principalAmount = t.amount / (1 + 0.02);
+                             const principalAmount = t.amount / (1 + COMMISSION_RATE);
                              balances[t.customerId] -= principalAmount;
                         }
                     }

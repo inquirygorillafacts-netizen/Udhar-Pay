@@ -30,7 +30,7 @@ interface Transaction {
     shopkeeperId: string;
 }
 
-const COMMISSION_RATE = 0.02;
+const COMMISSION_RATE = 0.025;
 
 export default function EcosystemPage() {
   const { firestore } = useFirebase();
