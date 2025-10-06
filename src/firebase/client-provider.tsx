@@ -39,20 +39,22 @@ export function FirebaseClientProvider({ children }: { children: React.ReactNode
     const auth = getAuth(app);
     const firestore = getFirestore(app);
 
-    // Enable offline persistence
-    try {
-        enableIndexedDbPersistence(firestore).catch((err) => {
+    const enablePersistence = async () => {
+        try {
+            await enableIndexedDbPersistence(firestore);
+        } catch (err: any) {
             if (err.code === 'failed-precondition') {
                 console.warn('Multiple tabs open, persistence can only be enabled in one. Offline support may not work correctly.');
             } else if (err.code === 'unimplemented') {
                 console.warn('The current browser does not support all of the features required to enable persistence.');
+            } else {
+                 console.error("Error enabling Firestore persistence:", err);
             }
-        });
-    } catch (error) {
-        console.error("Error enabling Firestore persistence:", error);
+        }
     }
-    
 
+    enablePersistence();
+    
     // If you want to use the local emulators, uncomment the lines below
     // if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
     //   if (!auth.emulatorConfig) {
