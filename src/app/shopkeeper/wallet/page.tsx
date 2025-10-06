@@ -289,6 +289,10 @@ export default function ShopkeeperWalletPage() {
                                 <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}><SlidersHorizontal size={20} /><span>उधार कंट्रोल रूम</span></div>
                                 <span>&rarr;</span>
                             </Link>
+                            <Link href="/shopkeeper/helpline" className="neu-button" style={{margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
+                                <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}><LifeBuoy size={20} /><span>हेल्पलाइन</span></div>
+                                <span>&rarr;</span>
+                            </Link>
                          </div>
                      </div>
 
