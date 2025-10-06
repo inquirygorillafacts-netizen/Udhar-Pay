@@ -7,6 +7,7 @@ import { Store, Key, Check, User, ArrowLeft, Phone } from 'lucide-react';
 import { useFirebase } from '@/firebase/client-provider';
 import { 
     signInWithPhoneNumber,
+    RecaptchaVerifier,
     type ConfirmationResult
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
@@ -26,6 +27,8 @@ export default function ShopkeeperAuthPage() {
     const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
 
     const cardRef = useRef<HTMLDivElement>(null);
+    const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
+
 
     const handleFormTransition = () => {
         localStorage.setItem('activeRole', 'shopkeeper');
@@ -77,8 +80,13 @@ export default function ShopkeeperAuthPage() {
 
         try {
             auth.settings.appVerificationDisabledForTesting = true;
+            if (!recaptchaVerifierRef.current) {
+                recaptchaVerifierRef.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
+                    'size': 'invisible'
+                });
+            }
             const fullPhoneNumber = `+91${phone}`;
-            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber);
+            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifierRef.current);
             setConfirmationResult(confirmation);
         } catch (error: any) {
             console.error("OTP send error:", error);
@@ -87,7 +95,7 @@ export default function ShopkeeperAuthPage() {
                 errorMessage = "Too many requests. Please try again later.";
             } else if (error.code === 'auth/invalid-phone-number') {
                 errorMessage = "The phone number is not valid.";
-            } else if (error.code === 'auth/network-request-failed') {
+            } else if (error.code === 'auth/network-request-failed' || error.code === 'auth/argument-error') {
                 errorMessage = "Network error. Please check your connection or emulator setup.";
             }
             setErrors({ form: errorMessage });
