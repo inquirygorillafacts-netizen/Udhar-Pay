@@ -51,7 +51,7 @@ export default function CustomerLayout({
         </Link>
         <Link href="/customer/ledger" className={`admin-nav-item ${pathname === '/customer/ledger' ? 'active' : ''}`}>
           <BookText size={24} />
-          <span>Ledger</span>
+          <span>History</span>
         </Link>
         
         <Link 
