@@ -92,6 +92,8 @@ export default function CustomerAuthPage() {
         } catch (dbError) {
             console.error("Database operation failed:", dbError);
             setErrors({ form: "Could not sync your profile. Check your connection." });
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -122,9 +124,8 @@ export default function CustomerAuthPage() {
 
         try {
             const fullPhoneNumber = `${selectedCountry.code}${phone}`;
-            const recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'invisible' });
+            const recaptchaVerifier = new RecaptchaVerifier(auth, 'send-code-btn', { size: 'invisible' });
             
-            // This ensures the verifier is ready before we sign in
             recaptchaVerifier.render().then(async (widgetId) => {
                 try {
                     const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifier);
@@ -181,7 +182,6 @@ export default function CustomerAuthPage() {
              }
              console.error("OTP Verification Error: ", error);
              setErrors({ form: errorMessage });
-        } finally {
              setLoading(false);
         }
     };
