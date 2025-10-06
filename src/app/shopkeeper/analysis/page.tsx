@@ -113,7 +113,6 @@ export default function ShopkeeperAnalysisPage() {
     <main className="dashboard-main-content" style={{padding: '20px'}}>
         <div className="login-card" style={{ maxWidth: '700px', margin: 'auto' }}>
             <div className="login-header" style={{marginBottom: '40px'}}>
-                <div className="neu-icon"><div className="icon-inner"><PieChart /></div></div>
                 <h1 style={{ color: '#3d4468', fontSize: '2rem', fontWeight: '600' }}>Udhaar Analysis</h1>
             </div>
         
