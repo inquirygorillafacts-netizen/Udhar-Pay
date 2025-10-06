@@ -50,17 +50,6 @@ export default function CustomerCreditCardsPage() {
     return (
         <main className="dashboard-main-content" style={{ padding: '20px' }}>
             <div className="login-card" style={{ maxWidth: '800px', margin: 'auto' }}>
-                <div className="login-header" style={{marginBottom: '40px'}}>
-                    <div className="neu-icon" style={{width: '70px', height: '70px'}}>
-                        <div className="icon-inner"><CreditCard/></div>
-                    </div>
-                    <h1 style={{ color: '#3d4468', fontSize: '2rem', fontWeight: '600' }}>
-                        Credit Card Offers
-                    </h1>
-                    <p style={{ color: '#6c7293', marginTop: '1rem' }}>
-                        Browse exclusive credit card offers and apply online.
-                    </p>
-                </div>
                 
                  {/* Loan Banner */}
                 <div className="login-card" style={{ margin: '0 0 40px 0', padding: '30px', background: 'linear-gradient(145deg, #007bff, #0056b3)', color: 'white', boxShadow: '10px 10px 30px #bec3cf, -10px -10px 30px #ffffff' }}>
