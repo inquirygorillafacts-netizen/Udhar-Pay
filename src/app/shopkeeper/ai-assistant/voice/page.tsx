@@ -237,8 +237,8 @@ export default function VoiceAssistantPage() {
 
     return (
       <>
-        <main className="login-container" style={{ position: 'relative' }}>
-            <div style={{maxWidth: '500px', width: '100%', background: '#000000', borderRadius: '30px', padding: '50px 40px', boxShadow: '0px 0px 50px rgba(0, 200, 150, 0.3)'}}>
+        <main className="login-container" style={{ position: 'relative', background: '#000000', padding: '50px 40px' }}>
+            <div style={{maxWidth: '500px', width: '100%', margin: 'auto' }}>
                  <div style={{ position: 'absolute', top: '20px', right: '20px', display: 'flex', gap: '10px', zIndex: 10 }}>
                     <button onClick={() => setIsTextModalOpen(true)} className="neu-button" style={{margin: 0, width: 'auto', padding: '10px 15px', background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)'}}>
                         <MessageSquare size={18}/>
