@@ -213,12 +213,10 @@ export default function CustomerDashboardPage() {
   };
   
   const handleOpenNotification = () => {
-    if(!ownerMessage) return;
-    
     setShowNotificationSidebar(true);
     
-    // Only increment view count if it's not already seen twice
-    if(notificationViewCount < 2) {
+    // Only increment view count if it's a new or partially seen message
+    if(ownerMessage && notificationViewCount < 2) {
       const newCount = notificationViewCount + 1;
       setNotificationViewCount(newCount);
       localStorage.setItem(`notification_view_count_${ownerMessage.updatedAt.toMillis()}`, newCount.toString());
@@ -415,7 +413,7 @@ export default function CustomerDashboardPage() {
             </div>
         )}
         
-        {showNotificationSidebar && ownerMessage && (
+        {showNotificationSidebar && (
              <div className="message-sidebar-overlay" onClick={() => setShowNotificationSidebar(false)}>
                 <div className="message-sidebar" onClick={(e) => e.stopPropagation()}>
                     <div className="modal-header">
@@ -423,9 +421,13 @@ export default function CustomerDashboardPage() {
                         <button className="close-button" onClick={() => setShowNotificationSidebar(false)}>&times;</button>
                     </div>
                     <div className="sidebar-content" style={{overflowY: 'auto', padding: '10px'}}>
-                        <p style={{color: '#6c7293', whiteSpace: 'pre-wrap', lineHeight: 1.7}}>
-                            {ownerMessage.text}
-                        </p>
+                        {ownerMessage ? (
+                            <p style={{color: '#6c7293', whiteSpace: 'pre-wrap', lineHeight: 1.7}}>
+                                {ownerMessage.text}
+                            </p>
+                        ) : (
+                            <p style={{textAlign: 'center', color: '#9499b7'}}>You have no new messages.</p>
+                        )}
                     </div>
                 </div>
             </div>
@@ -443,7 +445,7 @@ export default function CustomerDashboardPage() {
               </div>
                <button onClick={handleOpenNotification} className="neu-button" style={{width: '45px', height: '45px', margin: 0, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, position: 'relative', overflow: 'visible' }}>
                   <Bell size={20}/>
-                  {hasUnreadMessage && <span style={{position: 'absolute', top: 5, right: 5, width: '10px', height: '10px', background: '#ff3b5c', borderRadius: '50%', border: '2px solid #e0e5ec'}}></span>}
+                  {hasUnreadMessage && <span style={{position: 'absolute', top: 5, right: 5, width: '20px', height: '20px', background: '#ff3b5c', borderRadius: '50%', border: '2px solid #e0e5ec', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '12px', fontWeight: 'bold'}}>1</span>}
                </button>
             </div>
         </div>
