@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase/client-provider';
 import { doc, onSnapshot, collection, query, where, getDocs, writeBatch, updateDoc, getDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import Link from 'next/link';
-import { Paperclip, X, User, Check, AlertCircle, Send, IndianRupee, ArrowRight, Repeat, Bell } from 'lucide-react';
+import { Paperclip, X, User, Check, AlertCircle, Send, IndianRupee, ArrowRight, Repeat, Bell, MessageSquare } from 'lucide-react';
 import ShopkeeperCard from '@/app/customer/components/ShopkeeperCard';
 import { sendConnectionRequest } from '@/lib/connections';
 import RoleEnrollmentModal from '@/components/auth/RoleEnrollmentModal';
@@ -81,7 +81,7 @@ export default function CustomerDashboardPage() {
   const [showRoleModal, setShowRoleModal] = useState(false);
   
   const [ownerMessage, setOwnerMessage] = useState<OwnerMessage | null>(null);
-  const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [showNotificationSidebar, setShowNotificationSidebar] = useState(false);
   const [notificationViewCount, setNotificationViewCount] = useState(0);
 
   const totalBalance = Object.values(balances).reduce((sum, bal) => sum + (bal > 0 ? bal : 0), 0);
@@ -179,12 +179,9 @@ export default function CustomerDashboardPage() {
 
             const viewCountStr = localStorage.getItem(`notification_view_count_${messageData.updatedAt.toMillis()}`);
             const count = viewCountStr ? parseInt(viewCountStr, 10) : 0;
+            
+            setNotificationViewCount(count);
 
-            if (count < 2) {
-              setNotificationViewCount(count);
-            } else {
-              setOwnerMessage(null); // Already seen twice
-            }
         } else {
             setOwnerMessage(null);
         }
@@ -217,12 +214,14 @@ export default function CustomerDashboardPage() {
   
   const handleOpenNotification = () => {
     if(!ownerMessage) return;
-    setShowNotificationModal(true);
-    const newCount = notificationViewCount + 1;
-    setNotificationViewCount(newCount);
-    localStorage.setItem(`notification_view_count_${ownerMessage.updatedAt.toMillis()}`, newCount.toString());
-    if(newCount >= 2) {
-      setTimeout(() => setOwnerMessage(null), 500); // Remove bell after modal closes
+    
+    setShowNotificationSidebar(true);
+    
+    // Only increment view count if it's not already seen twice
+    if(notificationViewCount < 2) {
+      const newCount = notificationViewCount + 1;
+      setNotificationViewCount(newCount);
+      localStorage.setItem(`notification_view_count_${ownerMessage.updatedAt.toMillis()}`, newCount.toString());
     }
   }
 
@@ -340,6 +339,8 @@ export default function CustomerDashboardPage() {
     );
   }
   
+  const hasUnreadMessage = ownerMessage && notificationViewCount < 2;
+
   return (
     <>
       {showRoleModal && (
@@ -414,19 +415,18 @@ export default function CustomerDashboardPage() {
             </div>
         )}
         
-        {showNotificationModal && ownerMessage && (
-             <div className="modal-overlay" onClick={() => setShowNotificationModal(false)}>
-                <div className="login-card modal-content" style={{maxWidth: '450px'}} onClick={(e) => e.stopPropagation()}>
+        {showNotificationSidebar && ownerMessage && (
+             <div className="message-sidebar-overlay" onClick={() => setShowNotificationSidebar(false)}>
+                <div className="message-sidebar" onClick={(e) => e.stopPropagation()}>
                     <div className="modal-header">
                         <h2 style={{fontSize: '1.5rem'}}>Message from Owner</h2>
-                        <button className="close-button" onClick={() => setShowNotificationModal(false)}>&times;</button>
+                        <button className="close-button" onClick={() => setShowNotificationSidebar(false)}>&times;</button>
                     </div>
-                    <p style={{color: '#6c7293', textAlign: 'center', marginBottom: '30px', whiteSpace: 'pre-wrap'}}>
-                        {ownerMessage.text}
-                    </p>
-                    <button className="neu-button" style={{width: '100%', margin: 0}} onClick={() => setShowNotificationModal(false)}>
-                        Close
-                    </button>
+                    <div className="sidebar-content" style={{overflowY: 'auto', padding: '10px'}}>
+                        <p style={{color: '#6c7293', whiteSpace: 'pre-wrap', lineHeight: 1.7}}>
+                            {ownerMessage.text}
+                        </p>
+                    </div>
                 </div>
             </div>
         )}
@@ -441,9 +441,9 @@ export default function CustomerDashboardPage() {
                     {userProfile.displayName}
                 </h1>
               </div>
-               <button onClick={handleOpenNotification} className="neu-button" style={{width: '45px', height: '45px', margin: 0, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, position: 'relative', overflow: 'visible', visibility: ownerMessage ? 'visible' : 'hidden'}}>
+               <button onClick={handleOpenNotification} className="neu-button" style={{width: '45px', height: '45px', margin: 0, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, position: 'relative', overflow: 'visible' }}>
                   <Bell size={20}/>
-                  {notificationViewCount === 0 && ownerMessage && <span style={{position: 'absolute', top: 5, right: 5, width: '10px', height: '10px', background: '#ff3b5c', borderRadius: '50%', border: '2px solid #e0e5ec'}}></span>}
+                  {hasUnreadMessage && <span style={{position: 'absolute', top: 5, right: 5, width: '10px', height: '10px', background: '#ff3b5c', borderRadius: '50%', border: '2px solid #e0e5ec'}}></span>}
                </button>
             </div>
         </div>
