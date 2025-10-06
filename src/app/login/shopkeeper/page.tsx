@@ -44,15 +44,10 @@ export default function ShopkeeperAuthPage() {
         if (!auth) return;
         
         if (!recaptchaVerifierRef.current) {
-            recaptchaVerifierRef.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
+            const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
                 'size': 'invisible',
-                'callback': (response: any) => {
-                    // reCAPTCHA solved
-                },
-                'expired-callback': () => {
-                    // Response expired.
-                }
             });
+            recaptchaVerifierRef.current = verifier;
         }
     }, [auth]);
 
@@ -112,14 +107,21 @@ export default function ShopkeeperAuthPage() {
     
     const handleSendOtp = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!validatePhone() || !recaptchaVerifierRef.current) return;
+        if (!validatePhone()) return;
 
         setLoading(true);
         setErrors({});
 
+        const recaptchaVerifier = recaptchaVerifierRef.current;
+        if (!recaptchaVerifier) {
+            setErrors({ form: "reCAPTCHA not initialized. Please refresh the page." });
+            setLoading(false);
+            return;
+        }
+
         try {
             const fullPhoneNumber = `${selectedCountry.code}${phone}`;
-            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifierRef.current);
+            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifier);
             setConfirmationResult(confirmation);
         } catch (error: any) {
             console.error("OTP send error:", error);

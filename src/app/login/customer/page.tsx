@@ -39,22 +39,17 @@ export default function CustomerAuthPage() {
     const [selectedCountry, setSelectedCountry] = useState(countryCodes[0]);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
-
+    
     useEffect(() => {
         if (!auth) return;
-        
-        // Initialize reCAPTCHA verifier once
+
         if (!recaptchaVerifierRef.current) {
-            recaptchaVerifierRef.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
+            const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
                 'size': 'invisible',
-                'callback': (response: any) => {
-                    // reCAPTCHA solved, you can optionally trigger sign-in here if needed
-                },
-                'expired-callback': () => {
-                    // Response expired. Ask user to solve reCAPTCHA again.
-                }
             });
+            recaptchaVerifierRef.current = verifier;
         }
+
     }, [auth]);
 
 
@@ -115,14 +110,21 @@ export default function CustomerAuthPage() {
     
     const handleSendOtp = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!validatePhone() || !recaptchaVerifierRef.current) return;
+        if (!validatePhone()) return;
 
         setLoading(true);
         setErrors({});
+        
+        const recaptchaVerifier = recaptchaVerifierRef.current;
+        if (!recaptchaVerifier) {
+            setErrors({ form: "reCAPTCHA not initialized. Please refresh the page." });
+            setLoading(false);
+            return;
+        }
 
         try {
             const fullPhoneNumber = `${selectedCountry.code}${phone}`;
-            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifierRef.current);
+            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifier);
             setConfirmationResult(confirmation);
         } catch (error: any) {
             console.error("OTP send error:", error);
