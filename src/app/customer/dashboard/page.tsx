@@ -373,14 +373,16 @@ export default function CustomerDashboardPage() {
             </div>
         )}
 
-        <header className="dashboard-header">
-           <button onClick={handleRoleSwitchClick} className="neu-button" style={{width: '45px', height: '45px', margin: 0, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0}}>
-              <Repeat size={20}/>
-           </button>
-          <h1 style={{color: '#3d4468', fontSize: '1.2rem', fontWeight: '600', textAlign: 'center', flexGrow: 1}}>
-            {userProfile.displayName}
-          </h1>
-        </header>
+        <div style={{ position: 'sticky', top: 0, zIndex: 10, background: '#e0e5ec', padding: '10px 0' }}>
+            <header className="dashboard-header" style={{maxWidth: '800px', margin: 'auto'}}>
+               <button onClick={handleRoleSwitchClick} className="neu-button" style={{width: '45px', height: '45px', margin: 0, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0}}>
+                  <Repeat size={20}/>
+               </button>
+              <h1 style={{color: '#3d4468', fontSize: '1.2rem', fontWeight: '600', textAlign: 'center', flexGrow: 1}}>
+                {userProfile.displayName}
+              </h1>
+            </header>
+        </div>
         
         <main className="dashboard-main-content">
             
