@@ -58,9 +58,9 @@ export default function ShopkeeperCard({ shopkeeper, balance, customerId }: Shop
         >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px', overflow: 'hidden' }}>
-                    <div className="neu-icon" style={{width: '50px', height: '50px', margin: 0, flexShrink: 0}}>
+                    <div className="neu-icon" style={{width: '50px', height: '50px', margin: 0, flexShrink: 0, overflow: 'hidden'}}>
                         {shopkeeper.photoURL ? (
-                            <img src={shopkeeper.photoURL} alt={shopkeeper.displayName} style={{width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%'}} />
+                            <img src={shopkeeper.photoURL} alt={shopkeeper.displayName} style={{width: '100%', height: '100%', objectFit: 'cover'}} />
                         ) : (
                             <div className="icon-inner" style={{width: '24px', height: '24px'}}><User/></div>
                         )}
