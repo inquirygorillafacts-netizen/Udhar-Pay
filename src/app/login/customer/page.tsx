@@ -121,12 +121,14 @@ export default function CustomerAuthPage() {
         }
 
         try {
-            // This is a testing environment, so we disable app verification.
-            auth.settings.appVerificationDisabledForTesting = true;
-            
+            const recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+              'size': 'invisible',
+              'callback': (response: any) => {
+                // reCAPTCHA solved, allow signInWithPhoneNumber.
+              }
+            });
             const fullPhoneNumber = `${selectedCountry.code}${phone}`;
-            
-            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, new RecaptchaVerifier(auth, 'recaptcha-container', { 'size': 'invisible' }));
+            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifier);
             window.confirmationResult = confirmation;
             setConfirmationResult(confirmation);
         } catch (error: any) {
@@ -136,6 +138,8 @@ export default function CustomerAuthPage() {
                 errorMessage = "Too many requests. Please try again later.";
             } else if (error.code === 'auth/invalid-phone-number') {
                 errorMessage = "The phone number is not valid.";
+            } else if (error.code === 'auth/captcha-check-failed') {
+                errorMessage = "reCAPTCHA check failed. Please try again."
             }
             setErrors({ form: errorMessage });
         } finally {
