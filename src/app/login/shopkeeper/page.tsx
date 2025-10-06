@@ -38,13 +38,12 @@ export default function ShopkeeperAuthPage() {
     const [loading, setLoading] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
     
-    const [confirmationResultState, setConfirmationResultState] = useState<ConfirmationResult | null>(null);
+    const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
 
 
     const [selectedCountry, setSelectedCountry] = useState(countryCodes[0]);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
-    const recaptchaContainerRef = useRef<HTMLDivElement>(null);
 
 
     useEffect(() => {
@@ -95,7 +94,6 @@ export default function ShopkeeperAuthPage() {
         } catch (dbError: any) {
             console.error("Database operation failed:", dbError);
             setErrors({ form: "Could not sync your profile. Check your connection." });
-            throw dbError;
         }
     };
 
@@ -127,12 +125,11 @@ export default function ShopkeeperAuthPage() {
             const recaptchaVerifier = new RecaptchaVerifier(auth, 'send-code-btn-shopkeeper', {
                 'size': 'invisible'
             });
-            window.recaptchaVerifier = recaptchaVerifier;
 
             const fullPhoneNumber = `${selectedCountry.code}${phone}`;
-            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, window.recaptchaVerifier);
+            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifier);
             window.confirmationResult = confirmation;
-            setConfirmationResultState(confirmation);
+            setConfirmationResult(confirmation);
         } catch (error: any) {
             console.error("OTP send error:", error);
             let errorMessage = "Failed to send OTP. Please try again.";
@@ -141,7 +138,7 @@ export default function ShopkeeperAuthPage() {
             } else if (error.code === 'auth/invalid-phone-number') {
                 errorMessage = "The phone number is not valid.";
             } else if (error.code === 'auth/captcha-check-failed' || error.code === 'auth/invalid-app-credential') {
-                 errorMessage = "Verification failed. Ensure this domain is authorized in Firebase.";
+                 errorMessage = "Verification failed. Please check your Firebase project settings.";
             }
             setErrors({ form: errorMessage });
         } finally {
@@ -183,7 +180,7 @@ export default function ShopkeeperAuthPage() {
     return (
         <div className="login-container-wrapper">
             <div className="login-container">
-                 <div id="recaptcha-container-shopkeeper" ref={recaptchaContainerRef}></div>
+                 <div id="recaptcha-container"></div>
                 <div className="login-card">
                     {!showSuccess ? (
                         <>
@@ -192,10 +189,10 @@ export default function ShopkeeperAuthPage() {
                                     <div className="icon-inner"><Store /></div>
                                 </div>
                                 <h2>Shopkeeper Portal</h2>
-                                <p>{confirmationResultState ? 'Enter OTP to continue' : 'Sign in with your mobile number'}</p>
+                                <p>{confirmationResult ? 'Enter OTP to continue' : 'Sign in with your mobile number'}</p>
                             </div>
                             
-                            {confirmationResultState ? (
+                            {confirmationResult ? (
                                 <form className="login-form" noValidate onSubmit={handleVerifyOtp}>
                                      {errors.form && <div className="error-message show" style={{textAlign: 'center', marginBottom: '1rem', marginLeft: 0}}>{errors.form}</div>}
                                      <div className={`form-group ${errors.otp ? 'error' : ''}`}>
@@ -210,7 +207,7 @@ export default function ShopkeeperAuthPage() {
                                         <span className="btn-text">Verify & Continue</span>
                                         <div className="btn-loader"><div className="neu-spinner"></div></div>
                                     </button>
-                                     <button type="button" className="neu-button" style={{margin: 0, background: 'transparent', boxShadow: 'none'}} onClick={() => { setConfirmationResultState(null); setOtp(''); setErrors({}); }}>
+                                     <button type="button" className="neu-button" style={{margin: 0, background: 'transparent', boxShadow: 'none'}} onClick={() => { setConfirmationResult(null); setOtp(''); setErrors({}); }}>
                                         <span style={{display: 'flex', alignItems: 'center', gap: '8px'}}><ArrowLeft size={16}/> Back</span>
                                     </button>
                                 </form>
