@@ -44,7 +44,7 @@ export default function CustomerAuthPage() {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     
-    const [isRecaptchaReady, setIsRecaptchaReady] = useState(false);
+    const recaptchaContainerRef = useRef<HTMLDivElement>(null);
 
 
     useEffect(() => {
@@ -58,20 +58,6 @@ export default function CustomerAuthPage() {
             document.removeEventListener("mousedown", handleClickOutside);
         };
     }, []);
-
-    useEffect(() => {
-        if (!auth) return;
-        
-        try {
-            const recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-                'size': 'invisible'
-            });
-            window.recaptchaVerifier = recaptchaVerifier;
-        } catch (error) {
-            console.error("Failed to initialize RecaptchaVerifier:", error);
-            setErrors({form: "Failed to load verification service. Please refresh."});
-        }
-    }, [auth]);
 
     const handleFormTransition = () => {
         localStorage.setItem('activeRole', 'customer');
@@ -87,20 +73,32 @@ export default function CustomerAuthPage() {
         }, 2800);
     };
     
-    const handleAuthSuccess = async (user: any, isNewUser: boolean) => {
-        if (isNewUser) {
-            const customerCode = await generateUniqueCustomerCode(firestore);
-            await setDoc(doc(firestore, "customers", user.uid), {
-                email: user.email || '',
-                phoneNumber: user.phoneNumber,
-                displayName: `Customer ${customerCode}`,
-                photoURL: user.photoURL || '',
-                createdAt: serverTimestamp(),
-                role: 'customer',
-                customerCode: customerCode,
-            });
+    const handleAuthSuccess = async (user: any) => {
+        try {
+            const userDocRef = doc(firestore, 'customers', user.uid);
+            const userDoc = await getDoc(userDocRef);
+    
+            if (!userDoc.exists()) {
+                // If user document doesn't exist, create it.
+                const customerCode = await generateUniqueCustomerCode(firestore);
+                await setDoc(userDocRef, {
+                    email: user.email || '',
+                    phoneNumber: user.phoneNumber,
+                    displayName: `Customer ${customerCode}`,
+                    photoURL: user.photoURL || '',
+                    createdAt: serverTimestamp(),
+                    role: 'customer',
+                    customerCode: customerCode,
+                });
+            }
+            // Whether the user was new or existing, proceed to the dashboard.
+            handleFormTransition();
+        } catch (dbError) {
+            console.error("Database operation failed:", dbError);
+            setErrors({ form: "Could not sync your profile. Please check your connection and try again." });
+            // Crucially, stop loading so the user can see the error.
+            setLoading(false);
         }
-        handleFormTransition();
     };
 
     const validatePhone = () => {
@@ -122,22 +120,28 @@ export default function CustomerAuthPage() {
         setLoading(true);
         setErrors({});
         
-        if (!auth || !window.recaptchaVerifier) {
+        if (!auth) {
             setErrors({ form: "Firebase not initialized. Please refresh." });
             setLoading(false);
             return;
         }
 
         try {
+            // Use an invisible reCAPTCHA attached to the button
+            const recaptchaVerifier = new RecaptchaVerifier(auth, 'send-code-btn', {
+                'size': 'invisible'
+            });
+            window.recaptchaVerifier = recaptchaVerifier;
+            
             const fullPhoneNumber = `${selectedCountry.code}${phone}`;
-            auth.settings.appVerificationDisabledForTesting = true;
+            
             const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, window.recaptchaVerifier);
             window.confirmationResult = confirmation;
             setConfirmationResultState(confirmation);
         } catch (error: any) {
             console.error("OTP send error:", error);
             let errorMessage = "Failed to send OTP. Please try again.";
-            if (error.code === 'auth/too-many-requests') {
+             if (error.code === 'auth/too-many-requests') {
                 errorMessage = "Too many requests. Please try again later.";
             } else if (error.code === 'auth/invalid-phone-number') {
                 errorMessage = "The phone number is not valid.";
@@ -166,12 +170,8 @@ export default function CustomerAuthPage() {
         setLoading(true);
         try {
             const result = await window.confirmationResult.confirm(otp);
-            const user = result.user;
-
-            const userDocRef = doc(firestore, 'customers', user.uid);
-            const userDoc = await getDoc(userDocRef);
-            
-            await handleAuthSuccess(user, !userDoc.exists());
+            // On successful OTP verification, immediately handle profile creation/check
+            await handleAuthSuccess(result.user);
 
         } catch (error: any) {
              let errorMessage = "Invalid OTP or request expired. Please try again.";
@@ -182,15 +182,15 @@ export default function CustomerAuthPage() {
              }
              console.error("OTP Verification Error: ", error);
              setErrors({ form: errorMessage });
-        } finally {
-            setLoading(false);
+             // Ensure loading is stopped on error
+             setLoading(false);
         }
     };
 
     return (
         <div className="login-container-wrapper">
             <div className="login-container">
-                 <div id="recaptcha-container"></div>
+                <div id="recaptcha-container-customer" ref={recaptchaContainerRef}></div>
                 <div className="login-card">
                     {!showSuccess ? (
                         <>

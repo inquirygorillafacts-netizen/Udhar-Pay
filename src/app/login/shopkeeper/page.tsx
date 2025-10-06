@@ -44,6 +44,8 @@ export default function ShopkeeperAuthPage() {
     const [selectedCountry, setSelectedCountry] = useState(countryCodes[0]);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const recaptchaContainerRef = useRef<HTMLDivElement>(null);
+
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -56,20 +58,6 @@ export default function ShopkeeperAuthPage() {
             document.removeEventListener("mousedown", handleClickOutside);
         };
     }, []);
-
-    useEffect(() => {
-        if (!auth) return;
-
-        try {
-            const recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-                'size': 'invisible'
-            });
-            window.recaptchaVerifier = recaptchaVerifier;
-        } catch (error) {
-            console.error("Failed to initialize RecaptchaVerifier:", error);
-            setErrors({form: "Failed to load verification service. Please refresh."});
-        }
-    }, [auth]);
 
 
     const handleFormTransition = () => {
@@ -86,20 +74,29 @@ export default function ShopkeeperAuthPage() {
         }, 2800);
     }
 
-    const handleAuthSuccess = async (user: any, isNewUser: boolean) => {
-        if (isNewUser) {
-             const shopkeeperCode = await generateUniqueShopkeeperCode(firestore);
-             await setDoc(doc(firestore, "shopkeepers", user.uid), {
-                email: user.email || '',
-                phoneNumber: user.phoneNumber,
-                displayName: `Shopkeeper ${shopkeeperCode}`,
-                photoURL: user.photoURL || '',
-                createdAt: serverTimestamp(),
-                role: 'shopkeeper',
-                shopkeeperCode: shopkeeperCode,
-            });
+    const handleAuthSuccess = async (user: any) => {
+        try {
+            const userDocRef = doc(firestore, 'shopkeepers', user.uid);
+            const userDoc = await getDoc(userDocRef);
+    
+            if (!userDoc.exists()) {
+                 const shopkeeperCode = await generateUniqueShopkeeperCode(firestore);
+                 await setDoc(doc(firestore, "shopkeepers", user.uid), {
+                    email: user.email || '',
+                    phoneNumber: user.phoneNumber,
+                    displayName: `Shopkeeper ${shopkeeperCode}`,
+                    photoURL: user.photoURL || '',
+                    createdAt: serverTimestamp(),
+                    role: 'shopkeeper',
+                    shopkeeperCode: shopkeeperCode,
+                });
+            }
+            handleFormTransition();
+        } catch (dbError) {
+            console.error("Database operation failed:", dbError);
+            setErrors({ form: "Could not sync your profile. Please check your connection and try again." });
+            setLoading(false);
         }
-        handleFormTransition();
     };
 
     const validatePhone = () => {
@@ -120,15 +117,19 @@ export default function ShopkeeperAuthPage() {
         setLoading(true);
         setErrors({});
 
-        if (!auth || !window.recaptchaVerifier) {
+        if (!auth) {
             setErrors({ form: "Firebase not initialized. Please refresh." });
             setLoading(false);
             return;
         }
 
         try {
+            const recaptchaVerifier = new RecaptchaVerifier(auth, 'send-code-btn-shopkeeper', {
+                'size': 'invisible'
+            });
+            window.recaptchaVerifier = recaptchaVerifier;
+
             const fullPhoneNumber = `${selectedCountry.code}${phone}`;
-            auth.settings.appVerificationDisabledForTesting = true;
             const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, window.recaptchaVerifier);
             window.confirmationResult = confirmation;
             setConfirmationResultState(confirmation);
@@ -164,12 +165,7 @@ export default function ShopkeeperAuthPage() {
         setLoading(true);
         try {
             const result = await window.confirmationResult.confirm(otp);
-            const user = result.user;
-
-            const userDocRef = doc(firestore, 'shopkeepers', user.uid);
-            const userDoc = await getDoc(userDocRef);
-            
-            await handleAuthSuccess(user, !userDoc.exists());
+            await handleAuthSuccess(result.user);
         } catch (error: any) {
              let errorMessage = "Invalid OTP or request expired. Please try again.";
              if (error.code === 'auth/invalid-verification-code') {
@@ -179,15 +175,14 @@ export default function ShopkeeperAuthPage() {
              }
              console.error("OTP Verification Error: ", error);
              setErrors({ form: errorMessage });
-        } finally {
-            setLoading(false);
+             setLoading(false);
         }
     };
 
     return (
         <div className="login-container-wrapper">
             <div className="login-container">
-                 <div id="recaptcha-container"></div>
+                 <div id="recaptcha-container-shopkeeper" ref={recaptchaContainerRef}></div>
                 <div className="login-card">
                     {!showSuccess ? (
                         <>
