@@ -34,11 +34,23 @@ export default function CustomerAuthPage() {
     const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
     
     const cardRef = useRef<HTMLDivElement>(null);
+    const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
 
     const [selectedCountry, setSelectedCountry] = useState(countryCodes[0]);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     
+    useEffect(() => {
+        if (!auth) return;
+
+        auth.settings.appVerificationDisabledForTesting = true;
+        const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+            'size': 'invisible'
+        });
+        recaptchaVerifierRef.current = verifier;
+
+    }, [auth]);
+
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -101,16 +113,15 @@ export default function CustomerAuthPage() {
         setLoading(true);
         setErrors({});
         
-        try {
-            // Set app verification to disabled for testing, which auto-verifies reCAPTCHA
-            auth.settings.appVerificationDisabledForTesting = true;
-            
-            const recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-                'size': 'invisible'
-            });
+        if (!recaptchaVerifierRef.current) {
+            setErrors({ form: "reCAPTCHA verifier not initialized. Please refresh." });
+            setLoading(false);
+            return;
+        }
 
+        try {
             const fullPhoneNumber = `${selectedCountry.code}${phone}`;
-            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifier);
+            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifierRef.current);
             setConfirmationResult(confirmation);
         } catch (error: any) {
             console.error("OTP send error:", error);
