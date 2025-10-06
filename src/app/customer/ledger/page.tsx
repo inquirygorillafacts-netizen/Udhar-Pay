@@ -84,12 +84,9 @@ export default function CustomerLedgerPage() {
   return (
     <main className="dashboard-main-content" style={{padding: '20px'}}>
       <div className="login-card" style={{maxWidth: '700px', margin: 'auto'}}>
-        <div className="login-header">
-            <div className="neu-icon" style={{width: '70px', height: '70px'}}><div className="icon-inner"><BookText /></div></div>
-            <h1 style={{ color: '#3d4468', fontSize: '2rem', fontWeight: '600' }}>
-                Master Ledger
-            </h1>
-        </div>
+        <h1 style={{ color: '#3d4468', fontSize: '2rem', fontWeight: '600', textAlign: 'center', marginBottom: '30px' }}>
+            All Transactions
+        </h1>
 
         {loading ? (
              <div className="loading-container" style={{minHeight: '200px'}}>
