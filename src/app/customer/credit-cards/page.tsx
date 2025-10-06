@@ -52,7 +52,7 @@ export default function CustomerCreditCardsPage() {
             <div className="login-card" style={{ maxWidth: '800px', margin: 'auto' }}>
                 
                  {/* Loan Banner */}
-                <div className="login-card" style={{ margin: '0 0 40px 0', padding: '30px', background: 'linear-gradient(145deg, #007bff, #0056b3)', color: 'white', boxShadow: '10px 10px 30px #bec3cf, -10px -10px 30px #ffffff' }}>
+                <div className="login-card" style={{ margin: '0 0 40px 0', padding: '30px', background: '#007bff', color: 'white' }}>
                     <div className="grid grid-cols-1 md:grid-cols-[auto_1fr_auto] items-center gap-x-6 gap-y-4">
                         <div className="mx-auto md:mx-0">
                             <div className="neu-icon" style={{background: 'rgba(255,255,255,0.2)', boxShadow: 'none', margin: 0, width: '60px', height: '60px'}}>
