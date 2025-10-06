@@ -7,13 +7,13 @@ import { getFirestore, connectFirestoreEmulator, type Firestore } from 'firebase
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyB2ZmDXC6s9FBfCgaV-8WSqLkag4sJwad4",
-  authDomain: "gen-lang-client-0964053944.firebaseapp.com",
-  projectId: "gen-lang-client-0964053944",
-  storageBucket: "gen-lang-client-0964053944.appspot.com",
-  messagingSenderId: "73460410734",
-  appId: "1:73460410734:web:8381b2d6200bb4a4a6b97f",
-  measurementId: "G-SBVQGY01MT"
+  apiKey: "AIzaSyCf-JLtE26oGUKaNHo2QX3npzLt6reD-rw",
+  authDomain: "udhar-pay-b3ff7.firebaseapp.com",
+  projectId: "udhar-pay-b3ff7",
+  storageBucket: "udhar-pay-b3ff7.appspot.com",
+  messagingSenderId: "964637228383",
+  appId: "1:964637228383:web:e1384647c578a464c40aea",
+  measurementId: "G-M9F09KSFMW"
 };
 
 type FirebaseContextValue = {
@@ -37,14 +37,14 @@ export function FirebaseClientProvider({ children }: { children: React.ReactNode
   const firestore = getFirestore(app);
 
   // If you want to use the local emulators, uncomment the lines below
-  if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
-    if (!auth.emulatorConfig) {
-      connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
-    }
-    if (!(firestore as any)._settings.host) {
-      connectFirestoreEmulator(firestore, 'localhost', 8080);
-    }
-  }
+  // if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+  //   if (!auth.emulatorConfig) {
+  //     connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
+  //   }
+  //   if (!(firestore as any)._settings.host) {
+  //     connectFirestoreEmulator(firestore, 'localhost', 8080);
+  //   }
+  // }
 
   return (
     <FirebaseContext.Provider value={{ app, auth, firestore }}>
