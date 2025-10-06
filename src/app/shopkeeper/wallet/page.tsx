@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useFirebase } from '@/firebase/client-provider';
 import { onSnapshot, doc, updateDoc, collection, query, where, getDoc, Timestamp } from 'firebase/firestore';
-import { LifeBuoy, Phone, UploadCloud, Lock, CheckCircle, ShieldAlert, KeyRound, HelpCircle, X, AlertTriangle, SlidersHorizontal, IndianRupee } from 'lucide-react';
+import { LifeBuoy, Phone, UploadCloud, Lock, CheckCircle, ShieldAlert, KeyRound, HelpCircle, X, AlertTriangle, SlidersHorizontal, IndianRupee, LandPlot } from 'lucide-react';
 import Link from 'next/link';
 import axios from 'axios';
 
@@ -278,20 +278,19 @@ export default function ShopkeeperWalletPage() {
                         )}
                     </div>
                     
-                     <div className="login-card" style={{marginBottom: '30px'}}>
-                         <h3 className="setting-title" style={{textAlign: 'center', border: 'none', padding: 0, margin: '0 0 20px 0'}}>सेटिंग्स और सहायता</h3>
+                    <div className="login-card" style={{marginBottom: '30px'}}>
+                         <h3 className="setting-title" style={{textAlign: 'center', border: 'none', padding: 0, margin: '0 0 20px 0'}}>सेटिंग्स और सेवाएँ</h3>
                          <div style={{display: 'flex', flexDirection: 'column', gap: '15px'}}>
+                             <Link href="/loan/apply" className="neu-button" style={{margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
+                                <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}><LandPlot size={20} /><span>बिजनेस लोन के लिए आवेदन करें</span></div>
+                                <span>&rarr;</span>
+                            </Link>
                              <Link href="/shopkeeper/control-room" className="neu-button" style={{margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
                                 <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}><SlidersHorizontal size={20} /><span>उधार कंट्रोल रूम</span></div>
                                 <span>&rarr;</span>
                             </Link>
-                            <Link href="/shopkeeper/helpline" className="neu-button" style={{margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
-                                <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}><Phone size={20} /><span>हेल्पलाइन</span></div>
-                                <span>&rarr;</span>
-                            </Link>
                          </div>
                      </div>
-
 
                      <div className="login-card" style={{ marginBottom: '30px' }}>
                         <h3 className="setting-title" style={{textAlign: 'center', border: 'none', padding: 0, margin: '0 0 20px 0'}}>पेमेंट सेटअप</h3>
