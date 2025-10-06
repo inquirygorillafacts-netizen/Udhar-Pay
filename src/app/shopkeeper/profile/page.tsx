@@ -324,14 +324,6 @@ export default function ShopkeeperProfilePage() {
           </button>
         </form>
         
-         <div className="setting-section" style={{marginTop: '40px'}}>
-             <h3 className="setting-title" style={{textAlign: 'center'}}>Financial Services</h3>
-            <Link href="/loan/apply" className="neu-button" style={{margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
-                <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}><LandPlot size={20} /><span>Apply for Business Loan</span></div>
-                <span>&rarr;</span>
-            </Link>
-        </div>
-
 
         <div className="setting-section" style={{marginTop: '40px'}}>
               <h3 className="setting-title" style={{textAlign: 'center'}}>Manage Roles</h3>
