@@ -157,7 +157,6 @@ export default function ShopkeeperCustomersPage() {
                         <Users size={20} />
                         <span style={{ fontSize: '1.5rem', fontWeight: 700 }}>{allCustomers.length}</span>
                     </div>
-                     <span style={{ fontSize: '12px', color: '#6c7293', fontWeight: 500, marginTop: '2px' }}>Customers</span>
                 </div>
             </div>
         </div>
