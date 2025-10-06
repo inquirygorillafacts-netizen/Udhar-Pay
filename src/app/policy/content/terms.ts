@@ -11,12 +11,27 @@ export const termsContent = `
 <h2>4. Platform Commission</h2>
 <p>A commission of 2% is levied on the principal amount of every credit transaction facilitated through the platform. This commission is added to the amount payable by the customer. The shopkeeper receives the principal amount, and Udhar Pay retains the commission as a service fee.</p>
 
-<h2>5. User Responsibilities</h2>
+<h2>5. Payment Gateway and Pricing</h2>
+<p>To process payments from customers to shopkeepers, Udhar Pay uses a third-party payment gateway. The charges for these transactions are as follows:</p>
+<ul>
+    <li><strong>Promotional Offer:</strong> 0% (Free) transaction fees for the first two months from the activation of production credentials.</li>
+    <li><strong>Standard Rate:</strong> After the promotional period, a blended rate of <strong>1.95%</strong> will be charged on all transactions, with the exception of the cards listed below.</li>
+    <li><strong>Special Card Rates:</strong>
+        <ul>
+            <li>American Express (Amex) Cards: <strong>2.9%</strong></li>
+            <li>Diners Club Cards: <strong>2.9%</strong></li>
+            <li>Corporate (Business) Credit Cards: <strong>2.9%</strong></li>
+        </ul>
+    </li>
+</ul>
+<p>These fees are subject to the terms of the payment gateway provider. We strive to maintain transparency with no hidden charges, setup fees, or maintenance fees.</p>
+
+<h2>6. User Responsibilities</h2>
 <p>You are responsible for all activities that occur under your account. You agree not to use the service for any illegal or unauthorized purpose. All financial transactions and disputes are solely between the customer and the shopkeeper.</p>
 
-<h2>6. Limitation of Liability</h2>
+<h2>7. Limitation of Liability</h2>
 <p>Udhar Pay is a facilitator and is not responsible for any disputes, non-payments, or disagreements between customers and shopkeepers. We are not liable for any losses incurred as a result of using our platform.</p>
 
-<h2>7. Changes to Terms</h2>
+<h2>8. Changes to Terms</h2>
 <p>We reserve the right to modify these terms at any time. We will notify you of any changes by posting the new terms on this page. Your continued use of the app after any such change constitutes your acceptance of the new terms.</p>
 `;
