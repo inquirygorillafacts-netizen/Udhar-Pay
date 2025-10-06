@@ -32,17 +32,11 @@ export default function VoiceAssistantPage() {
     const recognitionRef = useRef<any>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const messagesEndRef = useRef<HTMLDivElement>(null);
-
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    };
 
     useEffect(() => {
         setMessages(getHistory());
     }, []);
 
-    useEffect(scrollToBottom, [messages]);
 
     const currentVoiceId = availableVoices[currentVoiceIndex].voiceId;
     
@@ -274,9 +268,9 @@ export default function VoiceAssistantPage() {
             
             <div style={{height: '2px', background: 'rgba(255,255,255,0.1)', margin: '20px 0', flexShrink: 0}}></div>
             
-            <div style={{ flex: 1, overflowY: 'auto', padding: '0 10px 20px', width: '100%', maxWidth: '700px', margin: '0 auto' }}>
+            <div style={{ flex: 1, overflowY: 'hidden', display: 'flex', flexDirection: 'column-reverse', padding: '0 10px 20px', width: '100%', maxWidth: '700px', margin: '0 auto' }}>
                 <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
-                    {messages.map((msg, index) => (
+                    {messages.slice().reverse().map((msg, index) => (
                       <div key={index} style={{display: 'flex', justifyContent: msg.sender === 'user' ? 'flex-end' : 'flex-start' }}>
                         <div style={{
                           padding: '12px 18px',
@@ -290,7 +284,6 @@ export default function VoiceAssistantPage() {
                         </div>
                       </div>
                     ))}
-                    <div ref={messagesEndRef} />
                 </div>
             </div>
         </main>
