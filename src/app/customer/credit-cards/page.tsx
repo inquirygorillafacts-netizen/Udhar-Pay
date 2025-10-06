@@ -58,7 +58,7 @@ export default function CustomerCreditCardsPage() {
                             <h2 style={{color: 'white', fontSize: '1.5rem', fontWeight: 'bold', margin: '0'}}>Get Easy & Fast Loans</h2>
                         </div>
                         <div className="w-full md:w-auto">
-                         <Link href="/loan/apply" className="neu-button" style={{margin: 0, background: 'white', color: '#007bff', flexShrink: 0, width: '100%'}}>
+                         <Link href="/loan/apply" className="neu-button" style={{margin: 0, background: 'transparent', color: 'white', flexShrink: 0, width: '100%', border: '2px solid white', boxShadow: 'none'}}>
                            Apply Now
                         </Link>
                         </div>
