@@ -109,14 +109,10 @@ export default function CustomerAuthPage() {
         }
 
         try {
-            // Create reCAPTCHA verifier on the fly
             const recaptchaVerifier = new RecaptchaVerifier(auth, 'send-code-btn', {
                 'size': 'invisible',
                 'callback': () => {
-                    // This callback is called when reCAPTCHA is solved.
-                },
-                'expired-callback': () => {
-                    setErrors({ form: "reCAPTCHA expired. Please try sending OTP again." });
+                    // reCAPTCHA solved
                 }
             });
 
@@ -131,7 +127,7 @@ export default function CustomerAuthPage() {
             } else if (error.code === 'auth/invalid-phone-number') {
                 errorMessage = "The phone number is not valid.";
             } else if (error.code === 'auth/captcha-check-failed') {
-                 errorMessage = "Verification failed. Please check your connection or browser settings.";
+                 errorMessage = "Verification failed. Check your connection or browser settings.";
             }
             setErrors({ form: errorMessage });
         } finally {
@@ -178,6 +174,7 @@ export default function CustomerAuthPage() {
     return (
         <div className="login-container-wrapper">
             <div className="login-container">
+                <div id="recaptcha-container" style={{display: 'none'}}></div>
                 <div className="login-card" ref={cardRef}>
                     {!showSuccess ? (
                         <>

@@ -107,14 +107,10 @@ export default function ShopkeeperAuthPage() {
         }
 
         try {
-            // Create reCAPTCHA verifier on the fly
             const recaptchaVerifier = new RecaptchaVerifier(auth, 'send-code-btn-shopkeeper', {
                 'size': 'invisible',
                 'callback': () => {
-                    // This callback is called when reCAPTCHA is solved.
-                },
-                'expired-callback': () => {
-                    setErrors({ form: "reCAPTCHA expired. Please try sending OTP again." });
+                    // reCAPTCHA solved
                 }
             });
 
