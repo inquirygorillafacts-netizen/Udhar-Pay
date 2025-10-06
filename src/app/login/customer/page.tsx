@@ -121,15 +121,13 @@ export default function CustomerAuthPage() {
         }
 
         try {
-            // Use an invisible reCAPTCHA
-            const recaptchaVerifier = new RecaptchaVerifier(auth, 'send-code-btn', {
-                'size': 'invisible'
-            });
+            // This is a testing environment, so we disable app verification.
+            auth.settings.appVerificationDisabledForTesting = true;
             
             const fullPhoneNumber = `${selectedCountry.code}${phone}`;
             
-            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifier);
-            window.confirmationResult = confirmation; // Store it on window object
+            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, new RecaptchaVerifier(auth, 'recaptcha-container', { 'size': 'invisible' }));
+            window.confirmationResult = confirmation;
             setConfirmationResult(confirmation);
         } catch (error: any) {
             console.error("OTP send error:", error);
@@ -138,8 +136,6 @@ export default function CustomerAuthPage() {
                 errorMessage = "Too many requests. Please try again later.";
             } else if (error.code === 'auth/invalid-phone-number') {
                 errorMessage = "The phone number is not valid.";
-            } else if (error.code === 'auth/captcha-check-failed' || error.code === 'auth/invalid-app-credential') {
-                 errorMessage = "Verification failed. Please check your Firebase project settings.";
             }
             setErrors({ form: errorMessage });
         } finally {
