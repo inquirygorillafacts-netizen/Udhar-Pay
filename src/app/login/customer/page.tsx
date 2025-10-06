@@ -89,7 +89,7 @@ export default function CustomerAuthPage() {
                 });
             }
             handleFormTransition();
-        } catch (dbError: any) {
+        } catch (dbError) {
             console.error("Database operation failed:", dbError);
             setErrors({ form: "Could not sync your profile. Check your connection." });
         }
@@ -199,6 +199,9 @@ export default function CustomerAuthPage() {
                                 </div>
                                 <h2>Customer Portal</h2>
                                 <p>{confirmationResultState ? 'Enter OTP to continue' : 'Sign in with your mobile number'}</p>
+                            </div>
+                             <div style={{ background: '#d1d9e6', padding: '10px', borderRadius: '10px', fontSize: '12px', textAlign: 'center', marginBottom: '20px', color: '#3d4468' }}>
+                                <strong>Testing Note:</strong> Use phone <strong>+91 9876543210</strong> and OTP <strong>123456</strong> to bypass live SMS and CAPTCHA.
                             </div>
                             
                             {confirmationResultState ? (
