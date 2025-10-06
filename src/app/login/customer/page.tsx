@@ -34,10 +34,28 @@ export default function CustomerAuthPage() {
     const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
     
     const cardRef = useRef<HTMLDivElement>(null);
+    const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
 
     const [selectedCountry, setSelectedCountry] = useState(countryCodes[0]);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!auth) return;
+        
+        // Initialize reCAPTCHA verifier once
+        if (!recaptchaVerifierRef.current) {
+            recaptchaVerifierRef.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
+                'size': 'invisible',
+                'callback': (response: any) => {
+                    // reCAPTCHA solved, you can optionally trigger sign-in here if needed
+                },
+                'expired-callback': () => {
+                    // Response expired. Ask user to solve reCAPTCHA again.
+                }
+            });
+        }
+    }, [auth]);
 
 
     useEffect(() => {
@@ -97,19 +115,14 @@ export default function CustomerAuthPage() {
     
     const handleSendOtp = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!validatePhone()) return;
+        if (!validatePhone() || !recaptchaVerifierRef.current) return;
 
         setLoading(true);
         setErrors({});
 
         try {
-            auth.settings.appVerificationDisabledForTesting = true;
-            const recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-                'size': 'invisible'
-            });
-
             const fullPhoneNumber = `${selectedCountry.code}${phone}`;
-            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifier);
+            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifierRef.current);
             setConfirmationResult(confirmation);
         } catch (error: any) {
             console.error("OTP send error:", error);
@@ -118,8 +131,8 @@ export default function CustomerAuthPage() {
                 errorMessage = "Too many requests. Please try again later.";
             } else if (error.code === 'auth/invalid-phone-number') {
                 errorMessage = "The phone number is not valid.";
-            } else if (error.code === 'auth/network-request-failed' || error.code === 'auth/argument-error') {
-                errorMessage = "Network error. Please check your connection or emulator setup.";
+            } else if (error.code === 'auth/captcha-check-failed' || error.code === 'auth/network-request-failed') {
+                errorMessage = "Verification failed. Please try again.";
             }
             setErrors({ form: errorMessage });
         } finally {
