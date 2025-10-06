@@ -183,6 +183,7 @@ export default function VoiceAssistantPage() {
                     };
                 }).catch(e => {
                     if (e.name === 'NotAllowedError') {
+                        setIsAssistantOn(true); // If blocked, just start listening
                         console.log("Greeting audio blocked by browser. User needs to toggle AI on manually.");
                     }
                 });
@@ -221,27 +222,7 @@ export default function VoiceAssistantPage() {
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isAssistantOn, startListening]);
-
-    const handleAIToggle = () => {
-        setIsAssistantOn(prev => !prev);
-    };
     
-    const handleVoiceSwitch = () => {
-        setCurrentVoiceIndex((prevIndex) => (prevIndex + 1) % availableVoices.length);
-    };
-    
-    const getStatusIcon = () => {
-        switch (status) {
-            case 'listening': return <Waves size={24} className="text-blue-500" />;
-            case 'thinking': return <Loader size={24} className="animate-spin text-gray-400" />;
-            case 'speaking': return <Volume2 size={24} className="text-green-500" />;
-            case 'idle':
-            default:
-                if (isAssistantOn) return <Bot size={24} className="animate-pulse text-green-400" />;
-                return <Bot size={24} className="text-red-500" />;
-        }
-    };
-
     const getStatusText = () => {
         if (!isAssistantOn) return "असिस्टेंट बंद है";
         switch (status) {
@@ -257,17 +238,9 @@ export default function VoiceAssistantPage() {
     return (
       <>
         <main className="login-container" style={{ position: 'relative' }}>
-             <button onClick={() => setIsTextModalOpen(true)} className="neu-button" style={{ position: 'absolute', top: '25px', right: '25px', width: 'auto', height: 'auto', padding: '12px', margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                <MessageSquare size={20} />
-                <span className='hidden sm:inline'>Text Mode</span>
-            </button>
-             <button onClick={handleVoiceSwitch} className="neu-button" style={{ position: 'absolute', top: '25px', left: '25px', width: 'auto', height: 'auto', padding: '12px', margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                <Shuffle size={20} />
-                <span className='hidden sm:inline'>Switch Voice</span>
-            </button>
             <div style={{maxWidth: '500px', width: '100%', background: '#000000', borderRadius: '30px', padding: '50px 40px', boxShadow: '0px 0px 50px rgba(0, 200, 150, 0.3)'}}>
                 <header className="login-header">
-                    <div className="neu-icon" style={{width: '100px', height: '100px', position: 'relative', overflow: 'hidden', border: 'none', boxShadow: 'none', background: 'transparent'}}>
+                    <div className="neu-icon" style={{width: '250px', height: '250px', position: 'relative', overflow: 'hidden', border: 'none', boxShadow: 'none', background: 'transparent'}}>
                          <video 
                             src="/1.mp4" 
                             autoPlay 
@@ -285,39 +258,6 @@ export default function VoiceAssistantPage() {
                     <p style={{color: '#a0a0a0'}}>{getStatusText()}</p>
                 </header>
 
-                <div style={{textAlign: 'center', marginBottom: '30px'}}>
-                    <div 
-                        style={{
-                            fontSize: '1rem',
-                            fontWeight: 'bold',
-                            textTransform: 'uppercase',
-                            letterSpacing: '2px',
-                            color: '#a0a0a0',
-                            background: '#1a1a1a',
-                            padding: '10px 25px',
-                            borderRadius: '25px',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '12px',
-                            border: '1px solid #333'
-                        }}
-                    >
-                        {getStatusIcon()}
-                        <span>{isAssistantOn ? status : "Off"}</span>
-                    </div>
-                </div>
-
-                <div className="setting-section" style={{marginBottom: '30px'}}>
-                     <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '15px 20px', background: '#1a1a1a', borderRadius: '15px', border: '1px solid #333'}}>
-                        <div style={{display: 'flex', alignItems: 'center', gap: '15px', color: 'white'}}><Bot size={20} style={{color: '#a0a0a0'}} /><span>AI Assistant</span></div>
-                        <div 
-                            className={`neu-toggle-switch ${isAssistantOn ? 'active' : ''}`} 
-                            onClick={handleAIToggle}
-                        >
-                            <div className="neu-toggle-handle"></div>
-                        </div>
-                    </div>
-                </div>
                 
                  {aiResponse && (
                     <div style={{marginBottom: '30px', padding: '20px', background: '#1a1a1a', borderRadius: '15px', border: '1px solid #333'}}>
