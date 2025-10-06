@@ -273,7 +273,7 @@ export default function VoiceAssistantPage() {
                 <header className="login-header">
                      <div className="neu-icon" style={{width: '100px', height: '100px', position: 'relative', overflow: 'hidden'}}>
                          <video 
-                            src="/2.mp4" 
+                            src="/1.mp4" 
                             autoPlay 
                             loop 
                             muted 
