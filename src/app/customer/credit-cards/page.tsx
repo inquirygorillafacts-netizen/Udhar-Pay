@@ -64,19 +64,21 @@ export default function CustomerCreditCardsPage() {
                 
                  {/* Loan Banner */}
                 <div className="login-card" style={{ margin: '0 0 40px 0', padding: '30px', background: 'linear-gradient(145deg, #007bff, #0056b3)', color: 'white', boxShadow: '10px 10px 30px #bec3cf, -10px -10px 30px #ffffff' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '20px' }}>
-                        <div style={{flexShrink: 0}}>
-                            <div className="neu-icon" style={{background: 'rgba(255,255,255,0.2)', boxShadow: 'none', margin: 0}}>
-                                <LandPlot size={32} />
+                    <div className="grid grid-cols-1 md:grid-cols-[auto_1fr_auto] items-center gap-x-6 gap-y-4">
+                        <div className="mx-auto md:mx-0">
+                            <div className="neu-icon" style={{background: 'rgba(255,255,255,0.2)', boxShadow: 'none', margin: 0, width: '60px', height: '60px'}}>
+                                <LandPlot size={28} />
                             </div>
                         </div>
-                        <div style={{flexGrow: 1}}>
+                        <div className="text-center md:text-left">
                             <h2 style={{color: 'white', fontSize: '1.5rem', fontWeight: 'bold', margin: '0 0 5px 0'}}>Get Easy & Fast Loans</h2>
                             <p style={{color: 'rgba(255,255,255,0.8)', margin: 0, fontSize: '14px'}}>Apply for personal or business loans with minimal documentation.</p>
                         </div>
-                         <Link href="/loan/apply" className="neu-button" style={{margin: 0, background: 'white', color: '#007bff', flexShrink: 0}}>
+                        <div className="w-full md:w-auto">
+                         <Link href="/loan/apply" className="neu-button" style={{margin: 0, background: 'white', color: '#007bff', flexShrink: 0, width: '100%'}}>
                            Apply Now
                         </Link>
+                        </div>
                     </div>
                 </div>
 
