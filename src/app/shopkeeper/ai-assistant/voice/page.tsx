@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Bot, MessageSquare, Shuffle, User } from 'lucide-react';
+import { Bot, MessageSquare, Shuffle, User, ArrowLeft } from 'lucide-react';
 import { askAiAssistant } from '@/ai/flows/assistant-flow';
 import TextAssistantModal from '@/components/assistant/TextAssistantModal';
 import { getHistory, addMessage, ChatMessage } from '@/lib/ai-memory';
+import { useRouter } from 'next/navigation';
 
 type Status = 'idle' | 'listening' | 'thinking' | 'speaking';
 
@@ -21,6 +22,7 @@ const SpeechRecognition =
     : undefined;
 
 export default function VoiceAssistantPage() {
+    const router = useRouter();
     const [status, setStatus] = useState<Status>('idle');
     const [isAssistantOn, setIsAssistantOn] = useState(false);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -250,6 +252,11 @@ export default function VoiceAssistantPage() {
     return (
       <>
         <main style={{ height: '100svh', position: 'relative', background: '#000000', padding: '20px', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ position: 'absolute', top: '20px', left: '20px', display: 'flex', gap: '10px', zIndex: 10 }}>
+                 <button onClick={() => router.back()} className="neu-button" style={{margin: 0, width: 'auto', padding: '10px 15px', background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', boxShadow: 'none' }}>
+                    <ArrowLeft size={18}/>
+                </button>
+            </div>
             <div style={{ position: 'absolute', top: '20px', right: '20px', display: 'flex', gap: '10px', zIndex: 10 }}>
                  <button onClick={() => setIsTextModalOpen(true)} className="neu-button" style={{margin: 0, width: 'auto', padding: '10px 15px', background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', boxShadow: 'none' }}>
                     <MessageSquare size={18}/>
@@ -281,12 +288,7 @@ export default function VoiceAssistantPage() {
             <div style={{ flex: 1, overflowY: 'auto', padding: '0 10px 20px', width: '100%', maxWidth: '700px', margin: '0 auto' }}>
                 <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
                     {messages.map((msg, index) => (
-                      <div key={index} style={{display: 'flex', gap: '15px', alignItems: 'flex-start', justifyContent: msg.sender === 'user' ? 'flex-end' : 'flex-start' }}>
-                        {msg.sender === 'ai' && (
-                          <div className="neu-icon" style={{width: '40px', height: '40px', margin: 0, flexShrink: 0, background: 'rgba(0, 200, 150, 0.2)'}}>
-                              <Bot size={20} color="#00c896"/>
-                          </div>
-                        )}
+                      <div key={index} style={{display: 'flex', justifyContent: msg.sender === 'user' ? 'flex-end' : 'flex-start' }}>
                         <div style={{
                           padding: '12px 18px',
                           background: msg.sender === 'user' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 200, 150, 0.15)',
@@ -297,11 +299,6 @@ export default function VoiceAssistantPage() {
                         }}>
                           <p style={{ margin: 0, lineHeight: 1.5, fontSize: '15px', color: 'inherit' }}>{msg.text}</p>
                         </div>
-                         {msg.sender === 'user' && (
-                          <div className="neu-icon" style={{width: '40px', height: '40px', margin: 0, flexShrink: 0, background: 'rgba(255, 255, 255, 0.1)'}}>
-                              <User size={20} color="white"/>
-                          </div>
-                        )}
                       </div>
                     ))}
                     <div ref={messagesEndRef} />
