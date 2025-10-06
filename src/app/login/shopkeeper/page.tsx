@@ -122,21 +122,16 @@ export default function ShopkeeperAuthPage() {
         }
 
         try {
+            // This is the most forceful way to disable reCAPTCHA for testing.
+            auth.settings.appVerificationDisabledForTesting = true;
             const fullPhoneNumber = `${selectedCountry.code}${phone}`;
+
+            // We still create a verifier object because the function requires it.
             const recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'invisible' });
             
-            recaptchaVerifier.render().then(async (widgetId) => {
-                try {
-                    const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifier);
-                    window.confirmationResult = confirmation;
-                    setConfirmationResultState(confirmation);
-                } catch (error) {
-                     console.error("OTP send error (inner):", error);
-                     setErrors({ form: "Failed to send OTP. The phone number may be invalid or blocked." });
-                } finally {
-                    setLoading(false);
-                }
-            });
+            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifier);
+            window.confirmationResult = confirmation;
+            setConfirmationResultState(confirmation);
 
         } catch (error: any) {
             console.error("OTP send error (outer):", error);
@@ -149,6 +144,7 @@ export default function ShopkeeperAuthPage() {
                 errorMessage = "Security check failed. Please refresh and try again."
             }
             setErrors({ form: errorMessage });
+        } finally {
             setLoading(false);
         }
     };
@@ -161,14 +157,16 @@ export default function ShopkeeperAuthPage() {
             return;
         }
 
-        if (!window.confirmationResult) {
+        const confirmation = window.confirmationResult;
+
+        if (!confirmation) {
             setErrors({ form: "Something went wrong. Please try sending OTP again." });
             return;
         }
 
         setLoading(true);
         try {
-            const result = await window.confirmationResult.confirm(otp);
+            const result = await confirmation.confirm(otp);
             await handleAuthSuccess(result.user);
         } catch (error: any) {
              let errorMessage = "Invalid OTP or request expired. Please try again.";
