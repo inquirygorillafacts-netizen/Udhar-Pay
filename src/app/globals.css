@@ -613,8 +613,26 @@ body {
     transform: translateY(-2px);
 }
 
-.admin-nav-item.admin-nav-item-primary:not(.active) {
-    color: white; /* Ensure icon is white when not active */
+.admin-nav-item-primary {
+    width: 60px !important;
+    height: 60px !important;
+    min-width: 60px !important;
+    border-radius: 50%;
+    background: #e0e5ec;
+    box-shadow: 8px 8px 20px #bec3cf, -8px -8px 20px #ffffff;
+    transform: translateY(-15px);
+    color: #3d4468;
+    padding: 0;
+}
+
+.admin-nav-item-primary.active {
+    background: #00c896;
+    color: white;
+    box-shadow: inset 4px 4px 10px #00a078, inset -4px -4px 10px #00f0b4, 5px 5px 15px #bec3cf;
+}
+
+.admin-nav-item-primary:not(.active) {
+    color: #3d4468;
 }
 
 /* Message Sidebar */

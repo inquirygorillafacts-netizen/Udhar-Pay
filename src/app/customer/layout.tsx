@@ -37,6 +37,8 @@ export default function CustomerLayout({
   }
   
   const isAiAssistantActive = pathname.startsWith('/customer/ai-assistant');
+  const isScanActive = pathname === '/customer/scan';
+
 
   return (
     <div style={{ paddingBottom: '80px' }}>
@@ -52,9 +54,12 @@ export default function CustomerLayout({
           <span>Ledger</span>
         </Link>
         
-        <Link href="/customer/scan" className={`admin-nav-item ${pathname === '/customer/scan' ? 'active' : ''}`}>
-          <QrCode size={24} />
-          <span>Scan</span>
+        <Link 
+          href="/customer/scan" 
+          className={`admin-nav-item admin-nav-item-primary ${isScanActive ? 'active' : ''}`}
+        >
+          <QrCode size={30} />
+          <span style={{marginTop: '2px'}}>Scan</span>
         </Link>
 
         <Link href="/customer/ai-assistant/voice" className={`admin-nav-item ${isAiAssistantActive ? 'active' : ''}`}>
