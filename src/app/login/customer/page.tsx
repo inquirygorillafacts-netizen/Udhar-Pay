@@ -32,7 +32,6 @@ export default function CustomerAuthPage() {
     const [showSuccess, setShowSuccess] = useState(false);
     
     const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
-    const [isRecaptchaReady, setIsRecaptchaReady] = useState(false);
 
     const cardRef = useRef<HTMLDivElement>(null);
 
@@ -40,36 +39,6 @@ export default function CustomerAuthPage() {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     
-    useEffect(() => {
-        if (!auth || (window as any).recaptchaVerifier) return;
-        
-        // This is crucial. We are creating the verifier instance once and attaching it to the window.
-        // It's tied to the button that will trigger the OTP flow.
-        const recaptchaVerifier = new RecaptchaVerifier(auth, 'send-code-btn', {
-            'size': 'invisible',
-            'callback': () => {
-                // reCAPTCHA solved. This is usually handled by signInWithPhoneNumber.
-                setIsRecaptchaReady(true);
-            },
-            'expired-callback': () => {
-                setErrors({ form: "reCAPTCHA expired. Please try sending OTP again." });
-                setIsRecaptchaReady(false);
-            }
-        });
-        
-        (window as any).recaptchaVerifier = recaptchaVerifier;
-        
-        // We render it once to prepare it.
-        recaptchaVerifier.render().then(() => {
-            setIsRecaptchaReady(true);
-        }).catch((error) => {
-            console.error("reCAPTCHA render error:", error);
-            setErrors({form: "Could not initialize reCAPTCHA. Please refresh."});
-            setIsRecaptchaReady(false);
-        })
-
-    }, [auth]);
-
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -133,35 +102,38 @@ export default function CustomerAuthPage() {
         setLoading(true);
         setErrors({});
         
-        const appVerifier = (window as any).recaptchaVerifier;
-        if (!appVerifier) {
-            setErrors({ form: "reCAPTCHA verifier not initialized. Please refresh." });
+        if (!auth) {
+            setErrors({ form: "Firebase not initialized. Please refresh." });
             setLoading(false);
             return;
         }
 
         try {
+            // Create reCAPTCHA verifier on the fly
+            const recaptchaVerifier = new RecaptchaVerifier(auth, 'send-code-btn', {
+                'size': 'invisible',
+                'callback': () => {
+                    // This callback is called when reCAPTCHA is solved.
+                },
+                'expired-callback': () => {
+                    setErrors({ form: "reCAPTCHA expired. Please try sending OTP again." });
+                }
+            });
+
             const fullPhoneNumber = `${selectedCountry.code}${phone}`;
-            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, appVerifier);
+            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifier);
             setConfirmationResult(confirmation);
-        } catch (error: any)
- {
+        } catch (error: any) {
             console.error("OTP send error:", error);
-            let errorMessage = "Failed to send OTP. Please check the number and try again.";
+            let errorMessage = "Failed to send OTP. Please try again.";
             if (error.code === 'auth/too-many-requests') {
                 errorMessage = "Too many requests. Please try again later.";
             } else if (error.code === 'auth/invalid-phone-number') {
                 errorMessage = "The phone number is not valid.";
-            } else if (error.code === 'auth/captcha-check-failed' || error.code === 'auth/network-request-failed') {
-                 errorMessage = "Verification failed. This can happen with ad-blockers, network issues, or if the authorized domain is not set in Firebase. Please check your connection or contact support.";
+            } else if (error.code === 'auth/captcha-check-failed') {
+                 errorMessage = "Verification failed. Please check your connection or browser settings.";
             }
             setErrors({ form: errorMessage });
-            // Attempt to reset reCAPTCHA on failure
-            appVerifier.render().then((widgetId: any) => {
-                if((window as any).grecaptcha) {
-                    (window as any).grecaptcha.reset(widgetId);
-                }
-            });
         } finally {
             setLoading(false);
         }
@@ -265,8 +237,8 @@ export default function CustomerAuthPage() {
                                         </div>
                                         {errors.phone && <span className="error-message show">{errors.phone}</span>}
                                     </div>
-                                    <button id="send-code-btn" type="submit" className={`neu-button ${loading ? 'loading' : ''}`} disabled={loading || !isRecaptchaReady}>
-                                        <span className="btn-text">{isRecaptchaReady ? 'Send OTP' : 'Initializing...'}</span>
+                                    <button id="send-code-btn" type="submit" className={`neu-button ${loading ? 'loading' : ''}`} disabled={loading}>
+                                        <span className="btn-text">Send OTP</span>
                                         <div className="btn-loader"><div className="neu-spinner"></div></div>
                                     </button>
                                 </form>

@@ -34,37 +34,10 @@ export default function ShopkeeperAuthPage() {
     const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
 
     const cardRef = useRef<HTMLDivElement>(null);
-    const [isRecaptchaReady, setIsRecaptchaReady] = useState(false);
 
     const [selectedCountry, setSelectedCountry] = useState(countryCodes[0]);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        if (!auth || (window as any).recaptchaVerifier) return;
-        
-        const recaptchaVerifier = new RecaptchaVerifier(auth, 'send-code-btn-shopkeeper', {
-            'size': 'invisible',
-            'callback': () => {
-                setIsRecaptchaReady(true);
-            },
-            'expired-callback': () => {
-                setErrors({ form: "reCAPTCHA expired. Please try sending OTP again." });
-                setIsRecaptchaReady(false);
-            }
-        });
-        
-        (window as any).recaptchaVerifier = recaptchaVerifier;
-        
-        recaptchaVerifier.render().then(() => {
-            setIsRecaptchaReady(true);
-        }).catch((error) => {
-            console.error("reCAPTCHA render error:", error);
-            setErrors({form: "Could not initialize reCAPTCHA. Please refresh."});
-            setIsRecaptchaReady(false);
-        });
-
-    }, [auth]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -127,33 +100,38 @@ export default function ShopkeeperAuthPage() {
         setLoading(true);
         setErrors({});
 
-        const appVerifier = (window as any).recaptchaVerifier;
-        if (!appVerifier) {
-            setErrors({ form: "reCAPTCHA verifier not initialized. Please refresh." });
+        if (!auth) {
+            setErrors({ form: "Firebase not initialized. Please refresh." });
             setLoading(false);
             return;
         }
 
         try {
+            // Create reCAPTCHA verifier on the fly
+            const recaptchaVerifier = new RecaptchaVerifier(auth, 'send-code-btn-shopkeeper', {
+                'size': 'invisible',
+                'callback': () => {
+                    // This callback is called when reCAPTCHA is solved.
+                },
+                'expired-callback': () => {
+                    setErrors({ form: "reCAPTCHA expired. Please try sending OTP again." });
+                }
+            });
+
             const fullPhoneNumber = `${selectedCountry.code}${phone}`;
-            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, appVerifier);
+            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifier);
             setConfirmationResult(confirmation);
         } catch (error: any) {
             console.error("OTP send error:", error);
-            let errorMessage = "Failed to send OTP. Please check the number and try again.";
+            let errorMessage = "Failed to send OTP. Please try again.";
              if (error.code === 'auth/too-many-requests') {
                 errorMessage = "Too many requests. Please try again later.";
             } else if (error.code === 'auth/invalid-phone-number') {
                 errorMessage = "The phone number is not valid.";
-            } else if (error.code === 'auth/captcha-check-failed' || error.code === 'auth/network-request-failed') {
-                 errorMessage = "Verification failed. This can happen with ad-blockers, network issues, or if the authorized domain is not set in Firebase. Please check your connection or contact support.";
+            } else if (error.code === 'auth/captcha-check-failed') {
+                 errorMessage = "Verification failed. Please check your connection or browser settings.";
             }
             setErrors({ form: errorMessage });
-             appVerifier.render().then((widgetId: any) => {
-                if((window as any).grecaptcha) {
-                    (window as any).grecaptcha.reset(widgetId);
-                }
-            });
         } finally {
             setLoading(false);
         }
@@ -254,8 +232,8 @@ export default function ShopkeeperAuthPage() {
                                         </div>
                                         {errors.phone && <span className="error-message show">{errors.phone}</span>}
                                     </div>
-                                    <button id="send-code-btn-shopkeeper" type="submit" className={`neu-button ${loading ? 'loading' : ''}`} disabled={loading || !isRecaptchaReady}>
-                                        <span className="btn-text">{isRecaptchaReady ? 'Send OTP' : 'Initializing...'}</span>
+                                    <button id="send-code-btn-shopkeeper" type="submit" className={`neu-button ${loading ? 'loading' : ''}`} disabled={loading}>
+                                        <span className="btn-text">Send OTP</span>
                                         <div className="btn-loader"><div className="neu-spinner"></div></div>
                                     </button>
                                 </form>
