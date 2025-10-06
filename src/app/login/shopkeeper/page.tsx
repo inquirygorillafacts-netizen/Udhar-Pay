@@ -35,6 +35,8 @@ export default function ShopkeeperAuthPage() {
 
     const cardRef = useRef<HTMLDivElement>(null);
     const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
+    const [isRecaptchaReady, setIsRecaptchaReady] = useState(false);
+
 
     const [selectedCountry, setSelectedCountry] = useState(countryCodes[0]);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -43,11 +45,35 @@ export default function ShopkeeperAuthPage() {
     useEffect(() => {
         if (!auth) return;
 
-        auth.settings.appVerificationDisabledForTesting = true;
-        const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-            'size': 'invisible'
-        });
-        recaptchaVerifierRef.current = verifier;
+        try {
+            // Use testing mode for development to avoid real reCAPTCHA challenges
+            auth.settings.appVerificationDisabledForTesting = process.env.NODE_ENV === 'development';
+            
+            const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+                'size': 'invisible',
+                 'callback': () => {
+                    // reCAPTCHA solved, allow signInWithPhoneNumber.
+                },
+                'expired-callback': () => {
+                    setErrors({ form: "reCAPTCHA expired. Please try sending OTP again." });
+                    recaptchaVerifierRef.current?.render().then((widgetId) => {
+                       if (typeof window !== 'undefined') (window as any).grecaptcha.reset(widgetId);
+                    });
+                }
+            });
+
+            verifier.render().then(() => {
+                 recaptchaVerifierRef.current = verifier;
+                 setIsRecaptchaReady(true);
+            }).catch(err => {
+                console.error("reCAPTCHA render error:", err);
+                setErrors({form: "Could not initialize reCAPTCHA. Please refresh the page."})
+            });
+
+        } catch (error) {
+            console.error("Error creating RecaptchaVerifier:", error);
+            setErrors({form: "Failed to set up phone verification. Please try again."})
+        }
         
     }, [auth]);
 
@@ -130,7 +156,7 @@ export default function ShopkeeperAuthPage() {
             } else if (error.code === 'auth/invalid-phone-number') {
                 errorMessage = "The phone number is not valid.";
             } else if (error.code === 'auth/captcha-check-failed' || error.code === 'auth/network-request-failed') {
-                errorMessage = "Verification failed. This can happen with ad-blockers. Please try again or contact support if the issue persists.";
+                 errorMessage = "Verification failed. This can happen with ad-blockers, network issues, or if the authorized domain is not set in Firebase. Please check your connection or contact support.";
             }
             setErrors({ form: errorMessage });
         } finally {
@@ -175,7 +201,7 @@ export default function ShopkeeperAuthPage() {
 
     return (
         <div className="login-container-wrapper">
-             <div id="recaptcha-container"></div>
+             <div id="recaptcha-container" style={{ position: 'fixed', bottom: 0, right: 0 }}></div>
             <div className="login-container">
                 <div className="login-card" ref={cardRef}>
                     {!showSuccess ? (
@@ -234,8 +260,8 @@ export default function ShopkeeperAuthPage() {
                                         </div>
                                         {errors.phone && <span className="error-message show">{errors.phone}</span>}
                                     </div>
-                                    <button type="submit" className={`neu-button ${loading ? 'loading' : ''}`} disabled={loading}>
-                                        <span className="btn-text">Send OTP</span>
+                                    <button type="submit" className={`neu-button ${loading ? 'loading' : ''}`} disabled={loading || !isRecaptchaReady}>
+                                        <span className="btn-text">{isRecaptchaReady ? 'Send OTP' : 'Initializing...'}</span>
                                         <div className="btn-loader"><div className="neu-spinner"></div></div>
                                     </button>
                                 </form>
