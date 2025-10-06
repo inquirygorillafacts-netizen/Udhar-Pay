@@ -265,18 +265,6 @@ export default function ShopkeeperWalletPage() {
         <>
             <main className="dashboard-main-content" style={{padding: '20px'}}>
                 <div style={{ maxWidth: '600px', margin: 'auto' }}>
-                    <div className="login-card" style={{ marginBottom: '30px', background: 'linear-gradient(145deg, #f0f5fd, #d8dde4)', boxShadow: '15px 15px 40px #b8bdc5, -15px -15px 40px #ffffff' }}>
-                         {loading ? (
-                             <div style={{height: '110px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}><div className="neu-spinner"></div></div>
-                        ) : (
-                            <div style={{textAlign: 'center'}}>
-                                <p style={{fontSize: '1rem', color: '#6c7293', margin: '0 0 5px 0', fontWeight: 500}}>आपका कुल बाज़ार उधार</p>
-                                <p style={{fontSize: '3.5rem', fontWeight: 'bold', margin: '0', color: '#3d4468', lineHeight: 1.2}}>
-                                    <span style={{fontSize: '2.5rem', verticalAlign: 'middle'}}>₹</span>{outstandingCredit.toLocaleString('en-IN')}
-                                </p>
-                            </div>
-                        )}
-                    </div>
                     
                     <div className="login-card" style={{marginBottom: '30px'}}>
                          <h3 className="setting-title" style={{textAlign: 'center', border: 'none', padding: 0, margin: '0 0 20px 0'}}>सेटिंग्स और सेवाएँ</h3>
