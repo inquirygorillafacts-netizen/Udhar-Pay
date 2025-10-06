@@ -7,7 +7,6 @@ import { Phone, Key, Check, User, ArrowLeft, ChevronDown } from 'lucide-react';
 import { useFirebase } from '@/firebase/client-provider';
 import { 
     signInWithPhoneNumber,
-    RecaptchaVerifier,
     type ConfirmationResult
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
@@ -22,7 +21,6 @@ const countryCodes = [
 
 declare global {
     interface Window {
-        recaptchaVerifier?: RecaptchaVerifier;
         confirmationResult?: ConfirmationResult;
     }
 }
@@ -38,7 +36,7 @@ export default function CustomerAuthPage() {
     const [loading, setLoading] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
     
-    const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
+    const [confirmationResultState, setConfirmationResultState] = useState<ConfirmationResult | null>(null);
 
     const [selectedCountry, setSelectedCountry] = useState(countryCodes[0]);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -92,6 +90,7 @@ export default function CustomerAuthPage() {
         } catch (dbError: any) {
             console.error("Database operation failed:", dbError);
             setErrors({ form: "Could not sync your profile. Check your connection." });
+            throw dbError; // Rethrow to be caught by handleVerifyOtp
         }
     };
 
@@ -121,16 +120,12 @@ export default function CustomerAuthPage() {
         }
 
         try {
-            const recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-              'size': 'invisible',
-              'callback': (response: any) => {
-                // reCAPTCHA solved, allow signInWithPhoneNumber.
-              }
-            });
+            // This is for development environments to bypass reCAPTCHA.
+            auth.settings.appVerificationDisabledForTesting = true;
             const fullPhoneNumber = `${selectedCountry.code}${phone}`;
-            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifier);
+            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, undefined);
             window.confirmationResult = confirmation;
-            setConfirmationResult(confirmation);
+            setConfirmationResultState(confirmation);
         } catch (error: any) {
             console.error("OTP send error:", error);
             let errorMessage = "Failed to send OTP. Please try again.";
@@ -138,8 +133,8 @@ export default function CustomerAuthPage() {
                 errorMessage = "Too many requests. Please try again later.";
             } else if (error.code === 'auth/invalid-phone-number') {
                 errorMessage = "The phone number is not valid.";
-            } else if (error.code === 'auth/captcha-check-failed') {
-                errorMessage = "reCAPTCHA check failed. Please try again."
+            } else if (error.code === 'auth/captcha-check-failed' || error.code === 'auth/invalid-app-credential') {
+                errorMessage = "Security check failed. Please ensure your domain is authorized in Firebase."
             }
             setErrors({ form: errorMessage });
         } finally {
@@ -159,7 +154,7 @@ export default function CustomerAuthPage() {
             setErrors({ form: "Something went wrong. Please try sending OTP again." });
             return;
         }
-
+        
         setLoading(true);
         try {
             const result = await window.confirmationResult.confirm(otp);
@@ -190,10 +185,10 @@ export default function CustomerAuthPage() {
                                     <div className="icon-inner"><User/></div>
                                 </div>
                                 <h2>Customer Portal</h2>
-                                <p>{confirmationResult ? 'Enter OTP to continue' : 'Sign in with your mobile number'}</p>
+                                <p>{confirmationResultState ? 'Enter OTP to continue' : 'Sign in with your mobile number'}</p>
                             </div>
                             
-                            {confirmationResult ? (
+                            {confirmationResultState ? (
                                 // --- OTP Verification Form ---
                                 <form className="login-form" noValidate onSubmit={handleVerifyOtp}>
                                     {errors.form && <div className="error-message show" style={{textAlign: 'center', marginBottom: '1rem', marginLeft: 0}}>{errors.form}</div>}
@@ -209,7 +204,7 @@ export default function CustomerAuthPage() {
                                         <span className="btn-text">Verify & Continue</span>
                                         <div className="btn-loader"><div className="neu-spinner"></div></div>
                                     </button>
-                                     <button type="button" className="neu-button" style={{margin: 0, background: 'transparent', boxShadow: 'none'}} onClick={() => { setConfirmationResult(null); setOtp(''); setErrors({}); }}>
+                                     <button type="button" className="neu-button" style={{margin: 0, background: 'transparent', boxShadow: 'none'}} onClick={() => { setConfirmationResultState(null); setOtp(''); setErrors({}); }}>
                                         <span style={{display: 'flex', alignItems: 'center', gap: '8px'}}><ArrowLeft size={16}/> Back</span>
                                     </button>
                                 </form>
