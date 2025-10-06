@@ -33,12 +33,13 @@ export default function CustomerAuthPage() {
     
     const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
 
-    const cardRef = useRef<HTMLDivElement>(null);
+    const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
+    const recaptchaContainerRef = useRef<HTMLDivElement>(null);
+
 
     const [selectedCountry, setSelectedCountry] = useState(countryCodes[0]);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
-    
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -51,6 +52,21 @@ export default function CustomerAuthPage() {
             document.removeEventListener("mousedown", handleClickOutside);
         };
     }, []);
+
+    useEffect(() => {
+        if (!auth || !recaptchaContainerRef.current) return;
+        if (recaptchaVerifierRef.current) return;
+
+        try {
+            const verifier = new RecaptchaVerifier(auth, recaptchaContainerRef.current, {
+                'size': 'invisible',
+            });
+            recaptchaVerifierRef.current = verifier;
+        } catch (error) {
+            console.error("Failed to initialize RecaptchaVerifier:", error);
+            setErrors({form: "Failed to load verification service. Please refresh."});
+        }
+    }, [auth]);
 
 
     const handleFormTransition = () => {
@@ -71,7 +87,7 @@ export default function CustomerAuthPage() {
         if (isNewUser) {
             const customerCode = await generateUniqueCustomerCode(firestore);
             await setDoc(doc(firestore, "customers", user.uid), {
-                email: user.email || '', // Phone auth users may not have email
+                email: user.email || '',
                 phoneNumber: user.phoneNumber,
                 displayName: `Customer ${customerCode}`,
                 photoURL: user.photoURL || '',
@@ -102,22 +118,15 @@ export default function CustomerAuthPage() {
         setLoading(true);
         setErrors({});
         
-        if (!auth) {
+        if (!auth || !recaptchaVerifierRef.current) {
             setErrors({ form: "Firebase not initialized. Please refresh." });
             setLoading(false);
             return;
         }
 
         try {
-            const recaptchaVerifier = new RecaptchaVerifier(auth, 'send-code-btn', {
-                'size': 'invisible',
-                'callback': () => {
-                    // reCAPTCHA solved
-                }
-            });
-
             const fullPhoneNumber = `${selectedCountry.code}${phone}`;
-            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifier);
+            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifierRef.current);
             setConfirmationResult(confirmation);
         } catch (error: any) {
             console.error("OTP send error:", error);
@@ -174,8 +183,8 @@ export default function CustomerAuthPage() {
     return (
         <div className="login-container-wrapper">
             <div className="login-container">
-                <div id="recaptcha-container" style={{display: 'none'}}></div>
-                <div className="login-card" ref={cardRef}>
+                 <div ref={recaptchaContainerRef}></div>
+                <div className="login-card">
                     {!showSuccess ? (
                         <>
                             <div className="login-header">
