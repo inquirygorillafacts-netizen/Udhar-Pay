@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { CreditCard, Phone, CheckCircle, IndianRupee, LandPlot } from 'lucide-react';
+import { CreditCard, Phone, CheckCircle, IndianRupee, LandPlot, ArrowRight } from 'lucide-react';
 
 const creditCardProducts = [
     {
@@ -58,8 +58,8 @@ export default function CustomerCreditCardsPage() {
                             <h2 style={{color: 'white', fontSize: '1.5rem', fontWeight: 'bold', margin: '0'}}>Get Easy & Fast Loans</h2>
                         </div>
                         <div className="w-full md:w-auto">
-                         <Link href="/loan/apply" className="neu-button" style={{margin: 0, background: 'transparent', color: 'white', flexShrink: 0, width: '100%', border: '2px solid white', boxShadow: 'none'}}>
-                           Apply Now
+                         <Link href="/loan/apply" className="neu-button" style={{margin: 0, background: 'transparent', color: 'white', flexShrink: 0, border: '2px solid white', boxShadow: 'none', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                           Apply Now <ArrowRight size={20} />
                         </Link>
                         </div>
                     </div>
