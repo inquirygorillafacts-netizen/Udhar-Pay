@@ -83,10 +83,11 @@ export default function CustomerLedgerPage() {
 
   return (
     <main className="dashboard-main-content" style={{padding: '20px'}}>
-      <div className="login-card" style={{maxWidth: '700px', margin: 'auto'}}>
-        <h1 style={{ color: '#3d4468', fontSize: '2rem', fontWeight: '600', textAlign: 'center', marginBottom: '30px' }}>
+      <div className="login-card" style={{maxWidth: '700px', margin: 'auto', marginBottom: '30px'}}>
+        <h1 style={{ color: '#3d4468', fontSize: '2rem', fontWeight: '600', textAlign: 'center' }}>
             All Transactions
         </h1>
+      </div>
 
         {loading ? (
              <div className="loading-container" style={{minHeight: '200px'}}>
@@ -94,7 +95,7 @@ export default function CustomerLedgerPage() {
                 <p style={{marginTop: '20px', color: '#6c7293'}}>Loading your ledger...</p>
             </div>
         ) : transactions.length > 0 ? (
-          <div style={{display: 'flex', flexDirection: 'column', gap: '15px'}}>
+          <div style={{display: 'flex', flexDirection: 'column', gap: '15px', maxWidth: '700px', margin: 'auto'}}>
               {transactions.map(tx => (
                 <Link key={tx.id} href={`/customer/payment/${tx.shopkeeperId}`} style={{ textDecoration: 'none' }}>
                   <div className="neu-input" style={{display: 'flex', alignItems: 'center', padding: '15px 20px', boxShadow: '5px 5px 10px #d1d9e6, -5px -5px 10px #ffffff', cursor: 'pointer' }}>
@@ -129,11 +130,10 @@ export default function CustomerLedgerPage() {
               ))}
           </div>
         ) : (
-            <div style={{padding: '40px 20px', textAlign: 'center'}}>
+            <div className="login-card" style={{maxWidth: '700px', margin: 'auto', padding: '40px 20px', textAlign: 'center'}}>
                 <p style={{color: '#9499b7'}}>You have no transactions yet. Start by connecting with a shopkeeper!</p>
             </div>
         )}
-      </div>
     </main>
   );
 }
