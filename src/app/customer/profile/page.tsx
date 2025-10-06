@@ -15,7 +15,7 @@ interface UserProfile {
   displayName: string;
   email: string;
   photoURL?: string | null;
-  mobileNumber?: string;
+  phoneNumber?: string;
   pinEnabled?: boolean;
   pin?: string;
 }
@@ -45,7 +45,6 @@ export default function CustomerProfilePage() {
 
   // Profile fields
   const [name, setName] = useState('');
-  const [mobile, setMobile] = useState('');
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   
@@ -76,7 +75,6 @@ export default function CustomerProfilePage() {
           const profile = { uid: currentUser.uid, ...docSnap.data() } as UserProfile;
           setUserProfile(profile);
           setName(profile.displayName || '');
-          setMobile(profile.mobileNumber || '');
           setPhotoPreview(profile.photoURL || null);
           setIsPinEnabled(profile.pinEnabled || false);
         }
@@ -153,9 +151,9 @@ export default function CustomerProfilePage() {
         
         const userRef = doc(firestore, 'customers', user.uid);
         await updateProfile(user, { displayName: name, photoURL: photoURL });
-        await updateDoc(userRef, { displayName: name, mobileNumber: mobile, photoURL: photoURL });
+        await updateDoc(userRef, { displayName: name, photoURL: photoURL });
         
-        setUserProfile(prev => prev ? { ...prev, displayName: name, mobileNumber: mobile, photoURL: photoURL } : null);
+        setUserProfile(prev => prev ? { ...prev, displayName: name, photoURL: photoURL } : null);
         
         setNotification({ type: 'success', message: 'Profile updated successfully!' });
 
@@ -293,7 +291,7 @@ export default function CustomerProfilePage() {
         />
     )}
     <div className="login-container" style={{paddingTop: '40px', paddingBottom: '80px', minHeight: 'auto'}}>
-      <div className="login-card" style={{ maxWidth: '500px', position: 'relative' }}>
+      <div style={{width: '100%', maxWidth: '500px', position: 'relative'}}>
           <button className="neu-button" onClick={() => setShowSettingsModal(true)} style={{ position: 'absolute', top: '25px', right: '25px', width: '45px', height: '45px', padding: 0, margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Settings size={20} />
           </button>
@@ -315,7 +313,7 @@ export default function CustomerProfilePage() {
 
         <form className="login-form" noValidate onSubmit={handleSaveChanges}>
           <div className="form-group"><div className="neu-input"><input type="text" id="name" value={name || ''} onChange={(e) => setName(e.target.value)} placeholder=" " required /><label htmlFor="name">Full Name</label><div className="input-icon"><User /></div></div></div>
-          <div className="form-group"><div className="neu-input"><input type="tel" id="mobile" value={mobile || ''} onChange={(e) => setMobile(e.target.value)} placeholder=" " /><label htmlFor="mobile">Mobile Number</label><div className="input-icon"><Phone /></div></div></div>
+          <div className="form-group"><div className="neu-input"><input type="tel" id="mobile" value={userProfile?.phoneNumber || ''} placeholder=" " disabled /><label htmlFor="mobile">Mobile Number</label><div className="input-icon"><Phone /></div></div></div>
           <button type="submit" className={`neu-button ${isSaving ? 'loading' : ''}`} disabled={isSaving}>
             <span className="btn-text">Save Profile Changes</span>
             <div className="btn-loader"><div className="neu-spinner"></div></div>
