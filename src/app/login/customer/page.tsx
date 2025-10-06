@@ -31,53 +31,45 @@ export default function CustomerAuthPage() {
     const [loading, setLoading] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
     
+    // We'll use state to hold the confirmation result, as it's more React-idiomatic
     const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
     
-    const cardRef = useRef<HTMLDivElement>(null);
-    const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
     const [isRecaptchaReady, setIsRecaptchaReady] = useState(false);
-
+    const cardRef = useRef<HTMLDivElement>(null);
 
     const [selectedCountry, setSelectedCountry] = useState(countryCodes[0]);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     
-     useEffect(() => {
-        if (!auth) return;
+    // Set up reCAPTCHA verifier only once on component mount
+    useEffect(() => {
+        if (!auth || (window as any).recaptchaVerifier) return;
+        
+        // Ensure the container exists
+        const recaptchaContainer = document.getElementById('recaptcha-container');
+        if (!recaptchaContainer) return;
 
-        // Set up reCAPTCHA verifier only once on component mount
-        try {
-            // Use testing mode for development to avoid real reCAPTCHA challenges
-            auth.settings.appVerificationDisabledForTesting = process.env.NODE_ENV === 'development';
-
-            const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-                'size': 'invisible',
-                'callback': () => {
-                    // reCAPTCHA solved, allow signInWithPhoneNumber.
-                    // This callback is often used for visible reCAPTCHA, but good to have.
-                },
-                'expired-callback': () => {
-                    // Response expired. Ask user to solve reCAPTCHA again.
-                    setErrors({ form: "reCAPTCHA expired. Please try sending OTP again." });
-                    recaptchaVerifierRef.current?.render().then((widgetId) => {
-                       if (typeof window !== 'undefined') (window as any).grecaptcha.reset(widgetId);
-                    });
-                }
-            });
-
-            // Render the reCAPTCHA and store the verifier instance
-            verifier.render().then(() => {
-                 recaptchaVerifierRef.current = verifier;
-                 setIsRecaptchaReady(true);
-            }).catch(err => {
-                console.error("reCAPTCHA render error:", err);
-                setErrors({form: "Could not initialize reCAPTCHA. Please refresh the page."})
-            });
-
-        } catch (error) {
-            console.error("Error creating RecaptchaVerifier:", error);
-            setErrors({form: "Failed to set up phone verification. Please try again."})
-        }
+        const recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+            'size': 'invisible',
+            'callback': () => {
+                // reCAPTCHA solved.
+                setIsRecaptchaReady(true);
+            },
+            'expired-callback': () => {
+                setErrors({ form: "reCAPTCHA expired. Please try sending OTP again." });
+                setIsRecaptchaReady(false);
+            }
+        });
+        
+        (window as any).recaptchaVerifier = recaptchaVerifier;
+        
+        recaptchaVerifier.render().then(() => {
+            setIsRecaptchaReady(true);
+        }).catch((error) => {
+            console.error("reCAPTCHA render error:", error);
+            setErrors({form: "Could not initialize reCAPTCHA. Please refresh."});
+            setIsRecaptchaReady(false);
+        })
 
     }, [auth]);
 
@@ -144,7 +136,8 @@ export default function CustomerAuthPage() {
         setLoading(true);
         setErrors({});
         
-        if (!recaptchaVerifierRef.current) {
+        const appVerifier = (window as any).recaptchaVerifier;
+        if (!appVerifier) {
             setErrors({ form: "reCAPTCHA verifier not initialized. Please refresh." });
             setLoading(false);
             return;
@@ -152,7 +145,7 @@ export default function CustomerAuthPage() {
 
         try {
             const fullPhoneNumber = `${selectedCountry.code}${phone}`;
-            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifierRef.current);
+            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, appVerifier);
             setConfirmationResult(confirmation);
         } catch (error: any)
  {

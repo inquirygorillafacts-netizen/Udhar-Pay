@@ -34,7 +34,6 @@ export default function ShopkeeperAuthPage() {
     const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
 
     const cardRef = useRef<HTMLDivElement>(null);
-    const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
     const [isRecaptchaReady, setIsRecaptchaReady] = useState(false);
 
 
@@ -43,38 +42,32 @@ export default function ShopkeeperAuthPage() {
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        if (!auth) return;
+        if (!auth || (window as any).recaptchaVerifier) return;
 
-        try {
-            // Use testing mode for development to avoid real reCAPTCHA challenges
-            auth.settings.appVerificationDisabledForTesting = process.env.NODE_ENV === 'development';
-            
-            const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-                'size': 'invisible',
-                 'callback': () => {
-                    // reCAPTCHA solved, allow signInWithPhoneNumber.
-                },
-                'expired-callback': () => {
-                    setErrors({ form: "reCAPTCHA expired. Please try sending OTP again." });
-                    recaptchaVerifierRef.current?.render().then((widgetId) => {
-                       if (typeof window !== 'undefined') (window as any).grecaptcha.reset(widgetId);
-                    });
-                }
-            });
+        const recaptchaContainer = document.getElementById('recaptcha-container');
+        if (!recaptchaContainer) return;
 
-            verifier.render().then(() => {
-                 recaptchaVerifierRef.current = verifier;
-                 setIsRecaptchaReady(true);
-            }).catch(err => {
-                console.error("reCAPTCHA render error:", err);
-                setErrors({form: "Could not initialize reCAPTCHA. Please refresh the page."})
-            });
-
-        } catch (error) {
-            console.error("Error creating RecaptchaVerifier:", error);
-            setErrors({form: "Failed to set up phone verification. Please try again."})
-        }
+        const recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+            'size': 'invisible',
+            'callback': () => {
+                setIsRecaptchaReady(true);
+            },
+            'expired-callback': () => {
+                setErrors({ form: "reCAPTCHA expired. Please try sending OTP again." });
+                setIsRecaptchaReady(false);
+            }
+        });
         
+        (window as any).recaptchaVerifier = recaptchaVerifier;
+        
+        recaptchaVerifier.render().then(() => {
+            setIsRecaptchaReady(true);
+        }).catch((error) => {
+            console.error("reCAPTCHA render error:", error);
+            setErrors({form: "Could not initialize reCAPTCHA. Please refresh."});
+            setIsRecaptchaReady(false);
+        });
+
     }, [auth]);
 
     useEffect(() => {
@@ -138,7 +131,8 @@ export default function ShopkeeperAuthPage() {
         setLoading(true);
         setErrors({});
 
-        if (!recaptchaVerifierRef.current) {
+        const appVerifier = (window as any).recaptchaVerifier;
+        if (!appVerifier) {
             setErrors({ form: "reCAPTCHA verifier not initialized. Please refresh." });
             setLoading(false);
             return;
@@ -146,7 +140,7 @@ export default function ShopkeeperAuthPage() {
 
         try {
             const fullPhoneNumber = `${selectedCountry.code}${phone}`;
-            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifierRef.current);
+            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, appVerifier);
             setConfirmationResult(confirmation);
         } catch (error: any) {
             console.error("OTP send error:", error);
