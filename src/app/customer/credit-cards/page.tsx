@@ -1,7 +1,8 @@
 'use client';
 
 import Image from 'next/image';
-import { CreditCard, Phone, CheckCircle, IndianRupee } from 'lucide-react';
+import Link from 'next/link';
+import { CreditCard, Phone, CheckCircle, IndianRupee, LandPlot } from 'lucide-react';
 
 const creditCardProducts = [
     {
@@ -59,6 +60,24 @@ export default function CustomerCreditCardsPage() {
                     <p style={{ color: '#6c7293', marginTop: '1rem' }}>
                         Browse exclusive credit card offers and apply online.
                     </p>
+                </div>
+                
+                 {/* Loan Banner */}
+                <div className="login-card" style={{ margin: '0 0 40px 0', padding: '30px', background: 'linear-gradient(145deg, #007bff, #0056b3)', color: 'white', boxShadow: '10px 10px 30px #bec3cf, -10px -10px 30px #ffffff' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '20px' }}>
+                        <div style={{flexShrink: 0}}>
+                            <div className="neu-icon" style={{background: 'rgba(255,255,255,0.2)', boxShadow: 'none', margin: 0}}>
+                                <LandPlot size={32} />
+                            </div>
+                        </div>
+                        <div style={{flexGrow: 1}}>
+                            <h2 style={{color: 'white', fontSize: '1.5rem', fontWeight: 'bold', margin: '0 0 5px 0'}}>Get Easy & Fast Loans</h2>
+                            <p style={{color: 'rgba(255,255,255,0.8)', margin: 0, fontSize: '14px'}}>Apply for personal or business loans with minimal documentation.</p>
+                        </div>
+                         <Link href="/loan/apply" className="neu-button" style={{margin: 0, background: 'white', color: '#007bff', flexShrink: 0}}>
+                           Apply Now
+                        </Link>
+                    </div>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '30px' }}>
