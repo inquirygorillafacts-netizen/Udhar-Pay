@@ -115,7 +115,6 @@ export default function ShopkeeperAnalysisPage() {
             <div className="login-header" style={{marginBottom: '40px'}}>
                 <div className="neu-icon"><div className="icon-inner"><PieChart /></div></div>
                 <h1 style={{ color: '#3d4468', fontSize: '2rem', fontWeight: '600' }}>Udhaar Analysis</h1>
-                <p style={{color: '#9499b7'}}>Your business credit health at a glance.</p>
             </div>
         
             {loadingAnalytics ? (
