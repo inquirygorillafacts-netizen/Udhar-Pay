@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator, type Auth } from 'firebase/auth';
-import { getFirestore, connectFirestoreEmulator, type Firestore } from 'firebase/firestore';
+import { getFirestore, connectFirestoreEmulator, type Firestore, enableIndexedDbPersistence } from 'firebase/firestore';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -25,29 +25,55 @@ type FirebaseContextValue = {
 const FirebaseContext = createContext<FirebaseContextValue | null>(null);
 
 export function FirebaseClientProvider({ children }: { children: React.ReactNode }) {
-  const getClientApp = (): FirebaseApp => {
-    if (getApps().length) {
-      return getApps()[0];
+  const [contextValue, setContextValue] = useState<FirebaseContextValue | null>(null);
+
+  useEffect(() => {
+    const getClientApp = (): FirebaseApp => {
+      if (getApps().length) {
+        return getApps()[0];
+      }
+      return initializeApp(firebaseConfig);
+    };
+
+    const app = getClientApp();
+    const auth = getAuth(app);
+    const firestore = getFirestore(app);
+
+    // Enable offline persistence
+    try {
+        enableIndexedDbPersistence(firestore).catch((err) => {
+            if (err.code === 'failed-precondition') {
+                console.warn('Multiple tabs open, persistence can only be enabled in one. Offline support may not work correctly.');
+            } else if (err.code === 'unimplemented') {
+                console.warn('The current browser does not support all of the features required to enable persistence.');
+            }
+        });
+    } catch (error) {
+        console.error("Error enabling Firestore persistence:", error);
     }
-    return initializeApp(firebaseConfig);
-  };
+    
 
-  const app = getClientApp();
-  const auth = getAuth(app);
-  const firestore = getFirestore(app);
+    // If you want to use the local emulators, uncomment the lines below
+    // if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+    //   if (!auth.emulatorConfig) {
+    //     connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
+    //   }
+    //   if (!(firestore as any)._settings.host) {
+    //     connectFirestoreEmulator(firestore, 'localhost', 8080);
+    //   }
+    // }
+    
+    setContextValue({ app, auth, firestore });
 
-  // If you want to use the local emulators, uncomment the lines below
-  // if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
-  //   if (!auth.emulatorConfig) {
-  //     connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
-  //   }
-  //   if (!(firestore as any)._settings.host) {
-  //     connectFirestoreEmulator(firestore, 'localhost', 8080);
-  //   }
-  // }
+  }, []);
+
+  if (!contextValue) {
+      // You can return a loader here if you want
+      return null;
+  }
 
   return (
-    <FirebaseContext.Provider value={{ app, auth, firestore }}>
+    <FirebaseContext.Provider value={contextValue}>
       {children}
     </FirebaseContext.Provider>
   );
