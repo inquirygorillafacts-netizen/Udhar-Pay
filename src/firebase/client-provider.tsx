@@ -37,14 +37,14 @@ export function FirebaseClientProvider({ children }: { children: React.ReactNode
   const firestore = getFirestore(app);
 
   // If you want to use the local emulators, uncomment the lines below
-  // if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
-  //   if (!auth.emulatorConfig) {
-  //     connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
-  //   }
-  //   if (!(firestore as any)._settings.host) {
-  //     connectFirestoreEmulator(firestore, 'localhost', 8080);
-  //   }
-  // }
+  if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
+    if (!auth.emulatorConfig) {
+      connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
+    }
+    if (!(firestore as any)._settings.host) {
+      connectFirestoreEmulator(firestore, 'localhost', 8080);
+    }
+  }
 
   return (
     <FirebaseContext.Provider value={{ app, auth, firestore }}>
