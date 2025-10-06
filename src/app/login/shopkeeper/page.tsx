@@ -61,11 +61,10 @@ export default function ShopkeeperAuthPage() {
         if (!auth) return;
 
         try {
-            if (!window.recaptchaVerifier) {
-                 window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-                    'size': 'invisible'
-                 });
-            }
+            const recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+                'size': 'invisible'
+            });
+            window.recaptchaVerifier = recaptchaVerifier;
         } catch (error) {
             console.error("Failed to initialize RecaptchaVerifier:", error);
             setErrors({form: "Failed to load verification service. Please refresh."});
@@ -129,6 +128,7 @@ export default function ShopkeeperAuthPage() {
 
         try {
             const fullPhoneNumber = `${selectedCountry.code}${phone}`;
+            auth.settings.appVerificationDisabledForTesting = true;
             const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, window.recaptchaVerifier);
             window.confirmationResult = confirmation;
             setConfirmationResultState(confirmation);
@@ -139,8 +139,8 @@ export default function ShopkeeperAuthPage() {
                 errorMessage = "Too many requests. Please try again later.";
             } else if (error.code === 'auth/invalid-phone-number') {
                 errorMessage = "The phone number is not valid.";
-            } else if (error.code === 'auth/captcha-check-failed') {
-                 errorMessage = "Verification failed. Please check your connection or browser settings.";
+            } else if (error.code === 'auth/captcha-check-failed' || error.code === 'auth/invalid-app-credential') {
+                 errorMessage = "Verification failed. Ensure this domain is authorized in Firebase.";
             }
             setErrors({ form: errorMessage });
         } finally {
