@@ -241,17 +241,6 @@ export default function VoiceAssistantPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isAssistantOn, startListening]);
     
-    const getStatusText = () => {
-        if (!isAssistantOn) return "असिस्टेंट बंद है";
-        switch (status) {
-            case 'listening': return "मैं सुन रहा हूँ...";
-            case 'thinking': return "सोच रहा हूँ...";
-            case 'speaking': return "बोल रहा हूँ...";
-            case 'idle': return "चालू करने के लिए तैयार";
-            default: return "असिस्टेंट बंद है";
-        }
-    }
-
 
     return (
       <>
@@ -270,7 +259,7 @@ export default function VoiceAssistantPage() {
                 </button>
             </div>
 
-            <header className="login-header" style={{flexShrink: 0, padding: '20px 0'}}>
+            <header className="login-header" style={{flexShrink: 0, paddingTop: '20px', paddingBottom: '0'}}>
                  <div className="neu-icon" style={{width: '300px', height: '300px', position: 'relative', overflow: 'hidden', border: 'none', boxShadow: 'none', background: 'transparent'}}>
                      <video 
                         src="/1.mp4" 
@@ -285,13 +274,13 @@ export default function VoiceAssistantPage() {
                         }}
                       />
                 </div>
-                <h1 style={{color: 'white'}}>Voice Assistant</h1>
-                <p style={{color: '#a0a0a0'}}>{getStatusText()}</p>
             </header>
             
+            <div style={{height: '2px', background: 'rgba(255,255,255,0.1)', margin: '20px 0', flexShrink: 0}}></div>
+
             <div style={{ flex: 1, overflowY: 'auto', padding: '0 10px 20px', width: '100%', maxWidth: '700px', margin: '0 auto' }}>
                 <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
-                    {messages.map((msg, index) => (
+                      {messages.map((msg, index) => (
                       <div key={index} style={{display: 'flex', justifyContent: msg.sender === 'user' ? 'flex-end' : 'flex-start' }}>
                         <div style={{
                           padding: '12px 18px',
