@@ -39,6 +39,11 @@ export default function ShopkeeperLayout({
   const isAiAssistantActive = pathname.startsWith('/shopkeeper/ai-assistant');
   const isCustomersActive = pathname.startsWith('/shopkeeper/customers');
 
+  // Do not render the main layout with nav bar for the full-screen AI assistant
+  if (isAiAssistantActive) {
+      return <>{children}</>;
+  }
+
   return (
     <div style={{ paddingBottom: '80px' }}>
       <main>{children}</main>
