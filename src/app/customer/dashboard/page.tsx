@@ -50,7 +50,7 @@ interface Transaction {
     shopkeeperId: string;
 }
 
-const COMMISSION_RATE = 0.02; // 2%
+const COMMISSION_RATE = 0.025; // 2.5%
 
 
 export default function CustomerDashboardPage() {
@@ -217,7 +217,7 @@ export default function CustomerDashboardPage() {
                batch.set(commissionRef, {
                   amount: profitAmount,
                   type: 'commission',
-                  notes: `2% commission on ₹${request.amount} credit`,
+                  notes: `2.5% commission on ₹${request.amount} credit`,
                   shopkeeperId: request.shopkeeperId,
                   customerId: auth.currentUser.uid,
                   timestamp: serverTimestamp(),
@@ -397,36 +397,31 @@ export default function CustomerDashboardPage() {
                 </div>
             </div>
 
-          <div className="login-card" style={{marginBottom: '40px', maxWidth: '600px', margin: 'auto' }}>
-               <div>
-                    <p style={{color: '#6c7293', marginBottom: '20px', textAlign: 'center'}}>
-                        Connect to a Shopkeeper to manage credit.
-                    </p>
-                    <div className="form-group" style={{marginBottom: 0}}>
-                        <div className="neu-input" style={{display: 'flex', alignItems: 'center'}}>
-                            <input
-                                type="text"
-                                placeholder="Enter Shopkeeper's Code"
-                                value={shopkeeperCode}
-                                onChange={(e) => setShopkeeperCode(e.target.value)}
-                                style={{paddingLeft: '55px', textTransform: 'uppercase'}}
-                            />
-                            <div className="input-icon"><Paperclip /></div>
-                             <button 
-                                className={`neu-button ${isConnecting ? 'loading' : ''}`} 
-                                style={{width: 'auto', margin: '8px', marginBottom: '8px', padding: '10px 20px', flexShrink: 0}}
-                                onClick={handleConnect}
-                                disabled={isConnecting}
-                              >
-                                <span className="btn-text">Connect</span>
-                                <div className="btn-loader">
-                                  <div className="neu-spinner"></div>
-                                </div>
-                            </button>
-                        </div>
+            <div style={{marginBottom: '40px', maxWidth: '600px', margin: 'auto' }}>
+                <div className="form-group" style={{marginBottom: 0}}>
+                    <div className="neu-input" style={{display: 'flex', alignItems: 'center'}}>
+                        <input
+                            type="text"
+                            placeholder="Enter Shopkeeper's Code"
+                            value={shopkeeperCode}
+                            onChange={(e) => setShopkeeperCode(e.target.value)}
+                            style={{paddingLeft: '55px', textTransform: 'uppercase'}}
+                        />
+                        <div className="input-icon"><Paperclip /></div>
+                            <button 
+                            className={`neu-button ${isConnecting ? 'loading' : ''}`} 
+                            style={{width: 'auto', margin: '8px', marginBottom: '8px', padding: '10px 20px', flexShrink: 0}}
+                            onClick={handleConnect}
+                            disabled={isConnecting}
+                            >
+                            <span className="btn-text">Connect</span>
+                            <div className="btn-loader">
+                                <div className="neu-spinner"></div>
+                            </div>
+                        </button>
                     </div>
                 </div>
-          </div>
+            </div>
 
           {(loadingShopkeepers) ? (
             <div className="neu-spinner" style={{margin: '40px auto'}}></div>
