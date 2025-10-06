@@ -6,6 +6,7 @@ import './auth.css';
 import { User, Store, Lock, Shield, X } from 'lucide-react';
 import { useFirebase } from '@/firebase/client-provider';
 import { doc, getDoc } from 'firebase/firestore';
+import Link from 'next/link';
 
 export default function AuthRoleSelectionPage() {
     const router = useRouter();
@@ -90,6 +91,7 @@ export default function AuthRoleSelectionPage() {
 
     return (
         <main className="role-selection-container">
+          <div style={{width: '100%', maxWidth: '450px'}}>
             <div className="login-card role-card">
                 <div className="login-header">
                     <h2 style={{ fontSize: '1.75rem' }}>Choose Your Role</h2>
@@ -114,6 +116,15 @@ export default function AuthRoleSelectionPage() {
                     )}
                 </div>
             </div>
+             <footer style={{ marginTop: '30px', textAlign: 'center', padding: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', flexWrap: 'wrap' }}>
+                    <Link href="/policy/terms" className="forgot-link">Terms & Conditions</Link>
+                    <Link href="/policy/privacy" className="forgot-link">Privacy Policy</Link>
+                    <Link href="/policy/refund" className="forgot-link">Refund Policy</Link>
+                    <Link href="/policy/shipping" className="forgot-link">Shipping Policy</Link>
+                </div>
+             </footer>
+          </div>
             
             {!isOwnerUnlocked && isLockVisible && (
                 <button className="neu-button lock-btn" onClick={openModal} aria-label="Owner Access">
