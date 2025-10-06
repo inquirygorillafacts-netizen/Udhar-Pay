@@ -373,20 +373,22 @@ export default function CustomerDashboardPage() {
             </div>
         )}
 
-        <div style={{ position: 'sticky', top: 0, zIndex: 10, background: '#e0e5ec', padding: '10px 0' }}>
-            <header className="dashboard-header" style={{maxWidth: '800px', margin: 'auto'}}>
+        <div style={{ position: 'sticky', top: 0, zIndex: 10, background: 'transparent', padding: '20px 20px 10px 20px' }}>
+            <div style={{maxWidth: '600px', margin: 'auto', display: 'flex', alignItems: 'center', gap: '16px'}}>
                <button onClick={handleRoleSwitchClick} className="neu-button" style={{width: '45px', height: '45px', margin: 0, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0}}>
                   <Repeat size={20}/>
                </button>
-              <h1 style={{color: '#3d4468', fontSize: '1.2rem', fontWeight: '600', textAlign: 'center', flexGrow: 1}}>
-                {userProfile.displayName}
-              </h1>
-            </header>
+              <div className="login-card" style={{padding: '10px 20px', flexGrow: 1, margin: 0, textAlign: 'center'}}>
+                <h1 style={{color: '#3d4468', fontSize: '1.2rem', fontWeight: '600'}}>
+                    {userProfile.displayName}
+                </h1>
+              </div>
+            </div>
         </div>
         
         <main className="dashboard-main-content">
             
-            <div style={{display: 'flex', gap: '20px', maxWidth: '600px', margin: 'auto', marginBottom: '40px' }}>
+            <div style={{display: 'flex', gap: '20px', maxWidth: '600px', margin: '20px auto 40px auto' }}>
                 <div className="token-balance" style={{ flex: 1, flexDirection: 'column', padding: '15px', height: 'auto', gap: '2px' }}>
                     <span style={{fontSize: '12px', color: '#6c7293', fontWeight: 500}}>Your Code</span>
                     <span style={{fontSize: '1rem', fontWeight: 'bold', letterSpacing: '1px'}}>{userProfile?.customerCode || '...'}</span>
@@ -402,7 +404,7 @@ export default function CustomerDashboardPage() {
                     <div className="neu-input" style={{display: 'flex', alignItems: 'center'}}>
                         <input
                             type="text"
-                            placeholder="Enter Shopkeeper's Code"
+                            placeholder="दुकानदार का कोड यहाँ डालें"
                             value={shopkeeperCode}
                             onChange={(e) => setShopkeeperCode(e.target.value)}
                             style={{paddingLeft: '55px', textTransform: 'uppercase'}}
