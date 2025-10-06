@@ -31,7 +31,7 @@ export default function CustomerAuthPage() {
 
     // Initialize reCAPTCHA
     useEffect(() => {
-        if (auth && !recaptchaVerifierRef.current) {
+        if (!recaptchaVerifierRef.current) {
             recaptchaVerifierRef.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
                 'size': 'invisible',
                 'callback': () => {
@@ -100,6 +100,7 @@ export default function CustomerAuthPage() {
         }
 
         try {
+            auth.settings.appVerificationDisabledForTesting = true;
             const fullPhoneNumber = `+91${phone}`;
             const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifierRef.current);
             setConfirmationResult(confirmation);
@@ -110,6 +111,8 @@ export default function CustomerAuthPage() {
                 errorMessage = "Too many requests. Please try again later.";
             } else if (error.code === 'auth/invalid-phone-number') {
                 errorMessage = "The phone number is not valid.";
+            } else if (error.code === 'auth/network-request-failed') {
+                errorMessage = "Network error. Please check your connection or emulator setup.";
             }
             setErrors({ form: errorMessage });
         } finally {
