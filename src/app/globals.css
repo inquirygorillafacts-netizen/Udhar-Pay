@@ -614,19 +614,19 @@ body {
 }
 
 .admin-nav-item-primary {
-    width: 60px !important;
-    height: 60px !important;
-    min-width: 60px !important;
-    border-radius: 50%;
+    flex-grow: 1.5; /* Make it slightly wider */
+    transform: translateY(-5px); /* Slightly raise it */
     background: #e0e5ec;
+    border-radius: 20px;
+    padding-top: 12px;
+    padding-bottom: 12px;
     box-shadow: 8px 8px 20px #bec3cf, -8px -8px 20px #ffffff;
-    transform: translateY(-15px);
-    color: #3d4468;
-    padding: 0;
 }
 
 .admin-nav-item-primary.active {
     box-shadow: inset 4px 4px 10px #bec3cf, inset -4px -4px 10px #ffffff, 5px 5px 15px #bec3cf;
+}
+.admin-nav-item-primary.active svg {
     color: #00c896;
 }
 
