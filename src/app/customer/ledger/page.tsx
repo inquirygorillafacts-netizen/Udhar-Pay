@@ -89,9 +89,6 @@ export default function CustomerLedgerPage() {
             <h1 style={{ color: '#3d4468', fontSize: '2rem', fontWeight: '600' }}>
                 Master Ledger
             </h1>
-            <p style={{ color: '#6c7293', marginTop: '1rem' }}>
-                A complete history of all your transactions across all shops.
-            </p>
         </div>
 
         {loading ? (
