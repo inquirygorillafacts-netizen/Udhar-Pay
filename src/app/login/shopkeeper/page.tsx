@@ -6,7 +6,6 @@ import './shopkeeper.css';
 import { Store, Key, Check, User, ArrowLeft, Phone } from 'lucide-react';
 import { useFirebase } from '@/firebase/client-provider';
 import { 
-    RecaptchaVerifier,
     signInWithPhoneNumber,
     type ConfirmationResult
 } from 'firebase/auth';
@@ -25,22 +24,8 @@ export default function ShopkeeperAuthPage() {
     const [showSuccess, setShowSuccess] = useState(false);
     
     const [confirmationResult, setConfirmationResult] = useState<ConfirmationResult | null>(null);
-    const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
 
     const cardRef = useRef<HTMLDivElement>(null);
-    
-    // Initialize reCAPTCHA
-    useEffect(() => {
-        if (!recaptchaVerifierRef.current) {
-            recaptchaVerifierRef.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
-                'size': 'invisible',
-                'callback': () => {
-                    // reCAPTCHA solved
-                }
-            });
-        }
-    }, [auth]);
-
 
     const handleFormTransition = () => {
         localStorage.setItem('activeRole', 'shopkeeper');
@@ -90,16 +75,10 @@ export default function ShopkeeperAuthPage() {
         setLoading(true);
         setErrors({});
 
-        if (!recaptchaVerifierRef.current) {
-            setErrors({ form: 'reCAPTCHA not initialized. Please refresh.' });
-            setLoading(false);
-            return;
-        }
-
         try {
             auth.settings.appVerificationDisabledForTesting = true;
             const fullPhoneNumber = `+91${phone}`;
-            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifierRef.current);
+            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber);
             setConfirmationResult(confirmation);
         } catch (error: any) {
             console.error("OTP send error:", error);
