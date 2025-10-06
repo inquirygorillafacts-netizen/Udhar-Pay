@@ -237,11 +237,11 @@ export default function VoiceAssistantPage() {
     const getStatusIcon = () => {
         switch (status) {
             case 'listening': return <Waves size={24} className="text-blue-500" />;
-            case 'thinking': return <Loader size={24} className="animate-spin" />;
+            case 'thinking': return <Loader size={24} className="animate-spin text-gray-400" />;
             case 'speaking': return <Volume2 size={24} className="text-green-500" />;
             case 'idle':
             default:
-                if (isAssistantOn) return <Bot size={24} className="animate-pulse" />;
+                if (isAssistantOn) return <Bot size={24} className="animate-pulse text-green-400" />;
                 return <Bot size={24} className="text-red-500" />;
         }
     };
@@ -269,9 +269,9 @@ export default function VoiceAssistantPage() {
                 <Shuffle size={20} />
                 <span className='hidden sm:inline'>Switch Voice</span>
             </button>
-            <div className="login-card" style={{maxWidth: '500px'}}>
+             <div style={{maxWidth: '500px', width: '100%', background: '#000000', borderRadius: '30px', padding: '50px 40px', boxShadow: '0px 0px 50px rgba(0, 200, 150, 0.3)'}}>
                 <header className="login-header">
-                     <div className="neu-icon" style={{width: '100px', height: '100px', position: 'relative', overflow: 'hidden'}}>
+                     <div className="neu-icon" style={{width: '100px', height: '100px', position: 'relative', overflow: 'hidden', border: 'none', boxShadow: 'none', background: 'transparent'}}>
                          <video 
                             src="/1.mp4" 
                             autoPlay 
@@ -285,8 +285,8 @@ export default function VoiceAssistantPage() {
                             }}
                           />
                     </div>
-                    <h1>Voice Assistant</h1>
-                    <p>{getStatusText()}</p>
+                    <h1 style={{color: 'white'}}>Voice Assistant</h1>
+                    <p style={{color: '#a0a0a0'}}>{getStatusText()}</p>
                 </header>
 
                 <div style={{textAlign: 'center', marginBottom: '30px'}}>
@@ -296,14 +296,14 @@ export default function VoiceAssistantPage() {
                             fontWeight: 'bold',
                             textTransform: 'uppercase',
                             letterSpacing: '2px',
-                            color: '#6c7293',
-                            background: '#e0e5ec',
+                            color: '#a0a0a0',
+                            background: '#1a1a1a',
                             padding: '10px 25px',
                             borderRadius: '25px',
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: '12px',
-                            boxShadow: 'inset 5px 5px 10px #bec3cf, inset -5px -5px 10px #ffffff'
+                            border: '1px solid #333'
                         }}
                     >
                         {getStatusIcon()}
@@ -312,8 +312,8 @@ export default function VoiceAssistantPage() {
                 </div>
 
                 <div className="setting-section" style={{marginBottom: '30px'}}>
-                    <div className="neu-input" style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '15px 20px'}}>
-                        <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}><Bot size={20} style={{color: '#6c7293'}} /><span>AI Assistant</span></div>
+                    <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '15px 20px', background: '#1a1a1a', borderRadius: '15px', border: '1px solid #333'}}>
+                        <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}><Bot size={20} style={{color: '#a0a0a0'}} /><span>AI Assistant</span></div>
                         <div 
                             className={`neu-toggle-switch ${isAssistantOn ? 'active' : ''}`} 
                             onClick={handleAIToggle}
@@ -324,12 +324,12 @@ export default function VoiceAssistantPage() {
                 </div>
                 
                  {aiResponse && (
-                    <div style={{marginBottom: '30px', padding: '20px', background: '#e0e5ec', borderRadius: '15px', boxShadow: 'inset 5px 5px 10px #bec3cf, inset -5px -5px 10px #ffffff'}}>
+                    <div style={{marginBottom: '30px', padding: '20px', background: '#1a1a1a', borderRadius: '15px', border: '1px solid #333'}}>
                         <div style={{display: 'flex', alignItems: 'flex-start', gap: '15px'}}>
                              <div className="neu-icon" style={{width: '40px', height: '40px', margin: 0, flexShrink: 0, background: '#00c896'}}>
                                 <MessageSquare size={20} color="white"/>
                              </div>
-                             <p style={{color: '#3d4468', fontSize: '15px', lineHeight: 1.6, paddingTop: '5px'}}>{aiResponse}</p>
+                             <p style={{color: 'white', fontSize: '15px', lineHeight: 1.6, paddingTop: '5px'}}>{aiResponse}</p>
                         </div>
                     </div>
                  )}
