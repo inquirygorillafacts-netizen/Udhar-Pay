@@ -50,18 +50,10 @@ export default function CustomerAuthPage() {
                 if (container) {
                     container.innerHTML = ''; // Clear previous instance
                     const verifier = new RecaptchaVerifier(auth, container, {
-                        'size': 'normal',
+                        'size': 'invisible', // Invisible reCAPTCHA
                         'callback': () => {},
-                        'expired-callback': () => {
-                            window.recaptchaVerifier?.clear();
-                        }
                     });
-                    verifier.render().then(() => {
-                        window.recaptchaVerifier = verifier;
-                    }).catch((err) => {
-                        console.error("reCAPTCHA render error:", err);
-                        setError("Could not load reCAPTCHA. Please refresh.");
-                    });
+                    window.recaptchaVerifier = verifier;
                 }
             }
         }, 500);
@@ -75,7 +67,7 @@ export default function CustomerAuthPage() {
         setLoading(true);
 
         if (!window.recaptchaVerifier) {
-            setError("reCAPTCHA not ready. Please wait.");
+            setError("reCAPTCHA not ready. Please wait a moment.");
             setLoading(false);
             return;
         }
@@ -88,8 +80,7 @@ export default function CustomerAuthPage() {
             setSuccessMessage("OTP sent successfully!");
         } catch (err: any) {
             console.error("Error sending OTP:", err);
-            setError(err.message || "Failed to send OTP.");
-            window.recaptchaVerifier?.render().catch(console.error);
+            setError(err.message || "Failed to send OTP. Please check the number and try again.");
         } finally {
             setLoading(false);
         }
@@ -117,7 +108,7 @@ export default function CustomerAuthPage() {
                     uid: user.uid,
                     displayName: user.displayName || 'New User',
                     email: user.email,
-                    phoneNumber: user.phoneNumber,
+                    mobileNumber: user.phoneNumber, // Correctly save the phone number here
                     photoURL: user.photoURL,
                     createdAt: serverTimestamp(),
                     customerCode: await generateUniqueCustomerCode(firestore),
@@ -153,7 +144,7 @@ export default function CustomerAuthPage() {
                     displayName: user.displayName,
                     email: user.email,
                     photoURL: user.photoURL,
-                    phoneNumber: user.phoneNumber,
+                    mobileNumber: user.phoneNumber, // Save phone number if available from Google
                     createdAt: serverTimestamp(),
                     customerCode: await generateUniqueCustomerCode(firestore),
                     connections: [],
@@ -191,7 +182,7 @@ export default function CustomerAuthPage() {
                                         <div className="input-icon"><Phone /></div>
                                     </div>
                                 </div>
-                                <div id="recaptcha-container" style={{ margin: '20px auto', display: 'flex', justifyContent: 'center' }}></div>
+                                <div id="recaptcha-container"></div>
                                 {error && <p className="error-message show" style={{textAlign: 'center', marginLeft: 0}}>{error}</p>}
                                 <button type="submit" className={`neu-button ${loading ? 'loading' : ''}`} disabled={loading}>
                                     <span className="btn-text">Send OTP</span>
