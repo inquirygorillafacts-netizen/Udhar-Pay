@@ -54,14 +54,6 @@ export default function CustomerAuthPage() {
         document.addEventListener("mousedown", handleClickOutside);
         return () => {
             document.removeEventListener("mousedown", handleClickOutside);
-            // Cleanup any existing verifier instance on component unmount
-            if (window.recaptchaVerifier) {
-                try {
-                    window.recaptchaVerifier.clear();
-                } catch (e) {
-                    console.error("Error clearing recaptcha verifier on unmount", e);
-                }
-            }
         };
     }, []);
 
@@ -134,11 +126,10 @@ export default function CustomerAuthPage() {
         try {
             const fullPhoneNumber = `${selectedCountry.code}${phone}`;
             
-            // Create a new verifier on each attempt.
             const recaptchaVerifier = new RecaptchaVerifier(auth, 'send-code-btn', {
                 'size': 'invisible',
             });
-
+            
             const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifier);
             window.confirmationResult = confirmation;
             setConfirmationResultState(confirmation);
@@ -228,6 +219,9 @@ export default function CustomerAuthPage() {
                             ) : (
                                 // --- Phone Number Form ---
                                 <form className="login-form" noValidate onSubmit={handleSendOtp}>
+                                    <div style={{textAlign: 'center', background: '#eef2f5', padding: '10px', borderRadius: '10px', marginBottom: '20px', border: '1px solid #dce4e9'}}>
+                                        <p style={{fontSize: '12px', color: '#6c7293', margin: 0}}>For testing, use phone: <strong style={{color: '#3d4468'}}>9876543210</strong> and OTP: <strong style={{color: '#3d4468'}}>123456</strong></p>
+                                    </div>
                                     {errors.form && <div className="error-message show" style={{textAlign: 'center', marginBottom: '1rem', marginLeft: 0}}>{errors.form}</div>}
                                     <div className={`form-group ${errors.phone ? 'error' : ''}`}>
                                         <div className="neu-input" style={{display: 'flex', alignItems: 'center'}}>
