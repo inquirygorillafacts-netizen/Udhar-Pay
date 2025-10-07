@@ -27,32 +27,36 @@ export default function CustomerAuthPage() {
     const [successMessage, setSuccessMessage] = useState('');
 
     useEffect(() => {
-        // This effect runs once when the component mounts to set up reCAPTCHA
-        if (auth && !window.recaptchaVerifier) {
-            try {
-                // Ensure the container is empty before rendering
+        // This effect runs only when isOtpSent becomes false, which is the initial state.
+        // It sets up the reCAPTCHA verifier.
+        if (!isOtpSent && auth) {
+            if (!window.recaptchaVerifier) {
+                // Ensure the container is empty before rendering to avoid conflicts on re-renders
                 const container = document.getElementById('recaptcha-container');
                 if (container) {
                     container.innerHTML = '';
                     const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+                        'size': 'normal', // Use 'normal' for the visible checkbox
                         'callback': (response: any) => {
-                            // reCAPTCHA solved, allow user to send OTP
+                            // reCAPTCHA solved, you can enable the send OTP button here if needed
                             console.log("reCAPTCHA solved");
                         },
                         'expired-callback': () => {
                             // Response expired. Ask user to solve reCAPTCHA again.
-                            console.log("reCAPTCHA expired");
+                             if (window.recaptchaVerifier) {
+                                window.recaptchaVerifier.render().catch(console.error);
+                            }
                         }
                     });
                     window.recaptchaVerifier = verifier;
-                    verifier.render();
+                    verifier.render().catch((err) => {
+                        console.error("reCAPTCHA render error:", err);
+                        setError("Could not load reCAPTCHA. Please refresh the page.");
+                    });
                 }
-            } catch (e) {
-                console.error("reCAPTCHA render error:", e);
-                setError("Could not load reCAPTCHA. Please refresh the page.");
             }
         }
-    }, [auth]);
+    }, [isOtpSent, auth]);
 
     const handleSendOtp = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -60,7 +64,7 @@ export default function CustomerAuthPage() {
         setLoading(true);
 
         if (!window.recaptchaVerifier) {
-            setError("reCAPTCHA not initialized. Please refresh.");
+            setError("reCAPTCHA not ready. Please wait a moment and try again.");
             setLoading(false);
             return;
         }
@@ -75,7 +79,9 @@ export default function CustomerAuthPage() {
             console.error("Error sending OTP:", err);
             setError(err.message || "Failed to send OTP. Please check the number and try again.");
             // In case of error, re-render reCAPTCHA
-            window.recaptchaVerifier.render().catch(console.error);
+            if (window.recaptchaVerifier) {
+                window.recaptchaVerifier.render().catch(console.error);
+            }
         } finally {
             setLoading(false);
         }
