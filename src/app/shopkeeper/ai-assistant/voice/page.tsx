@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -49,6 +48,12 @@ export default function VoiceAssistantPage() {
             }
         }
     }, [loadVoices]);
+    
+    const stopAudio = useCallback(() => {
+        if (typeof window !== 'undefined' && window.speechSynthesis) {
+            window.speechSynthesis.cancel();
+        }
+    }, []);
 
     const toggleLanguage = () => {
         const newLang = language === 'english' ? 'hindi' : 'english';
@@ -60,12 +65,6 @@ export default function VoiceAssistantPage() {
         }
         setStatus('idle');
     };
-    
-    const stopAudio = useCallback(() => {
-        if (typeof window !== 'undefined' && window.speechSynthesis) {
-            window.speechSynthesis.cancel();
-        }
-    }, []);
 
     const startListening = useCallback(() => {
         if (!SpeechRecognition || !hasPermission || isMuted || status === 'listening' || status === 'uninitialized') {
