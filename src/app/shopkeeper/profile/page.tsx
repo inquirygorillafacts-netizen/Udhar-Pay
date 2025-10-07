@@ -15,7 +15,7 @@ interface UserProfile {
   displayName: string;
   email: string;
   photoURL?: string | null;
-  phoneNumber?: string;
+  mobileNumber?: string;
   pinEnabled?: boolean;
   pin?: string;
   shopkeeperCode?: string;
@@ -315,7 +315,7 @@ export default function ShopkeeperProfilePage() {
 
         <form className="login-form" noValidate onSubmit={handleSaveChanges}>
           <div className="form-group"><div className="neu-input"><input type="text" id="name" value={name || ''} onChange={(e) => setName(e.target.value)} placeholder=" " required /><label htmlFor="name">Shop Name</label><div className="input-icon"><User /></div></div></div>
-          <div className="form-group"><div className="neu-input"><input type="tel" id="mobile" value={userProfile?.phoneNumber || ''} placeholder=" " disabled /><label htmlFor="mobile">Mobile Number</label><div className="input-icon"><Phone /></div></div></div>
+          <div className="form-group"><div className="neu-input"><input type="tel" id="mobile" value={userProfile?.mobileNumber || ''} placeholder=" " disabled /><label htmlFor="mobile">Mobile Number</label><div className="input-icon"><Phone /></div></div></div>
           <button type="submit" className={`neu-button ${isSaving ? 'loading' : ''}`} disabled={isSaving}>
             <span className="btn-text">Save Profile Changes</span>
             <div className="btn-loader"><div className="neu-spinner"></div></div>
