@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Bot, MessageSquare, Settings, ArrowLeft, Mic, Ear, BrainCircuit, X, MicOff, PlayCircle, Languages } from 'lucide-react';
+import { Bot, MessageSquare, ArrowLeft, Mic, Ear, BrainCircuit, X, MicOff, PlayCircle, Languages } from 'lucide-react';
 import { askAiAssistant } from '@/ai/flows/assistant-flow';
 import TextAssistantModal from '@/components/assistant/TextAssistantModal';
 import { getHistory, addMessage, ChatMessage } from '@/lib/ai-memory';
@@ -32,22 +32,23 @@ export default function VoiceAssistantPage() {
     const isProcessingQuery = useRef(false);
     const speechTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+    const loadVoices = useCallback(() => {
+        voicesRef.current = window.speechSynthesis.getVoices();
+    }, []);
+
     useEffect(() => {
         const preferredLang = localStorage.getItem('aiLanguage') as Language | null;
         if (preferredLang) {
             setLanguage(preferredLang);
         }
 
-        const loadVoices = () => {
-            voicesRef.current = window.speechSynthesis.getVoices();
-        };
         if (typeof window !== 'undefined' && window.speechSynthesis) {
             loadVoices();
             if (window.speechSynthesis.onvoiceschanged !== undefined) {
                 window.speechSynthesis.onvoiceschanged = loadVoices;
             }
         }
-    }, []);
+    }, [loadVoices]);
 
     const toggleLanguage = () => {
         const newLang = language === 'english' ? 'hindi' : 'english';
@@ -296,7 +297,7 @@ export default function VoiceAssistantPage() {
                     />
                      {status === 'uninitialized' && (
                         <div style={{position: 'absolute', zIndex: 10}}>
-                             <button onClick={initializeAssistant} className="neu-button" style={{padding: '2rem', borderRadius: '50%', background: 'rgba(0,200,150,0.7)', border: 'none', color: 'white', margin: 0}}>
+                             <button onClick={initializeAssistant} className="glass-button" style={{width: '100px', height: '100px', background: 'rgba(0,200,150,0.7)', border: 'none'}}>
                                 <PlayCircle size={50}/>
                             </button>
                         </div>
@@ -317,20 +318,20 @@ export default function VoiceAssistantPage() {
                 </div>
             </div>
             
-             <div className="neu-button" style={{ position: 'fixed', bottom: '20px', left: '20px', right: '20px', borderRadius: '20px', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-around', margin: 0, boxShadow: '10px 10px 30px #bec3cf, -10px -10px 30px #ffffff' }}>
-                 <button onClick={() => router.back()} className="neu-button" style={{width: '50px', height: '50px', borderRadius: '50%', padding: 0, margin: 0}}>
+             <div className="ai-control-panel">
+                 <button onClick={() => router.back()} className="glass-button">
                     <ArrowLeft size={20}/>
                 </button>
-                <button onClick={toggleLanguage} className="neu-button" disabled={status === 'uninitialized'} style={{width: '50px', height: '50px', borderRadius: '50%', padding: 0, margin: 0}}>
+                <button onClick={toggleLanguage} className="glass-button" disabled={status === 'uninitialized'}>
                     <Languages size={18}/>
                 </button>
-                 <button onClick={handleMuteToggle} className={`neu-button ${isMuted || status === 'speaking' ? 'active' : ''}`} disabled={status === 'uninitialized'} style={{width: '60px', height: '60px', borderRadius: '50%', padding: 0, margin: 0, background: '#00c896', color: 'white'}}>
+                 <button onClick={handleMuteToggle} className={`glass-button mic-button ${isMuted || status === 'speaking' ? 'active' : ''}`} disabled={status === 'uninitialized'}>
                     {status === 'speaking' ? <X size={24}/> : isMuted ? <MicOff size={24}/> : <Mic size={24}/>}
                 </button>
-                <button onClick={() => setIsTextModalOpen(true)} className="neu-button" disabled={status === 'uninitialized'} style={{width: '50px', height: '50px', borderRadius: '50%', padding: 0, margin: 0}}>
+                <button onClick={() => setIsTextModalOpen(true)} className="glass-button" disabled={status === 'uninitialized'}>
                     <MessageSquare size={18}/>
                 </button>
-                 <div className="status-indicator" style={{position: 'absolute', top: '-15px', left: '50%', transform: 'translateX(-50%)', background: '#e0e5ec', color: '#3d4468', border: '2px solid #e0e5ec', boxShadow: '5px 5px 10px #bec3cf, -5px -5px 10px #ffffff'}}>
+                 <div className="status-indicator">
                     {status === 'listening' ? <Ear size={16}/> : status === 'thinking' ? <BrainCircuit size={16}/> : status === 'speaking' ? <Bot size={16}/> : <Mic size={16}/>}
                     <span>{status.charAt(0).toUpperCase() + status.slice(1)}</span>
                 </div>

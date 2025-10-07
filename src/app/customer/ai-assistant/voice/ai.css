@@ -88,19 +88,24 @@
 .glass-button {
     background: rgba(255, 255, 255, 0.1);
     border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 12px;
-    padding: 10px;
+    border-radius: 50%;
     color: white;
     cursor: pointer;
-    transition: background 0.3s;
+    transition: background 0.3s, box-shadow 0.3s;
     backdrop-filter: blur(5px);
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
 }
 .glass-button:hover {
     background: rgba(255, 255, 255, 0.2);
 }
-.glass-button:active, .glass-button.active {
-    background: rgba(255, 59, 92, 0.5);
-    border-color: rgba(255, 59, 92, 0.8);
+.glass-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 .ai-chat-area {
@@ -151,27 +156,49 @@
 }
 
 .ai-control-panel {
-    padding: 1rem;
-    border-top: 1px solid rgba(255,255,255,0.2);
-    background: rgba(0,0,0,0.3);
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    right: 20px;
+    padding: 0.75rem;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
     backdrop-filter: blur(10px);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
     color: #fff;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
+    justify-content: space-around;
+    gap: 0.5rem;
+}
+
+.mic-button {
+    width: 60px;
+    height: 60px;
+    background: #00c896;
+    border-color: transparent;
+}
+.mic-button.active {
+    background: rgba(255, 59, 92, 0.8);
+    border-color: rgba(255, 59, 92, 1);
 }
 
 .status-indicator {
     display: flex;
     align-items: center;
     gap: 8px;
-    background: rgba(255,255,255,0.1);
-    padding: 8px 15px;
+    background: rgba(0,0,0,0.4);
+    padding: 6px 12px;
     border-radius: 20px;
     color: #fff;
     font-size: 14px;
     font-weight: 500;
+    position: absolute;
+    top: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 1px solid rgba(255,255,255,0.2);
 }
 
 /* Modal styles for dark theme */
