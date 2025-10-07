@@ -43,7 +43,9 @@ export default function VoiceAssistantPage() {
         };
         if (typeof window !== 'undefined' && window.speechSynthesis) {
             loadVoices();
-            window.speechSynthesis.onvoiceschanged = loadVoices;
+            if (window.speechSynthesis.onvoiceschanged !== undefined) {
+                window.speechSynthesis.onvoiceschanged = loadVoices;
+            }
         }
     }, []);
 
@@ -92,7 +94,7 @@ export default function VoiceAssistantPage() {
         const utterance = new SpeechSynthesisUtterance(text);
         
         const voiceLang = language === 'hindi' ? 'hi-IN' : 'en-US';
-        const selectedVoice = voicesRef.current.find(voice => voice.lang === voiceLang);
+        const selectedVoice = voicesRef.current.find(voice => voice.lang.startsWith(voiceLang));
         
         if (selectedVoice) {
             utterance.voice = selectedVoice;
@@ -109,7 +111,9 @@ export default function VoiceAssistantPage() {
             isProcessingQuery.current = false;
         };
         utterance.onerror = (event) => {
-            console.error("Speech synthesis error:", event.error);
+            if (event.error !== 'interrupted') {
+               console.error("Speech synthesis error:", event.error);
+            }
             setStatus('idle');
             isProcessingQuery.current = false;
         };
@@ -161,8 +165,6 @@ export default function VoiceAssistantPage() {
         }
         
         if (window.speechSynthesis.speaking) window.speechSynthesis.cancel();
-        const silentUtterance = new SpeechSynthesisUtterance('');
-        window.speechSynthesis.speak(silentUtterance);
         
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -253,6 +255,7 @@ export default function VoiceAssistantPage() {
         if (status === 'speaking') {
             stopAudio();
             setStatus('idle');
+            if(recognitionRef.current) recognitionRef.current.start();
             return;
         }
         const nextMuteState = !isMuted;
@@ -277,28 +280,10 @@ export default function VoiceAssistantPage() {
             }
         }
     }, [stopAudio]);
-
-    const statusInfo = {
-        uninitialized: { text: "Tap to Start", icon: <PlayCircle size={16}/> },
-        idle: { text: isMuted ? "Muted" : "Idle", icon: isMuted ? <MicOff size={16}/> : <Mic size={16}/> },
-        listening: { text: "Listening...", icon: <Ear size={16}/> },
-        thinking: { text: "Thinking...", icon: <BrainCircuit size={16}/> },
-        speaking: { text: "Speaking...", icon: <Bot size={16}/> },
-    };
     
     return (
       <>
         <main className="ai-container">
-            <div className="ai-header">
-                <button onClick={() => router.back()} className="glass-button">
-                    <ArrowLeft size={20}/>
-                </button>
-                 <div className="status-indicator">
-                    {statusInfo[status].icon}
-                    <span>{statusInfo[status].text}</span>
-                </div>
-            </div>
-            
              <div className="ai-video-container">
                  <div className="ai-video-wrapper">
                     <video 
@@ -311,8 +296,8 @@ export default function VoiceAssistantPage() {
                     />
                      {status === 'uninitialized' && (
                         <div style={{position: 'absolute', zIndex: 10}}>
-                             <button onClick={initializeAssistant} className="glass-button" style={{padding: '2rem', borderRadius: '50%', background: 'rgba(0,200,150,0.7)', border: 'none'}}>
-                                <PlayCircle size={50} color="white"/>
+                             <button onClick={initializeAssistant} className="neu-button" style={{padding: '2rem', borderRadius: '50%', background: 'rgba(0,200,150,0.7)', border: 'none', color: 'white', margin: 0}}>
+                                <PlayCircle size={50}/>
                             </button>
                         </div>
                     )}
@@ -332,19 +317,28 @@ export default function VoiceAssistantPage() {
                 </div>
             </div>
             
-            <div className="ai-control-panel">
-                <button onClick={toggleLanguage} className="glass-button" disabled={status === 'uninitialized'}>
+             <div className="neu-button" style={{ position: 'fixed', bottom: '20px', left: '20px', right: '20px', borderRadius: '20px', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-around', margin: 0, boxShadow: '10px 10px 30px #bec3cf, -10px -10px 30px #ffffff' }}>
+                 <button onClick={() => router.back()} className="neu-button" style={{width: '50px', height: '50px', borderRadius: '50%', padding: 0, margin: 0}}>
+                    <ArrowLeft size={20}/>
+                </button>
+                <button onClick={toggleLanguage} className="neu-button" disabled={status === 'uninitialized'} style={{width: '50px', height: '50px', borderRadius: '50%', padding: 0, margin: 0}}>
                     <Languages size={18}/>
                 </button>
-                 <button onClick={handleMuteToggle} className={`glass-button ${isMuted || status === 'speaking' ? 'active' : ''}`} disabled={status === 'uninitialized'}>
-                    {isMuted ? <MicOff size={18}/> : <Mic size={18}/>}
+                 <button onClick={handleMuteToggle} className={`neu-button ${isMuted || status === 'speaking' ? 'active' : ''}`} disabled={status === 'uninitialized'} style={{width: '60px', height: '60px', borderRadius: '50%', padding: 0, margin: 0, background: '#00c896', color: 'white'}}>
+                    {status === 'speaking' ? <X size={24}/> : isMuted ? <MicOff size={24}/> : <Mic size={24}/>}
                 </button>
-                <button onClick={() => setIsTextModalOpen(true)} className="glass-button" disabled={status === 'uninitialized'}>
+                <button onClick={() => setIsTextModalOpen(true)} className="neu-button" disabled={status === 'uninitialized'} style={{width: '50px', height: '50px', borderRadius: '50%', padding: 0, margin: 0}}>
                     <MessageSquare size={18}/>
                 </button>
+                 <div className="status-indicator" style={{position: 'absolute', top: '-15px', left: '50%', transform: 'translateX(-50%)', background: '#e0e5ec', color: '#3d4468', border: '2px solid #e0e5ec', boxShadow: '5px 5px 10px #bec3cf, -5px -5px 10px #ffffff'}}>
+                    {status === 'listening' ? <Ear size={16}/> : status === 'thinking' ? <BrainCircuit size={16}/> : status === 'speaking' ? <Bot size={16}/> : <Mic size={16}/>}
+                    <span>{status.charAt(0).toUpperCase() + status.slice(1)}</span>
+                </div>
             </div>
         </main>
         {isTextModalOpen && <TextAssistantModal onClose={() => setIsTextModalOpen(false)} />}
       </>
     );
 }
+
+    
