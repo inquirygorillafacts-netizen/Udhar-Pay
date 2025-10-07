@@ -228,16 +228,6 @@ export default function VoiceAssistantPage() {
         )}
 
         <main className="ai-container">
-             <video 
-                src="/ai.mp4" 
-                autoPlay 
-                loop 
-                muted 
-                playsInline
-                className="ai-video-bg"
-            />
-            <div className="ai-overlay-bg"></div>
-
             <header className="ai-header">
                 <button onClick={() => router.back()} className="glass-button">
                     <ArrowLeft size={20}/>
@@ -249,6 +239,17 @@ export default function VoiceAssistantPage() {
                     <MessageSquare size={18}/>
                 </button>
             </header>
+
+            <div className="ai-video-container">
+                 <video 
+                    src="/ai.mp4" 
+                    autoPlay 
+                    loop 
+                    muted 
+                    playsInline
+                    className="ai-video-orb"
+                />
+            </div>
 
             <div className="ai-chat-area">
                 <div className="ai-chat-messages">
