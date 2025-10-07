@@ -33,23 +33,25 @@ const CustomerCard = ({ customer, shopkeeperId, creditLimit, isCreditEnabled }: 
 
   return (
     <div className="neu-input" style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px', cursor: 'pointer', boxShadow: '5px 5px 15px #bec3cf, -5px -5px 15px #ffffff' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-        <div className="neu-icon" style={{ width: '50px', height: '50px', margin: 0, flexShrink: 0 }}>
-          {customer.photoURL ? (
-            <img src={customer.photoURL} alt={customer.displayName} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
-          ) : (
-            <div className="icon-inner" style={{width: '28px', height: '28px'}}><User/></div>
-          )}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '15px', width: '100%', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '15px', overflow: 'hidden', flex: 1 }}>
+          <div className="neu-icon" style={{ width: '50px', height: '50px', margin: 0, flexShrink: 0 }}>
+            {customer.photoURL ? (
+              <img src={customer.photoURL} alt={customer.displayName} style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+            ) : (
+              <div className="icon-inner" style={{width: '28px', height: '28px'}}><User/></div>
+            )}
+          </div>
+          <div style={{ overflow: 'hidden', flex: 1 }}>
+            <h3 style={{ color: '#3d4468', fontSize: '1.1rem', fontWeight: '600', margin: 0, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+              {customer.displayName}
+            </h3>
+            <p style={{ color: '#9499b7', fontSize: '13px', margin: 0, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+              {customer.email}
+            </p>
+          </div>
         </div>
-        <div style={{ flexGrow: 1, overflow: 'hidden' }}>
-          <h3 style={{ color: '#3d4468', fontSize: '1.1rem', fontWeight: '600', margin: 0, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-            {customer.displayName}
-          </h3>
-          <p style={{ color: '#9499b7', fontSize: '13px', margin: 0, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-            {customer.email}
-          </p>
-        </div>
-        <div style={{textAlign: 'right'}}>
+        <div style={{textAlign: 'right', flexShrink: 0, paddingLeft: '10px'}}>
           <p style={{color: '#9499b7', fontSize: '12px', margin: 0, fontWeight: 500}}>Udhaar</p>
           <p style={{ color: balance > 0 ? '#3d4468' : '#00c896', fontSize: '1.2rem', fontWeight: '700', margin: 0}}>₹{balance > 0 ? balance.toLocaleString('en-IN') : 0}</p>
         </div>
