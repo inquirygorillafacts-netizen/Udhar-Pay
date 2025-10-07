@@ -48,17 +48,6 @@ export default function ShopkeeperAuthPage() {
 
 
     useEffect(() => {
-        if (!auth || window.recaptchaVerifier) return;
-        
-        try {
-            const verifier = new RecaptchaVerifier(auth, 'recaptcha-container-shopkeeper', {
-                'size': 'invisible'
-            });
-            window.recaptchaVerifier = verifier;
-        } catch (e) {
-            console.error("Error creating recaptcha verifier:", e);
-        }
-
         const handleClickOutside = (event: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
                 setIsDropdownOpen(false);
@@ -69,15 +58,8 @@ export default function ShopkeeperAuthPage() {
         return () => {
             document.removeEventListener("mousedown", handleClickOutside);
              if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-             if (window.recaptchaVerifier) {
-                 try {
-                    window.recaptchaVerifier.clear();
-                } catch (e) {
-                     console.error("Error clearing recaptcha verifier on unmount:", e);
-                }
-            }
         };
-    }, [auth]);
+    }, []);
 
      useEffect(() => {
         if (timer > 0) {
@@ -145,8 +127,7 @@ export default function ShopkeeperAuthPage() {
     
     const handleSendOtp = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!validatePhone() || !window.recaptchaVerifier) {
-            setErrors({form: 'reCAPTCHA not ready. Please wait a moment and try again.'});
+        if (!validatePhone()) {
             return;
         }
 
@@ -154,8 +135,11 @@ export default function ShopkeeperAuthPage() {
         setErrors({});
 
         try {
+            const verifier = new RecaptchaVerifier(auth, 'recaptcha-container-shopkeeper', {
+                'size': 'invisible'
+            });
             const fullPhoneNumber = `${selectedCountry.code}${phone}`;
-            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, window.recaptchaVerifier);
+            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, verifier);
             setConfirmationResultState(confirmation);
             setTimer(60);
         } catch (error: any) {
@@ -166,7 +150,9 @@ export default function ShopkeeperAuthPage() {
             } else if (error.code === 'auth/invalid-phone-number') {
                 errorMessage = "The phone number is not valid.";
             } else if (error.code === 'auth/captcha-check-failed' || error.code === 'auth/hostname-mismatch') {
-                 errorMessage = "Verification failed. Please add your domain to the Firebase Console's authorized domains."
+                 errorMessage = "Verification failed. Please ensure your app's domain is authorized in the Firebase Console."
+            } else if (error.code === 'auth/internal-error') {
+                 errorMessage = "Internal error with authentication service. Please try again in a few moments.";
             }
             setErrors({ form: errorMessage });
         } finally {
@@ -208,7 +194,7 @@ export default function ShopkeeperAuthPage() {
     return (
         <div className="login-container-wrapper">
             <div className="login-container">
-                 <div id="recaptcha-container-shopkeeper" style={{ position: 'fixed' }}></div>
+                 <div id="recaptcha-container-shopkeeper" style={{ position: 'fixed', bottom: 0, right: 0 }}></div>
                 <div className="login-card">
                     {!showSuccess ? (
                         <>
