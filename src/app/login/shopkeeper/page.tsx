@@ -111,7 +111,6 @@ export default function ShopkeeperAuthPage() {
         } catch (dbError) {
             console.error("Database operation failed:", dbError);
             setErrors({ form: "Could not sync your profile. Check your connection." });
-        } finally {
             setLoading(false);
         }
     };

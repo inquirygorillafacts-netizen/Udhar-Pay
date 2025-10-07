@@ -112,7 +112,6 @@ export default function CustomerAuthPage() {
         } catch (dbError) {
             console.error("Database operation failed:", dbError);
             setErrors({ form: "Could not sync your profile. Check your connection." });
-        } finally {
             setLoading(false);
         }
     };
