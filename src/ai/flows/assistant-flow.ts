@@ -92,8 +92,8 @@ const generateAudioFlow = ai.defineFlow(
             });
 
             if (!media || !media.url) {
-                console.error("Google TTS API did not return an audio file.", {media});
-                throw new Error("Google TTS did not return an audio file.");
+                console.error("Google TTS API did not return a valid audio file.", {media});
+                throw new Error("Google TTS API did not return a valid audio file.");
             }
             
             const audioBuffer = Buffer.from(
