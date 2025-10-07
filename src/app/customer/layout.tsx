@@ -39,12 +39,6 @@ export default function CustomerLayout({
   const isAiAssistantActive = pathname.startsWith('/customer/ai-assistant');
   const isScanActive = pathname === '/customer/scan';
 
-  // Do not render the main layout with nav bar for the full-screen AI assistant
-  if (isAiAssistantActive) {
-      return <>{children}</>;
-  }
-
-
   return (
     <div style={{ paddingBottom: '80px' }}>
       <main>{children}</main>
