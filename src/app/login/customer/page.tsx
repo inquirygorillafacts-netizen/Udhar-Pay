@@ -24,7 +24,6 @@ declare global {
     interface Window {
         recaptchaVerifier?: RecaptchaVerifier;
         confirmationResult?: ConfirmationResult;
-        grecaptcha?: any;
     }
 }
 
@@ -45,8 +44,30 @@ export default function CustomerAuthPage() {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     
-    const [timer, setTimer] = useState(0);
-    const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    useEffect(() => {
+        if (!auth) return;
+
+        // Create and render the reCAPTCHA verifier
+        const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+            'size': 'normal', // Use 'normal' for the visible checkbox
+            'callback': (response: any) => {
+                // reCAPTCHA solved, allow user to send OTP
+                console.log("reCAPTCHA verified!");
+            },
+            'expired-callback': () => {
+                // Response expired. Ask user to solve reCAPTCHA again.
+                console.log("reCAPTCHA expired, please solve it again.");
+            }
+        });
+        
+        window.recaptchaVerifier = verifier;
+        verifier.render();
+
+        // Cleanup on unmount
+        return () => {
+            verifier.clear();
+        };
+    }, [auth]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -55,28 +76,10 @@ export default function CustomerAuthPage() {
             }
         };
         document.addEventListener("mousedown", handleClickOutside);
-        
         return () => {
             document.removeEventListener("mousedown", handleClickOutside);
-            if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-            if (window.recaptchaVerifier) {
-                window.recaptchaVerifier.clear();
-            }
         };
     }, []);
-    
-    useEffect(() => {
-        if (timer > 0) {
-            timerIntervalRef.current = setInterval(() => {
-                setTimer(prev => prev - 1);
-            }, 1000);
-        } else if (timer === 0 && timerIntervalRef.current) {
-            clearInterval(timerIntervalRef.current);
-        }
-        return () => {
-            if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-        };
-    }, [timer]);
 
 
     const handleFormTransition = () => {
@@ -131,23 +134,6 @@ export default function CustomerAuthPage() {
         return Object.keys(newErrors).length === 0;
     };
     
-   const setupRecaptcha = () => {
-        if (!auth) return null;
-        // Clean up previous verifier if it exists
-        if (window.recaptchaVerifier) {
-            window.recaptchaVerifier.clear();
-        }
-        
-        const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-            'size': 'invisible',
-            'callback': () => {
-                // This callback is for success.
-                console.log("reCAPTCHA verified!");
-            }
-        });
-        return verifier;
-    };
-    
    const handleSendOtp = async (e: React.FormEvent) => {
         e.preventDefault();
         if (loading || !validatePhone()) {
@@ -158,23 +144,24 @@ export default function CustomerAuthPage() {
         setErrors({});
 
         try {
-            const appVerifier = setupRecaptcha();
-            if (!appVerifier) throw new Error("Could not set up reCAPTCHA verifier.");
+            const appVerifier = window.recaptchaVerifier;
+            if (!appVerifier) throw new Error("reCAPTCHA verifier not initialized.");
 
             const fullPhoneNumber = `${selectedCountry.code}${phone}`;
             const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, appVerifier);
             
             setConfirmationResultState(confirmation);
-            setTimer(60);
         } catch (error: any) {
             console.error("OTP send error:", error);
-            let errorMessage = "Failed to send OTP. Please try again.";
+            let errorMessage = "Failed to send OTP. Make sure you've checked the reCAPTCHA box.";
             if (error.code === 'auth/too-many-requests') {
                 errorMessage = "Too many requests. Please try again later.";
             } else if (error.code === 'auth/invalid-phone-number') {
                 errorMessage = "The phone number is not valid.";
             }
             setErrors({ form: errorMessage });
+            // Reset reCAPTCHA so user can try again
+            window.recaptchaVerifier?.render();
         } finally {
             setLoading(false);
         }
@@ -213,7 +200,6 @@ export default function CustomerAuthPage() {
 
     return (
         <div className="login-container-wrapper">
-            <div id="recaptcha-container" style={{ position: 'absolute', top: 0, left: 0, zIndex: -1 }}></div>
             <div className="login-container">
                 <div className="login-card">
                     {!showSuccess ? (
@@ -243,14 +229,7 @@ export default function CustomerAuthPage() {
                                         <div className="btn-loader"><div className="neu-spinner"></div></div>
                                     </button>
                                      <div style={{textAlign: 'center', marginTop: '-10px'}}>
-                                        {timer > 0 ? (
-                                             <p style={{color: '#9499b7', fontSize: '14px'}}>Resend OTP in {timer}s</p>
-                                        ) : (
-                                            <button type="button" onClick={() => { setConfirmationResultState(null); setOtp(''); setErrors({}); setTimer(0); }} disabled={loading} className="forgot-link">
-                                                Request new OTP
-                                            </button>
-                                        )}
-                                        <button type="button" className="neu-button" style={{margin: '10px 0 0 0', background: 'transparent', boxShadow: 'none'}} onClick={() => { setConfirmationResultState(null); setOtp(''); setErrors({}); setTimer(0); }}>
+                                        <button type="button" className="neu-button" style={{margin: '10px 0 0 0', background: 'transparent', boxShadow: 'none'}} onClick={() => { setConfirmationResultState(null); setOtp(''); setErrors({}); }}>
                                             <span style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'}}><ArrowLeft size={16}/> Back</span>
                                         </button>
                                      </div>
@@ -284,6 +263,8 @@ export default function CustomerAuthPage() {
                                         {errors.phone && <span className="error-message show">{errors.phone}</span>}
                                     </div>
                                     
+                                    <div id="recaptcha-container" style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}></div>
+                                    
                                     <button id="send-code-btn" type="submit" className={`neu-button ${loading ? 'loading' : ''}`} disabled={loading}>
                                         <span className="btn-text">Send OTP</span>
                                         <div className="btn-loader"><div className="neu-spinner"></div></div>
@@ -305,3 +286,4 @@ export default function CustomerAuthPage() {
         </div>
     );
 }
+    
