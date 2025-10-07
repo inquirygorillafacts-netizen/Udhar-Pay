@@ -259,7 +259,7 @@ export default function VoiceAssistantPage() {
         <main className="ai-container">
 
             <header className="ai-header">
-                <button onClick={() => router.back()} className="glass-button">
+                 <button onClick={() => router.back()} className="glass-button">
                     <ArrowLeft size={20}/>
                 </button>
                 <div className="flex-grow text-center">

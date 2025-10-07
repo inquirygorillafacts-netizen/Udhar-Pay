@@ -65,18 +65,13 @@ export default function TextAssistantModal({ onClose }: TextAssistantModalProps)
       <div 
         className="login-card ai-chat-modal-content" 
         onClick={(e) => e.stopPropagation()}
-        style={{height: '100%', minHeight: '100svh', display: 'flex', flexDirection: 'column'}}
       >
         <header 
-          className="login-header" 
+          className="modal-header" 
           style={{
             marginBottom: '20px', 
             paddingBottom: '20px', 
             borderBottom: '2px solid #d1d9e6',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '15px',
-            flexShrink: 0
           }}>
             <div style={{textAlign: 'left', flex: 1}}>
               <h1 style={{fontSize: '1.5rem', marginBottom: '0'}}>Text Assistant</h1>
@@ -85,15 +80,15 @@ export default function TextAssistantModal({ onClose }: TextAssistantModalProps)
             <button onClick={handleClearChat} className="neu-button" style={{width: '45px', height: '45px', padding: 0, margin: 0, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
                 <Trash2 size={20} />
             </button>
-             <button onClick={onClose} className="neu-button" style={{width: '45px', height: '45px', padding: 0, margin: 0, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+             <button onClick={onClose} className="neu-button" style={{width: '45px', height: '45px', padding: 0, margin: '0 0 0 10px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
               <X size={20} />
             </button>
         </header>
 
-        <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px 20px 20px' }}>
-          <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '0 10px 20px 10px', display: 'flex', flexDirection: 'column' }}>
+          <div style={{display: 'flex', flexDirection: 'column', gap: '20px', flexGrow: 1, justifyContent: 'flex-end'}}>
             {messages.length === 0 && (
-                <div style={{textAlign: 'center', color: '#9499b7', paddingTop: '40%'}}>
+                <div style={{textAlign: 'center', color: '#9499b7', flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center'}}>
                     <Bot size={40} className="mx-auto mb-4"/>
                     <p>Ask me anything about Udhar Pay!</p>
                 </div>

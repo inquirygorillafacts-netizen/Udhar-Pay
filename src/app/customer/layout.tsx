@@ -39,43 +39,48 @@ export default function CustomerLayout({
   const isAiAssistantActive = pathname.startsWith('/customer/ai-assistant');
   const isScanActive = pathname === '/customer/scan';
 
+  // Hide nav bar for the AI assistant page to make it full-screen
+  const showNavBar = !isAiAssistantActive;
+
   return (
-    <div style={{ paddingBottom: '80px' }}>
+    <div style={{ paddingBottom: showNavBar ? '80px' : '0' }}>
       <main>{children}</main>
 
-      <nav className="admin-bottom-nav">
-        <Link href="/customer/dashboard" className={`admin-nav-item ${pathname === '/customer/dashboard' ? 'active' : ''}`}>
-          <LayoutDashboard size={24} />
-          <span>Dashboard</span>
-        </Link>
-        <Link href="/customer/ledger" className={`admin-nav-item ${pathname === '/customer/ledger' ? 'active' : ''}`}>
-          <BookText size={24} />
-          <span>History</span>
-        </Link>
-        
-        <Link 
-          href="/customer/scan" 
-          className={`admin-nav-item admin-nav-item-primary ${isScanActive ? 'active' : ''}`}
-        >
-          <QrCode size={30} />
-          <span style={{marginTop: '2px'}}>Scan</span>
-        </Link>
+      {showNavBar && (
+        <nav className="admin-bottom-nav">
+          <Link href="/customer/dashboard" className={`admin-nav-item ${pathname === '/customer/dashboard' ? 'active' : ''}`}>
+            <LayoutDashboard size={24} />
+            <span>Dashboard</span>
+          </Link>
+          <Link href="/customer/ledger" className={`admin-nav-item ${pathname === '/customer/ledger' ? 'active' : ''}`}>
+            <BookText size={24} />
+            <span>History</span>
+          </Link>
+          
+          <Link 
+            href="/customer/scan" 
+            className={`admin-nav-item admin-nav-item-primary ${isScanActive ? 'active' : ''}`}
+          >
+            <QrCode size={30} />
+            <span style={{marginTop: '2px'}}>Scan</span>
+          </Link>
 
-        <Link href="/customer/ai-assistant/voice" className={`admin-nav-item ${isAiAssistantActive ? 'active' : ''}`}>
-          <Bot size={24} />
-          <span>AI</span>
-        </Link>
+          <Link href="/customer/ai-assistant/voice" className={`admin-nav-item`}>
+            <Bot size={24} />
+            <span>AI</span>
+          </Link>
 
-        <Link href="/customer/credit-cards" className={`admin-nav-item ${pathname === '/customer/credit-cards' ? 'active' : ''}`}>
-          <CreditCard size={24} />
-          <span>Cards</span>
-        </Link>
+          <Link href="/customer/credit-cards" className={`admin-nav-item ${pathname === '/customer/credit-cards' ? 'active' : ''}`}>
+            <CreditCard size={24} />
+            <span>Cards</span>
+          </Link>
 
-        <Link href="/customer/profile" className={`admin-nav-item ${pathname === '/customer/profile' ? 'active' : ''}`}>
-          <User size={24} />
-          <span>Profile</span>
-        </Link>
-      </nav>
+          <Link href="/customer/profile" className={`admin-nav-item ${pathname === '/customer/profile' ? 'active' : ''}`}>
+            <User size={24} />
+            <span>Profile</span>
+          </Link>
+        </nav>
+      )}
     </div>
   );
 }
