@@ -358,7 +358,7 @@ export default function CustomerProfilePage() {
     
     {showSettingsModal && (
         <div className="modal-overlay" onClick={() => setShowSettingsModal(false)}>
-            <div className="login-card modal-content" style={{maxWidth: '480px'}} onClick={(e) => e.stopPropagation()}>
+            <div className="login-card modal-content" onClick={(e) => e.stopPropagation()}>
                 <div className="modal-header">
                   <h2>Settings</h2>
                   <button className="close-button" onClick={() => setShowSettingsModal(false)}>&times;</button>
