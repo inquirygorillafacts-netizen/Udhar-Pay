@@ -36,51 +36,9 @@ export default function VoiceAssistantPage() {
     const recognitionRef = useRef<any>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const isProcessingQuery = useRef(false);
-    
-    // Check permission and start listening on page load
-    useEffect(() => {
-        const checkPermissionAndStart = async () => {
-            if (!SpeechRecognition || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                alert('Your browser does not support audio recording.');
-                setHasPermission(false);
-                return;
-            }
-            try {
-                // Request permission
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                // Stop the tracks immediately, we only needed to ask for permission
-                stream.getTracks().forEach(track => track.stop());
-                setHasPermission(true);
-                // Automatically start listening if permission is granted
-                startListening();
-            } catch (err) {
-                console.error('Microphone permission denied.', err);
-                setHasPermission(false);
-                setStatus('idle');
-                addMessage({ sender: 'ai', text: "Microphone permission denied. Please enable it in your browser settings to use the voice assistant." });
-                setMessages(getHistory());
-            }
-        };
-
-        checkPermissionAndStart();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
-
-    useEffect(() => {
-        setMessages(getHistory());
-        if (!audioRef.current) {
-            audioRef.current = new Audio();
-        }
-    }, []);
-    
-    const messagesEndRef = useRef<HTMLDivElement | null>(null);
-    useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages]);
 
     const currentVoiceId = availableVoices[currentVoiceIndex].voiceId;
-    
+
     const stopAudio = useCallback(() => {
         if (audioRef.current) {
             audioRef.current.pause();
@@ -88,70 +46,8 @@ export default function VoiceAssistantPage() {
             audioRef.current.onended = null; // Prevent onended from firing on manual stop
         }
     }, []);
-    
-    const startListening = useCallback(() => {
-        if (!SpeechRecognition || !hasPermission || isMuted || status === 'speaking' || status === 'thinking' || isProcessingQuery.current) {
-            return;
-        }
-    
-        if (recognitionRef.current) {
-            try {
-                recognitionRef.current.stop();
-            } catch (e) {
-                // Ignore if already stopped
-            }
-        }
-    
-        isProcessingQuery.current = false;
-    
-        const recognition = new SpeechRecognition();
-        recognition.continuous = false;
-        recognition.interimResults = false;
-        recognition.lang = 'hi-IN';
-    
-        recognition.onstart = () => {
-            setStatus('listening');
-        };
-    
-        recognition.onresult = (event: any) => {
-            if (isProcessingQuery.current) return;
-            isProcessingQuery.current = true; // Mark as processing as soon as a result comes in
-            const transcript = event.results[0][0].transcript.trim();
-            if (transcript) {
-                processQuery(transcript);
-            } else {
-                isProcessingQuery.current = false; // No transcript, reset flag
-                startListening();
-            }
-        };
-    
-        recognition.onend = () => {
-             // Only restart listening if we are not in the middle of processing a query,
-             // speaking, thinking, or if the mic is muted.
-             if (!isProcessingQuery.current && !isMuted && status !== 'speaking' && status !== 'thinking') {
-                startListening();
-             }
-        };
-    
-        recognition.onerror = (event: any) => {
-            if (event.error === 'no-speech' || event.error === 'aborted') {
-                // Do nothing, onend will handle restart if needed
-            } else {
-                console.error('Speech recognition error:', event.error);
-            }
-            isProcessingQuery.current = false; // Reset on error
-        };
-    
-        try {
-            recognition.start();
-        } catch (e) {
-            console.error("Could not start recognition: ", e);
-            isProcessingQuery.current = false;
-        }
-        recognitionRef.current = recognition;
-    }, [hasPermission, isMuted, status, processQuery]); // Added processQuery to dependency array
 
-
+    // We need to define processQuery before startListening because of the dependency.
     const processQuery = useCallback(async (text: string) => {
         setStatus('thinking');
         stopAudio(); 
@@ -176,21 +72,23 @@ export default function VoiceAssistantPage() {
                 
                 audioRef.current.onended = () => {
                     isProcessingQuery.current = false; // Processing is finished
-                    if (!isMuted) {
-                       startListening();
-                    } else {
-                       setStatus('idle');
+                    // The 'startListening' function will be called from the recognition.onend handler
+                    if (recognitionRef.current) {
+                        try {
+                           recognitionRef.current.start();
+                        } catch(e) {
+                            // Already started or other error, will be handled by onend/onerror
+                        }
                     }
                 };
                 await audioRef.current.play();
                 
             } else {
                  isProcessingQuery.current = false;
-                 if (!isMuted) {
-                    startListening();
-                } else {
-                    setStatus('idle');
-                }
+                 // Re-start listening if no audio
+                 if (recognitionRef.current) {
+                    recognitionRef.current.start();
+                 }
             }
         } catch (error) {
             console.error('Error with AI Assistant:', error);
@@ -199,26 +97,120 @@ export default function VoiceAssistantPage() {
             setMessages(getHistory());
             
             isProcessingQuery.current = false;
-            if (!isMuted) {
-                startListening();
-            } else {
-                setStatus('idle');
+            if (recognitionRef.current) {
+               recognitionRef.current.start();
             }
         }
-    }, [currentVoiceId, isMuted, startListening, stopAudio]);
+    }, [currentVoiceId, stopAudio]);
 
 
+    const startListening = useCallback(() => {
+        if (!SpeechRecognition || !hasPermission || isMuted || isProcessingQuery.current) {
+            return;
+        }
+
+        if (recognitionRef.current) {
+            recognitionRef.current.start();
+            return;
+        }
+        
+        const recognition = new SpeechRecognition();
+        recognition.continuous = false; // Important: process one utterance at a time.
+        recognition.interimResults = false;
+        recognition.lang = 'hi-IN';
+    
+        recognition.onstart = () => {
+            if (!isProcessingQuery.current) {
+              setStatus('listening');
+            }
+        };
+    
+        recognition.onresult = (event: any) => {
+            const transcript = event.results[0][0].transcript.trim();
+            if (transcript && !isProcessingQuery.current) {
+                isProcessingQuery.current = true;
+                recognition.stop(); // Stop listening explicitly
+                processQuery(transcript);
+            }
+        };
+    
+        recognition.onend = () => {
+             // Only restart listening if we are not processing, speaking, or muted.
+             if (!isProcessingQuery.current && !isMuted && status !== 'speaking' && status !== 'thinking') {
+                try {
+                    recognition.start();
+                } catch(e) {
+                    // Ignore errors if it's already started
+                }
+             }
+        };
+    
+        recognition.onerror = (event: any) => {
+            if (event.error === 'no-speech' || event.error === 'aborted') {
+                // These are normal, do nothing, `onend` will handle restart if needed.
+            } else {
+                console.error('Speech recognition error:', event.error);
+            }
+            isProcessingQuery.current = false; // Reset on error to allow restart
+        };
+    
+        try {
+            recognition.start();
+            recognitionRef.current = recognition;
+        } catch (e) {
+            console.error("Could not start recognition: ", e);
+        }
+    }, [hasPermission, isMuted, status, processQuery]);
+
+    // Check permission and start listening on page load
+    useEffect(() => {
+        const checkPermissionAndStart = async () => {
+            if (!SpeechRecognition || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                alert('Your browser does not support audio recording.');
+                setHasPermission(false);
+                return;
+            }
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                stream.getTracks().forEach(track => track.stop());
+                setHasPermission(true);
+                startListening();
+            } catch (err) {
+                console.error('Microphone permission denied.', err);
+                setHasPermission(false);
+                setStatus('idle');
+                addMessage({ sender: 'ai', text: "Microphone permission denied. Please enable it in your browser settings to use the voice assistant." });
+                setMessages(getHistory());
+            }
+        };
+
+        checkPermissionAndStart();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [startListening]);
+
+
+    useEffect(() => {
+        setMessages(getHistory());
+        if (!audioRef.current) {
+            audioRef.current = new Audio();
+        }
+    }, []);
+    
+    const messagesEndRef = useRef<HTMLDivElement | null>(null);
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages]);
+    
     // Handle mute/unmute state
     useEffect(() => {
         if (isMuted) {
             if (recognitionRef.current) {
-                recognitionRef.current.stop();
+                isProcessingQuery.current = false; // Reset processing flag
+                recognitionRef.current.abort(); // Use abort to prevent onend from firing
             }
             stopAudio();
-            isProcessingQuery.current = false; // Reset processing flag
             setStatus('idle');
         } else {
-            // Only start listening if it's idle
             if (status === 'idle') {
                 startListening();
             }
@@ -237,7 +229,7 @@ export default function VoiceAssistantPage() {
             }
         }
     }, []);
-
+    
     const handleMuteToggle = () => setIsMuted(!isMuted);
 
     const statusInfo = {
