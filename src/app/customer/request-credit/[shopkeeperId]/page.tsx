@@ -200,7 +200,7 @@ export default function RequestCreditPage() {
       </header>
 
       <main className="dashboard-main-content" style={{padding: '20px'}}>
-        <div className="login-card" style={{ maxWidth: '600px', margin: 'auto' }}>
+        <div className="login-card" style={{ margin: 'auto' }}>
             <h2 style={{textAlign: 'center', color: '#3d4468', fontWeight: 600, fontSize: '1.5rem', marginBottom: '25px'}}>Enter Udhaar Details</h2>
             <div className="form-group" style={{marginBottom: '30px'}}>
                 <div className="neu-input">
