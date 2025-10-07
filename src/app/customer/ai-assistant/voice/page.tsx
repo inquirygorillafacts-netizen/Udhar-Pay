@@ -2,14 +2,14 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Bot, MessageSquare, Settings, ArrowLeft, Mic, Ear, BrainCircuit, X, MicOff } from 'lucide-react';
+import { Bot, MessageSquare, Settings, ArrowLeft, Mic, Ear, BrainCircuit, X, MicOff, PlayCircle } from 'lucide-react';
 import { askAiAssistant } from '@/ai/flows/assistant-flow';
 import TextAssistantModal from '@/components/assistant/TextAssistantModal';
 import { getHistory, addMessage, ChatMessage } from '@/lib/ai-memory';
 import { useRouter } from 'next/navigation';
 import './ai.css';
 
-type Status = 'idle' | 'listening' | 'thinking' | 'speaking';
+type Status = 'idle' | 'listening' | 'thinking' | 'speaking' | 'uninitialized';
 
 const SpeechRecognition =
   typeof window !== 'undefined'
@@ -18,7 +18,7 @@ const SpeechRecognition =
 
 export default function VoiceAssistantPage() {
     const router = useRouter();
-    const [status, setStatus] = useState<Status>('idle');
+    const [status, setStatus] = useState<Status>('uninitialized');
     const [isMuted, setIsMuted] = useState(false);
     const [hasPermission, setHasPermission] = useState(true);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -44,7 +44,7 @@ export default function VoiceAssistantPage() {
     }, []);
 
     const startListening = useCallback(() => {
-        if (!SpeechRecognition || !hasPermission || isMuted || status !== 'idle') {
+        if (!SpeechRecognition || !hasPermission || isMuted || status === 'listening' || status === 'uninitialized') {
             return;
         }
 
@@ -132,61 +132,70 @@ export default function VoiceAssistantPage() {
     }, [stopAudio, speak]);
 
 
-    // Initial permission check and setup
-    useEffect(() => {
-        const checkPermissionAndStart = async () => {
-            if (!SpeechRecognition || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                alert('Your browser does not support audio recording.');
-                setHasPermission(false);
-                return;
-            }
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                stream.getTracks().forEach(track => track.stop());
-                setHasPermission(true);
+    const initializeAssistant = async () => {
+        if (!SpeechRecognition || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            alert('Your browser does not support audio recording.');
+            setHasPermission(false);
+            setStatus('idle');
+            return;
+        }
+        
+        // This is a user-initiated action, so we can safely start audio.
+        // A silent utterance helps to "unlock" the audio context on some browsers.
+        if (window.speechSynthesis.speaking) window.speechSynthesis.cancel();
+        const silentUtterance = new SpeechSynthesisUtterance('');
+        window.speechSynthesis.speak(silentUtterance);
+        
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            stream.getTracks().forEach(track => track.stop());
+            setHasPermission(true);
 
-                // Setup recognition instance once permission is granted
-                const recognition = new SpeechRecognition();
-                recognition.continuous = false; // Important: process after each pause
-                recognition.interimResults = false;
-                recognition.lang = 'hi-IN';
+            const recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'hi-IN';
 
-                recognition.onstart = () => setStatus('listening');
-                recognition.onresult = (event: any) => {
-                    const transcript = event.results[0][0].transcript.trim();
-                    if (transcript) processQuery(transcript);
-                };
-                recognition.onend = () => {
-                    if (!isProcessingQuery.current) setStatus('idle');
-                };
-                recognition.onerror = (event: any) => {
-                    if (event.error === 'not-allowed') {
-                        setHasPermission(false);
-                        addMessage({ sender: 'ai', text: "Microphone permission denied. Please enable it in your browser settings to use the voice assistant." });
-                        setMessages(getHistory());
-                    } else if (event.error !== 'no-speech' && event.error !== 'aborted') {
-                        console.error('Speech recognition error:', event.error);
-                    }
-                    isProcessingQuery.current = false;
-                    setStatus('idle');
-                };
-                recognitionRef.current = recognition;
-                
-                startListening();
-
-            } catch (err) {
-                console.error('Microphone permission denied.', err);
-                setHasPermission(false);
+            recognition.onstart = () => setStatus('listening');
+            recognition.onresult = (event: any) => {
+                const transcript = event.results[0][0].transcript.trim();
+                if (transcript) processQuery(transcript);
+            };
+            recognition.onend = () => {
+                if (!isProcessingQuery.current) setStatus('idle');
+            };
+            recognition.onerror = (event: any) => {
+                if (event.error === 'not-allowed') {
+                    setHasPermission(false);
+                    addMessage({ sender: 'ai', text: "Microphone permission denied. Please enable it in your browser settings to use the voice assistant." });
+                    setMessages(getHistory());
+                } else if (event.error !== 'no-speech' && event.error !== 'aborted') {
+                    console.error('Speech recognition error:', event.error);
+                }
+                isProcessingQuery.current = false;
                 setStatus('idle');
-                addMessage({ sender: 'ai', text: "Microphone permission denied. Please enable it in your browser settings to use the voice assistant." });
-                setMessages(getHistory());
-            }
-        };
+            };
+            recognitionRef.current = recognition;
+            
+            setStatus('idle'); // Move to idle to allow first startListening call
+            startListening();
 
-        checkPermissionAndStart();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
+        } catch (err) {
+            console.error('Microphone permission denied.', err);
+            setHasPermission(false);
+            setStatus('idle');
+            addMessage({ sender: 'ai', text: "Microphone permission denied. Please enable it in your browser settings to use the voice assistant." });
+            setMessages(getHistory());
+        }
+    };
+    
+    // Auto-start listening only if status is idle
+    useEffect(() => {
+        if(status === 'idle') {
+            const timer = setTimeout(() => startListening(), 100);
+            return () => clearTimeout(timer);
+        }
+    }, [status, startListening])
 
     useEffect(() => {
         setMessages(getHistory());
@@ -224,6 +233,7 @@ export default function VoiceAssistantPage() {
     }, [stopAudio]);
 
     const statusInfo = {
+        uninitialized: { text: "Tap to Start", icon: <PlayCircle size={16}/> },
         idle: { text: isMuted ? "Muted" : "Idle", icon: isMuted ? <MicOff size={16}/> : <Mic size={16}/> },
         listening: { text: "Listening...", icon: <Ear size={16}/> },
         thinking: { text: "Thinking...", icon: <BrainCircuit size={16}/> },
@@ -242,7 +252,8 @@ export default function VoiceAssistantPage() {
                     <span>{statusInfo[status].text}</span>
                 </div>
             </div>
-            <div className="ai-video-container">
+            
+             <div className="ai-video-container">
                  <div className="ai-video-wrapper">
                     <video 
                         src="/ai.mp4" 
@@ -252,6 +263,13 @@ export default function VoiceAssistantPage() {
                         playsInline
                         className="ai-video-orb"
                     />
+                     {status === 'uninitialized' && (
+                        <div style={{position: 'absolute', zIndex: 10}}>
+                             <button onClick={initializeAssistant} className="glass-button" style={{padding: '2rem', borderRadius: '50%', background: 'rgba(0,200,150,0.7)', border: 'none'}}>
+                                <PlayCircle size={50} color="white"/>
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
             
@@ -272,10 +290,10 @@ export default function VoiceAssistantPage() {
                  <button className="glass-button" disabled>
                     <Settings size={18}/>
                 </button>
-                 <button onClick={handleMuteToggle} className={`glass-button ${isMuted ? 'active' : ''}`}>
+                 <button onClick={handleMuteToggle} className={`glass-button ${isMuted ? 'active' : ''}`} disabled={status === 'uninitialized'}>
                     {isMuted ? <MicOff size={18}/> : <Mic size={18}/>}
                 </button>
-                <button onClick={() => setIsTextModalOpen(true)} className="glass-button">
+                <button onClick={() => setIsTextModalOpen(true)} className="glass-button" disabled={status === 'uninitialized'}>
                     <MessageSquare size={18}/>
                 </button>
             </div>
@@ -284,3 +302,4 @@ export default function VoiceAssistantPage() {
       </>
     );
 }
+
