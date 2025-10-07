@@ -22,7 +22,6 @@ const countryCodes = [
 
 declare global {
     interface Window {
-        confirmationResult?: ConfirmationResult;
         recaptchaVerifier?: RecaptchaVerifier;
         grecaptcha?: any;
     }
@@ -148,7 +147,6 @@ export default function CustomerAuthPage() {
             });
             
             const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifier);
-            window.confirmationResult = confirmation;
             setConfirmationResultState(confirmation);
             setTimer(60);
         } catch (error: any) {
@@ -180,16 +178,14 @@ export default function CustomerAuthPage() {
             return;
         }
         
-        const confirmation = window.confirmationResult;
-
-        if (!confirmation) {
+        if (!confirmationResultState) {
             setErrors({ form: "Something went wrong. Please try sending OTP again." });
             return;
         }
         
         setLoading(true);
         try {
-            const result = await confirmation.confirm(otp);
+            const result = await confirmationResultState.confirm(otp);
             await handleAuthSuccess(result.user);
         } catch (error: any) {
              let errorMessage = "Invalid OTP or request expired. Please try again.";
