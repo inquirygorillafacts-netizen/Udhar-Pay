@@ -24,6 +24,7 @@ declare global {
     interface Window {
         recaptchaVerifier?: RecaptchaVerifier;
         confirmationResult?: ConfirmationResult;
+        grecaptcha?: any;
     }
 }
 
@@ -51,25 +52,22 @@ export default function ShopkeeperAuthPage() {
 
     // Setup reCAPTCHA on mount
     useEffect(() => {
-        if (!auth) return;
-        
-        // Ensure we don't create multiple verifiers
-        if (!window.recaptchaVerifier) {
-            window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-                'size': 'normal', // Use 'normal' for the visible checkbox
-                'callback': (response: any) => {
-                    // reCAPTCHA solved, allow user to send OTP
-                    console.log("reCAPTCHA verified!");
-                    setIsRecaptchaVerified(true);
-                },
-                'expired-callback': () => {
-                    // Response expired. Ask user to solve reCAPTCHA again.
-                    console.log("reCAPTCHA expired.");
-                    setIsRecaptchaVerified(false);
-                }
-            });
-             window.recaptchaVerifier.render();
+        if (!auth || confirmationResultState) return;
+
+        if (window.recaptchaVerifier) {
+            window.recaptchaVerifier.clear();
         }
+        
+        window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+            'size': 'normal',
+            'callback': (response: any) => {
+                setIsRecaptchaVerified(true);
+            },
+            'expired-callback': () => {
+                setIsRecaptchaVerified(false);
+            }
+        });
+        window.recaptchaVerifier.render();
 
         const handleClickOutside = (event: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -82,7 +80,7 @@ export default function ShopkeeperAuthPage() {
             document.removeEventListener("mousedown", handleClickOutside);
              if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
         };
-    }, [auth]);
+    }, [auth, confirmationResultState]);
 
      useEffect(() => {
         if (timer > 0) {
@@ -175,11 +173,10 @@ export default function ShopkeeperAuthPage() {
                 errorMessage = "The phone number is not valid.";
             }
             setErrors({ form: errorMessage });
-            // Reset reCAPTCHA on error
-            window.recaptchaVerifier?.render().then(widgetId => {
-                // @ts-ignore
-                grecaptcha.reset(widgetId);
-            })
+            
+            if (window.grecaptcha && window.recaptchaVerifier) {
+                window.grecaptcha.reset(window.recaptchaVerifier.widgetId);
+            }
             setIsRecaptchaVerified(false);
         } finally {
             setLoading(false);
@@ -306,3 +303,4 @@ export default function ShopkeeperAuthPage() {
         </div>
     );
 }
+    
