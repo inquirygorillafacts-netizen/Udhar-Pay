@@ -48,7 +48,7 @@ export default function CustomerCreditCardsPage() {
     }
 
     return (
-        <main className="dashboard-main-content" style={{ padding: '20px', maxWidth: '800px', margin: 'auto' }}>
+        <main className="dashboard-main-content" style={{ padding: '20px', margin: 'auto' }}>
             
              {/* Loan Banner */}
             <div className="login-card" style={{ margin: '0 0 40px 0', padding: '30px', background: '#007bff', color: 'white' }}>
