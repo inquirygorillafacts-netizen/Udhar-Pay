@@ -208,7 +208,7 @@ export default function VoiceAssistantPage() {
             }
         };
 
-        playGreetingAndListen();
+        // playGreetingAndListen(); // Auto-start disabled, user will use the toggle
 
         // Cleanup function to stop everything when the component unmounts
         return () => {
@@ -250,7 +250,7 @@ export default function VoiceAssistantPage() {
 
     return (
       <>
-        <main className="ai-container">
+        <main className="ai-container" style={{paddingBottom: '120px'}}>
              <header className="dashboard-header" style={{ position: 'sticky', top: '20px', zIndex: 10, background: '#e0e5ec', margin: '0 20px', width: 'auto' }}>
                 <button onClick={() => router.back()} className="neu-button" style={{width: '45px', height: '45px', padding: 0, margin: 0, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
                     <ArrowLeft size={20}/>
@@ -296,6 +296,12 @@ export default function VoiceAssistantPage() {
                       </div>
                     ))}
                     <div ref={messagesEndRef} />
+                </div>
+            </div>
+             <div className="ai-control-panel">
+                <p>{isAssistantOn ? "AI is Active" : "AI is Off"}</p>
+                <div className={`neu-toggle-switch big-toggle ${isAssistantOn ? 'active' : ''}`} onClick={() => setIsAssistantOn(!isAssistantOn)}>
+                    <div className="neu-toggle-handle"></div>
                 </div>
             </div>
         </main>

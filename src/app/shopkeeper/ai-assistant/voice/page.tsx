@@ -167,7 +167,7 @@ export default function VoiceAssistantPage() {
         }
     };
     
-    const handlePowerClick = () => {
+    const handlePowerToggle = () => {
         if (!isAssistantOn) {
             checkPermissionAndStart();
         } else {
@@ -227,7 +227,7 @@ export default function VoiceAssistantPage() {
             </div>
         )}
 
-        <main className="ai-container">
+        <main className="ai-container" style={{paddingBottom: '120px'}}>
              <header className="dashboard-header" style={{ position: 'sticky', top: '20px', zIndex: 10, background: '#e0e5ec', margin: '0 20px', width: 'auto' }}>
                 <button onClick={() => router.back()} className="neu-button" style={{width: '45px', height: '45px', padding: 0, margin: 0, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
                     <ArrowLeft size={20}/>
@@ -260,11 +260,6 @@ export default function VoiceAssistantPage() {
                     </div>
                  </div>
                  
-                 <button className={`neu-button power-button ${isAssistantOn ? 'on' : 'off'}`} onClick={handlePowerClick}>
-                    <Power size={24}/>
-                    <span>{isAssistantOn ? 'Turn Off' : 'Turn On'}</span>
-                 </button>
-
                  {isAssistantOn && (
                     <div className="status-indicator">
                         {statusInfo[status].icon}
@@ -288,6 +283,13 @@ export default function VoiceAssistantPage() {
                       </div>
                     ))}
                     <div ref={messagesEndRef} />
+                </div>
+            </div>
+
+            <div className="ai-control-panel">
+                <p>{isAssistantOn ? "AI is Active" : "AI is Off"}</p>
+                <div className={`neu-toggle-switch big-toggle ${isAssistantOn ? 'active' : ''}`} onClick={handlePowerToggle}>
+                    <div className="neu-toggle-handle"></div>
                 </div>
             </div>
         </main>

@@ -81,26 +81,6 @@
     100% { transform: scale(1); opacity: 0.7; }
 }
 
-.power-button {
-    margin: 0;
-    width: auto;
-    padding: 12px 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    font-size: 1rem;
-    transition: all 0.3s ease;
-}
-.power-button.on {
-    background: #00c896;
-    color: white;
-}
-.power-button.off {
-    background: #ff3b5c;
-    color: white;
-}
-
 .status-indicator {
     display: flex;
     align-items: center;
@@ -166,4 +146,44 @@
 
 .chat-bubble p {
     margin: 0;
+}
+
+.ai-control-panel {
+    position: fixed;
+    bottom: 80px; /* Adjust this to sit above the main nav bar */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    max-width: 400px;
+    background: #e0e5ec;
+    border-radius: 20px;
+    padding: 10px;
+    box-shadow: 10px 10px 30px #bec3cf, -10px -10px 30px #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 101;
+}
+
+.ai-control-panel p {
+    color: #3d4468;
+    font-weight: 600;
+    margin-left: 10px;
+}
+
+.neu-toggle-switch.big-toggle {
+    width: 120px;
+    height: 50px;
+    border-radius: 25px;
+}
+
+.neu-toggle-switch.big-toggle .neu-toggle-handle {
+    width: 44px;
+    height: 44px;
+    top: 3px;
+    left: 3px;
+}
+
+.neu-toggle-switch.big-toggle.active .neu-toggle-handle {
+    left: 73px;
 }

@@ -133,3 +133,43 @@
 .chat-bubble p {
     margin: 0;
 }
+
+.ai-control-panel {
+    position: fixed;
+    bottom: 80px; /* Adjust this to sit above the main nav bar */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    max-width: 400px;
+    background: #e0e5ec;
+    border-radius: 20px;
+    padding: 10px;
+    box-shadow: 10px 10px 30px #bec3cf, -10px -10px 30px #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 101;
+}
+
+.ai-control-panel p {
+    color: #3d4468;
+    font-weight: 600;
+    margin-left: 10px;
+}
+
+.neu-toggle-switch.big-toggle {
+    width: 120px;
+    height: 50px;
+    border-radius: 25px;
+}
+
+.neu-toggle-switch.big-toggle .neu-toggle-handle {
+    width: 44px;
+    height: 44px;
+    top: 3px;
+    left: 3px;
+}
+
+.neu-toggle-switch.big-toggle.active .neu-toggle-handle {
+    left: 73px;
+}
