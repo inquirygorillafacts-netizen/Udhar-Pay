@@ -36,7 +36,7 @@ export default function VoiceAssistantPage() {
     const recognitionRef = useRef<any>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const messagesEndRef = useRef<HTMLDivElement | null>(null);
     
     // Check permission and start listening on page load
     useEffect(() => {
