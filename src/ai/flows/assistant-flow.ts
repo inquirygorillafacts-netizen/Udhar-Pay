@@ -1,10 +1,9 @@
 'use server';
 /**
- * @fileOverview A conversational AI assistant flow that processes text input,
- * generates a spoken response using a third-party Text-to-Speech service (Murf.ai),
- * and returns it as an audio data.
+ * @fileOverview A conversational AI assistant flow that processes text input
+ * and returns a textual response. The audio generation is now handled client-side.
  *
- * - `askAiAssistant` - A function that orchestrates the text-to-text and text-to-speech process.
+ * - `askAiAssistant` - A function that orchestrates the text-to-text process.
  * - `AssistantInput` - The input type for the `askAiAssistant` function.
  * - `AssistantOutput` - The return type for the `askAiAssistant` function.
  */
@@ -12,11 +11,6 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import type { ChatMessage } from '@/lib/ai-memory';
-import axios from 'axios';
-import { Stream } from 'stream';
-
-
-const DEFAULT_VOICE_ID = 'it-IT-lorenzo';
 
 // Define the input schema for the assistant
 const AssistantInputSchema = z.object({
@@ -25,89 +19,14 @@ const AssistantInputSchema = z.object({
       sender: z.enum(['user', 'ai']),
       text: z.string(),
   })).optional().describe('The conversation history.'),
-  generateAudio: z.boolean().optional().default(true).describe('Whether to generate an audio response.'),
-  voiceId: z.string().optional().default(DEFAULT_VOICE_ID).describe('The voice to use for the audio response.'),
 });
 export type AssistantInput = z.infer<typeof AssistantInputSchema>;
 
-// Define the output schema for the assistant
+// Define the output schema for the assistant - only text is returned now.
 const AssistantOutputSchema = z.object({
   text: z.string().describe("The AI's textual response."),
-  audio: z.string().optional().describe("The AI's spoken response as a base64-encoded WAV data URI."),
 });
 export type AssistantOutput = z.infer<typeof AssistantOutputSchema>;
-
-
-// Define the input for the audio generation part
-const GenerateAudioInputSchema = z.object({
-    text: z.string(),
-    voiceId: z.string().optional().default(DEFAULT_VOICE_ID),
-});
-
-// Helper function to convert a readable stream to a Base64 string
-async function streamToBase64(stream: Stream): Promise<string> {
-    return new Promise((resolve, reject) => {
-        const chunks: Buffer[] = [];
-        stream.on('data', (chunk) => chunks.push(chunk));
-        stream.on('end', () => resolve(Buffer.concat(chunks).toString('base64')));
-        stream.on('error', (error) => reject(`Error converting stream to base64: ${error.message}`));
-    });
-}
-
-
-/**
- * Generates audio from text using the Murf.ai Non-Streaming API.
- */
-const generateAudioFlow = ai.defineFlow(
-    {
-        name: 'generateAudioFlow',
-        inputSchema: GenerateAudioInputSchema,
-        outputSchema: z.object({ audio: z.string() }),
-    },
-    async ({ text, voiceId }) => {
-        try {
-            // Step 1: Call the generate endpoint to get the audio URL
-            const generateResponse = await axios.post(
-                'https://api.murf.ai/v1/speech/generate', 
-                {
-                    text: text,
-                    voiceId: voiceId || DEFAULT_VOICE_ID,
-                    format: 'wav',
-                    sampleRate: 24000,
-                }, 
-                {
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'api-key': process.env.MURF_API_KEY, 
-                    },
-                }
-            );
-
-            const audioUrl = generateResponse.data?.audio_url;
-
-            if (!audioUrl) {
-                throw new Error("Murf.ai did not return an audio URL.");
-            }
-
-            // Step 2: Download the audio from the URL
-            const audioResponse = await axios.get(audioUrl, {
-                responseType: 'arraybuffer' // Get the response as a raw buffer
-            });
-            
-            // Step 3: Convert the buffer to a base64 data URI
-            const audioBase64 = Buffer.from(audioResponse.data).toString('base64');
-            
-            return {
-                audio: `data:audio/wav;base64,${audioBase64}`,
-            };
-
-        } catch (error: any) {
-            console.error("Error calling Murf.ai API:", error.response?.data || error.message);
-            throw new Error("Failed to generate audio from Murf.ai");
-        }
-    }
-);
-
 
 // Define the main flow for the AI assistant
 const assistantFlow = ai.defineFlow(
@@ -116,7 +35,7 @@ const assistantFlow = ai.defineFlow(
     inputSchema: AssistantInputSchema,
     outputSchema: AssistantOutputSchema,
   },
-  async ({ query, history = [], generateAudio, voiceId }) => {
+  async ({ query, history = [] }) => {
     
     // Combine the current query with the history
     const fullHistory: ChatMessage[] = [...history, { sender: 'user', text: query }];
@@ -140,24 +59,9 @@ const assistantFlow = ai.defineFlow(
     if (!textResponse) {
       throw new Error('No text response from AI.');
     }
-    const responseText = textResponse;
-
-    // If audio generation is disabled, return only the text
-    if (!generateAudio) {
-        return {
-            text: responseText,
-        };
-    }
     
-    // Clean the text for TTS by removing markdown characters like asterisks
-    const cleanTextForTts = responseText.replace(/\*/g, '');
-    
-    // Convert the text response to speech using the dedicated audio flow
-    const { audio } = await generateAudioFlow({ text: cleanTextForTts, voiceId: voiceId });
-
     return {
-        text: responseText,
-        audio: audio,
+        text: textResponse,
     };
   }
 );
@@ -165,7 +69,7 @@ const assistantFlow = ai.defineFlow(
 /**
  * Public-facing wrapper function to invoke the assistant flow.
  * @param input The user's query and conversation history.
- * @returns The AI's text response and optionally the spoken audio data URI.
+ * @returns The AI's text response.
  */
 export async function askAiAssistant(input: AssistantInput): Promise<AssistantOutput> {
   return assistantFlow(input);
