@@ -55,11 +55,31 @@ export default function ShopkeeperAuthPage() {
             }
         };
         document.addEventListener("mousedown", handleClickOutside);
+
+        // Setup recaptcha on mount
+        const setupRecaptcha = () => {
+             if (!auth) return;
+             if (window.recaptchaVerifier) {
+                 window.recaptchaVerifier.clear();
+             }
+             window.recaptchaVerifier = new RecaptchaVerifier(auth, 'send-code-btn-shopkeeper', {
+                 'size': 'invisible',
+                 'callback': (response: any) => {
+                    // reCAPTCHA solved, allow sending OTP.
+                 },
+                 'expired-callback': () => {
+                    // Response expired. User needs to solve reCAPTCHA again.
+                 }
+             });
+        };
+
+        setupRecaptcha();
+
         return () => {
             document.removeEventListener("mousedown", handleClickOutside);
              if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
         };
-    }, []);
+    }, [auth]);
 
      useEffect(() => {
         if (timer > 0) {
@@ -132,7 +152,7 @@ export default function ShopkeeperAuthPage() {
         setLoading(true);
         setErrors({});
 
-        if (!auth) {
+        if (!auth || !window.recaptchaVerifier) {
             setErrors({ form: "Verification service not ready. Please refresh." });
             setLoading(false);
             return;
@@ -140,11 +160,9 @@ export default function ShopkeeperAuthPage() {
 
         try {
             const fullPhoneNumber = `${selectedCountry.code}${phone}`;
-            const recaptchaVerifier = new RecaptchaVerifier(auth, 'send-code-btn-shopkeeper', {
-                'size': 'invisible',
-            });
+            const appVerifier = window.recaptchaVerifier;
 
-            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifier);
+            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, appVerifier);
             setConfirmationResultState(confirmation);
             setTimer(60);
         } catch (error: any) {
@@ -264,7 +282,7 @@ export default function ShopkeeperAuthPage() {
                                                 )}
                                             </div>
                                             <div style={{width: '2px', height: '30px', background: '#d1d9e6'}}></div>
-                                            <input type="tel" id="phone" name="phone" required autoComplete="tel" placeholder=" " value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g, ''))} maxLength={10} style={{flex: 1, paddingLeft: '15px', border: 'none', background: 'transparent', outline: 'none'}} />
+                                            <input type="tel" id="phone" name="phone" required autoComplete="tel" placeholder=" " value={phone} onChange={e => setPhone(e.target.value.replace(/\\D/g, ''))} maxLength={10} style={{flex: 1, paddingLeft: '15px', border: 'none', background: 'transparent', outline: 'none'}} />
                                             <label htmlFor="phone" style={{left: '120px'}}>Mobile Number</label>
                                         </div>
                                         {errors.phone && <span className="error-message show">{errors.phone}</span>}
