@@ -136,7 +136,7 @@ export default function ShopkeeperCustomersPage() {
 
   return (
     <main className="dashboard-main-content" style={{padding: '20px'}}>
-        <div className="login-card" style={{ maxWidth: '600px', margin: 'auto', marginBottom: '30px' }}>
+        <div style={{ maxWidth: '600px', margin: 'auto', marginBottom: '30px' }}>
              <div style={{ display: 'flex', gap: '20px', alignItems: 'stretch' }}>
                 <div className="form-group" style={{ flexGrow: 1, margin: 0 }}>
                     <div className="neu-input">
