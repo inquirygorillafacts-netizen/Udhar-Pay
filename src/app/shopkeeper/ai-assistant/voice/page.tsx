@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Bot, MessageSquare, ListMusic, User, ArrowLeft, Power, Mic, Ear, BrainCircuit, X } from 'lucide-react';
+import { Bot, MessageSquare, ListMusic, ArrowLeft, Mic, Ear, BrainCircuit, X } from 'lucide-react';
 import { askAiAssistant } from '@/ai/flows/assistant-flow';
 import TextAssistantModal from '@/components/assistant/TextAssistantModal';
 import { getHistory, addMessage, ChatMessage } from '@/lib/ai-memory';
@@ -188,7 +188,7 @@ export default function VoiceAssistantPage() {
     }, [isAssistantOn, hasPermission, startListening]);
     
     const statusInfo = {
-        idle: { text: "AI is idle", icon: <Mic size={16}/> },
+        idle: { text: "AI is Off", icon: <Mic size={16}/> },
         listening: { text: "Listening...", icon: <Ear size={16}/> },
         thinking: { text: "Thinking...", icon: <BrainCircuit size={16}/> },
         speaking: { text: "Speaking...", icon: <Bot size={16}/> },
@@ -203,22 +203,22 @@ export default function VoiceAssistantPage() {
       <>
         {isVoiceModalOpen && (
             <div className="modal-overlay" onClick={() => setIsVoiceModalOpen(false)}>
-                <div className="login-card modal-content" style={{maxWidth: '450px'}} onClick={(e) => e.stopPropagation()}>
+                <div className="glass-card modal-content" style={{maxWidth: '450px'}} onClick={(e) => e.stopPropagation()}>
                     <div className="modal-header">
                         <h2>Select a Voice</h2>
-                        <button className="close-button" onClick={() => setIsVoiceModalOpen(false)}><X size={24}/></button>
+                        <button className="glass-button" style={{width: '40px', height: '40px', padding: 0}} onClick={() => setIsVoiceModalOpen(false)}><X size={20}/></button>
                     </div>
                     <div style={{display: 'flex', flexDirection: 'column', gap: '15px'}}>
                         {availableVoices.map((voice, index) => (
                             <button
                                 key={voice.voiceId}
-                                className={`neu-button role-btn ${index === currentVoiceIndex ? 'active' : ''}`}
+                                className={`glass-button text-left ${index === currentVoiceIndex ? 'active' : ''}`}
                                 style={{margin: 0, justifyContent: 'flex-start', textAlign: 'left', padding: '15px 20px', height: 'auto'}}
                                 onClick={() => selectVoice(index)}
                             >
                                 <div>
-                                    <h4 style={{margin:0, fontSize: '1rem', color: index === currentVoiceIndex ? 'white' : '#3d4468'}}>{voice.name}</h4>
-                                    <p style={{margin:0, fontSize: '0.8rem', color: index === currentVoiceIndex ? 'rgba(255,255,255,0.8)' : '#9499b7'}}>{voice.description}</p>
+                                    <h4 style={{margin:0, fontSize: '1rem', color: '#fff'}}>{voice.name}</h4>
+                                    <p style={{margin:0, fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)'}}>{voice.description}</p>
                                 </div>
                             </button>
                         ))}
@@ -228,47 +228,27 @@ export default function VoiceAssistantPage() {
         )}
 
         <main className="ai-container">
-             <header className="dashboard-header" style={{ position: 'sticky', top: '20px', zIndex: 10, background: '#e0e5ec', margin: '0 20px', width: 'auto' }}>
-                <button onClick={() => router.back()} className="neu-button" style={{width: '45px', height: '45px', padding: 0, margin: 0, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+             <video 
+                src="/ai.mp4" 
+                autoPlay 
+                loop 
+                muted 
+                playsInline
+                className="ai-video-bg"
+            />
+            <div className="ai-overlay-bg"></div>
+
+            <header className="ai-header">
+                <button onClick={() => router.back()} className="glass-button">
                     <ArrowLeft size={20}/>
                 </button>
-                <div style={{textAlign: 'center', flexGrow: 1}}>
-                    <h1 style={{color: '#3d4468', fontSize: '1.2rem', fontWeight: '600'}}>AI Voice Assistant</h1>
+                <div className="flex-grow text-center">
+                    <h1 className="text-xl font-bold text-white">AI Voice Assistant</h1>
                 </div>
-                <div style={{display: 'flex', gap: '10px'}}>
-                     <button onClick={() => setIsTextModalOpen(true)} className="neu-button" style={{width: '45px', height: '45px', padding: 0, margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-                        <MessageSquare size={18}/>
-                    </button>
-                </div>
+                <button onClick={() => setIsTextModalOpen(true)} className="glass-button">
+                    <MessageSquare size={18}/>
+                </button>
             </header>
-
-            <div className="ai-visualizer">
-                 <div className={`ai-orb-wrapper ${isAssistantOn ? 'on' : 'off'}`}>
-                    <div className="ai-orb">
-                        <div className={`ai-glow ${status}`}></div>
-                        <video 
-                            src="/ai.mp4" 
-                            autoPlay 
-                            loop 
-                            muted 
-                            playsInline
-                            className="ai-video-core"
-                          />
-                    </div>
-                 </div>
-                 
-                 {isAssistantOn && (
-                    <div className="status-indicator">
-                        {statusInfo[status].icon}
-                        <span>{statusInfo[status].text}</span>
-                    </div>
-                 )}
-                 {hasPermission === false && (
-                    <div style={{color: '#ff3b5c', textAlign: 'center', marginTop: '10px', fontSize: '14px', fontWeight: 500}}>
-                        Microphone permission denied. Please enable it in your browser settings.
-                    </div>
-                 )}
-            </div>
 
             <div className="ai-chat-area">
                 <div className="ai-chat-messages">
@@ -284,11 +264,22 @@ export default function VoiceAssistantPage() {
             </div>
 
             <div className="ai-control-panel">
-                <button onClick={() => setIsVoiceModalOpen(true)} className="neu-button" style={{margin: 0, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px', padding: '12px'}}>
-                    <ListMusic size={16}/> Voice Mode
-                </button>
-                <div className={`neu-toggle-switch big-toggle ${isAssistantOn ? 'active' : ''}`} onClick={handlePowerToggle}>
-                    <div className="neu-toggle-handle"></div>
+                <div className="status-indicator">
+                    {isAssistantOn ? statusInfo[status].icon : statusInfo.idle.icon}
+                    <span>{isAssistantOn ? statusInfo[status].text : statusInfo.idle.text}</span>
+                </div>
+                 {hasPermission === false && (
+                    <div style={{color: '#ff9999', textAlign: 'center', fontSize: '14px', fontWeight: 500}}>
+                        Enable mic permission.
+                    </div>
+                 )}
+                 <div className="flex items-center gap-4">
+                    <button onClick={() => setIsVoiceModalOpen(true)} className="glass-button" style={{padding: '10px 15px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px'}}>
+                        <ListMusic size={16}/> Voice Mode
+                    </button>
+                    <div className={`neu-toggle-switch big-toggle ${isAssistantOn ? 'active' : ''}`} onClick={handlePowerToggle}>
+                        <div className="neu-toggle-handle"></div>
+                    </div>
                 </div>
             </div>
         </main>
