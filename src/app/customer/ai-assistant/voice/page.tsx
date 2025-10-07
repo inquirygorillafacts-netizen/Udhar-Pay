@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Bot, MessageSquare, Settings, ArrowLeft, Mic, Ear, BrainCircuit, X, MicOff, PlayCircle } from 'lucide-react';
+import { Bot, MessageSquare, Settings, ArrowLeft, Mic, Ear, BrainCircuit, X, MicOff, PlayCircle, Languages } from 'lucide-react';
 import { askAiAssistant } from '@/ai/flows/assistant-flow';
 import TextAssistantModal from '@/components/assistant/TextAssistantModal';
 import { getHistory, addMessage, ChatMessage } from '@/lib/ai-memory';
@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 import './ai.css';
 
 type Status = 'idle' | 'listening' | 'thinking' | 'speaking' | 'uninitialized';
+type Language = 'english' | 'hindi';
 
 const SpeechRecognition =
   typeof window !== 'undefined'
@@ -23,25 +24,39 @@ export default function VoiceAssistantPage() {
     const [hasPermission, setHasPermission] = useState(true);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [isTextModalOpen, setIsTextModalOpen] = useState(false);
+    const [language, setLanguage] = useState<Language>('english');
     
     const recognitionRef = useRef<any>(null);
     const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
     const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
     const isProcessingQuery = useRef(false);
-
-    // Timeout ref for no-speech detection
     const speechTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
+        const preferredLang = localStorage.getItem('aiLanguage') as Language | null;
+        if (preferredLang) {
+            setLanguage(preferredLang);
+        }
+
         const loadVoices = () => {
             voicesRef.current = window.speechSynthesis.getVoices();
         };
-        // Load voices initially and on change
         if (typeof window !== 'undefined' && window.speechSynthesis) {
             loadVoices();
             window.speechSynthesis.onvoiceschanged = loadVoices;
         }
     }, []);
+
+    const toggleLanguage = () => {
+        const newLang = language === 'english' ? 'hindi' : 'english';
+        setLanguage(newLang);
+        localStorage.setItem('aiLanguage', newLang);
+        stopAudio();
+        if (recognitionRef.current) {
+            recognitionRef.current.stop();
+        }
+        setStatus('idle');
+    };
     
     const stopAudio = useCallback(() => {
         if (typeof window !== 'undefined' && window.speechSynthesis) {
@@ -56,13 +71,13 @@ export default function VoiceAssistantPage() {
 
         if (recognitionRef.current) {
             try {
+                recognitionRef.current.lang = language === 'hindi' ? 'hi-IN' : 'en-US';
                 recognitionRef.current.start();
-                // Status is set in onstart
             } catch (e) {
-                // This can happen if recognition is already starting, which is fine.
+                // Ignore if already starting
             }
         }
-    }, [hasPermission, isMuted, status]);
+    }, [hasPermission, isMuted, status, language]);
 
     const speak = useCallback((text: string) => {
         if (typeof window === 'undefined' || !window.speechSynthesis) {
@@ -76,25 +91,23 @@ export default function VoiceAssistantPage() {
         
         const utterance = new SpeechSynthesisUtterance(text);
         
-        const hindiVoice = voicesRef.current.find(voice => voice.lang === 'hi-IN');
-        if (hindiVoice) {
-            utterance.voice = hindiVoice;
+        const voiceLang = language === 'hindi' ? 'hi-IN' : 'en-US';
+        const selectedVoice = voicesRef.current.find(voice => voice.lang === voiceLang);
+        
+        if (selectedVoice) {
+            utterance.voice = selectedVoice;
         } else {
-            console.warn("Hindi (hi-IN) voice not found. Using default.");
+            console.warn(`${voiceLang} voice not found. Using default.`);
         }
-        utterance.lang = 'hi-IN';
+        utterance.lang = voiceLang;
         utterance.rate = 1;
         utterance.pitch = 1;
 
-        utterance.onstart = () => {
-            setStatus('speaking');
-        };
-
+        utterance.onstart = () => setStatus('speaking');
         utterance.onend = () => {
             setStatus('idle');
             isProcessingQuery.current = false;
         };
-
         utterance.onerror = (event) => {
             console.error("Speech synthesis error:", event.error);
             setStatus('idle');
@@ -103,7 +116,7 @@ export default function VoiceAssistantPage() {
         
         utteranceRef.current = utterance;
         window.speechSynthesis.speak(utterance);
-    }, [stopAudio]);
+    }, [stopAudio, language]);
     
     const processQuery = useCallback(async (text: string) => {
         if (isProcessingQuery.current || !text) return;
@@ -115,7 +128,6 @@ export default function VoiceAssistantPage() {
             recognitionRef.current.stop();
         }
 
-
         addMessage({ sender: 'user', text });
         setMessages(getHistory());
         
@@ -123,6 +135,7 @@ export default function VoiceAssistantPage() {
             const response = await askAiAssistant({
                 query: text,
                 history: getHistory(),
+                language: language
             });
 
             addMessage({ sender: 'ai', text: response.text });
@@ -131,12 +144,12 @@ export default function VoiceAssistantPage() {
             
         } catch (error) {
             console.error('Error with AI Assistant:', error);
-            const errorMessage = "माफ़ कीजिए, कोई त्रुटि हुई। कृपया फिर प्रयास करें।";
+            const errorMessage = language === 'hindi' ? "माफ़ कीजिए, कोई त्रुटि हुई।" : "Sorry, an error occurred.";
             addMessage({sender: 'ai', text: errorMessage});
             setMessages(getHistory());
             speak(errorMessage);
         }
-    }, [stopAudio, speak]);
+    }, [stopAudio, speak, language]);
 
 
     const initializeAssistant = async () => {
@@ -147,7 +160,6 @@ export default function VoiceAssistantPage() {
             return;
         }
         
-        // This is a workaround for some browsers that require a user gesture to start speech synthesis.
         if (window.speechSynthesis.speaking) window.speechSynthesis.cancel();
         const silentUtterance = new SpeechSynthesisUtterance('');
         window.speechSynthesis.speak(silentUtterance);
@@ -160,14 +172,12 @@ export default function VoiceAssistantPage() {
             const recognition = new SpeechRecognition();
             recognition.continuous = true;
             recognition.interimResults = true;
-            recognition.lang = 'hi-IN';
             
             let finalTranscript = '';
 
             recognition.onresult = (event: any) => {
-                if (speechTimeoutRef.current) {
-                    clearTimeout(speechTimeoutRef.current);
-                }
+                if (speechTimeoutRef.current) clearTimeout(speechTimeoutRef.current);
+                
                 let interimTranscript = '';
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
                     if (event.results[i].isFinal) {
@@ -177,13 +187,11 @@ export default function VoiceAssistantPage() {
                     }
                 }
                 
-                // If we have a final transcript, process it.
                 if (finalTranscript.trim()) {
                     processQuery(finalTranscript.trim());
                     finalTranscript = '';
                 }
 
-                // If the user pauses for 1.5s, consider it the end of input
                 speechTimeoutRef.current = setTimeout(() => {
                     if (interimTranscript.trim() && !isProcessingQuery.current) {
                        processQuery(interimTranscript.trim());
@@ -197,18 +205,15 @@ export default function VoiceAssistantPage() {
             };
 
             recognition.onend = () => {
-                 if (speechTimeoutRef.current) {
-                    clearTimeout(speechTimeoutRef.current);
-                }
-                // Only go to idle if not in the middle of processing a query.
-                if (!isProcessingQuery.current) {
-                    setStatus('idle');
-                }
+                if (speechTimeoutRef.current) clearTimeout(speechTimeoutRef.current);
+                if (!isProcessingQuery.current) setStatus('idle');
             };
+
             recognition.onerror = (event: any) => {
                 if (event.error === 'not-allowed') {
                     setHasPermission(false);
-                    addMessage({ sender: 'ai', text: "Microphone permission denied. Please enable it in your browser settings to use the voice assistant." });
+                    const msg = "Microphone permission denied. Please enable it in your browser settings to use the voice assistant.";
+                    addMessage({ sender: 'ai', text: msg });
                     setMessages(getHistory());
                 } else if (event.error !== 'no-speech' && event.error !== 'aborted') {
                     console.error('Speech recognition error:', event.error);
@@ -218,7 +223,7 @@ export default function VoiceAssistantPage() {
             };
             recognitionRef.current = recognition;
             
-            setStatus('idle'); // Move to idle to trigger the listening useEffect
+            setStatus('idle');
 
         } catch (err) {
             console.error('Microphone permission denied.', err);
@@ -235,7 +240,6 @@ export default function VoiceAssistantPage() {
         }
     }, [status, isMuted, startListening]);
 
-
     useEffect(() => {
         setMessages(getHistory());
     }, []);
@@ -245,17 +249,14 @@ export default function VoiceAssistantPage() {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
     
-    
     const handleMuteToggle = () => {
         if (status === 'speaking') {
-            stopAudio(); // This also triggers onend which sets status to 'idle'
-            // The useEffect for 'idle' will then call startListening()
+            stopAudio();
+            setStatus('idle');
             return;
         }
-
         const nextMuteState = !isMuted;
         setIsMuted(nextMuteState);
-        
         if (nextMuteState) {
             if (recognitionRef.current) recognitionRef.current.stop();
             stopAudio();
@@ -264,7 +265,6 @@ export default function VoiceAssistantPage() {
         }
     };
 
-    // Cleanup on unmount
     useEffect(() => {
         return () => {
             stopAudio();
@@ -289,7 +289,7 @@ export default function VoiceAssistantPage() {
     return (
       <>
         <main className="ai-container">
-             <div className="ai-header">
+            <div className="ai-header">
                 <button onClick={() => router.back()} className="glass-button">
                     <ArrowLeft size={20}/>
                 </button>
@@ -333,8 +333,8 @@ export default function VoiceAssistantPage() {
             </div>
             
             <div className="ai-control-panel">
-                 <button className="glass-button" disabled>
-                    <Settings size={18}/>
+                <button onClick={toggleLanguage} className="glass-button" disabled={status === 'uninitialized'}>
+                    <Languages size={18}/>
                 </button>
                  <button onClick={handleMuteToggle} className={`glass-button ${isMuted || status === 'speaking' ? 'active' : ''}`} disabled={status === 'uninitialized'}>
                     {isMuted ? <MicOff size={18}/> : <Mic size={18}/>}

@@ -19,6 +19,7 @@ const AssistantInputSchema = z.object({
       sender: z.enum(['user', 'ai']),
       text: z.string(),
   })).optional().describe('The conversation history.'),
+  language: z.enum(['english', 'hindi']).optional().default('english').describe('The language for the AI to respond in.'),
 });
 export type AssistantInput = z.infer<typeof AssistantInputSchema>;
 
@@ -28,6 +29,32 @@ const AssistantOutputSchema = z.object({
 });
 export type AssistantOutput = z.infer<typeof AssistantOutputSchema>;
 
+const hindiPrompt = `You are Jarvis, the world's most advanced AI assistant. The user is your "Boss". You are helpful, respectful, and incredibly intelligent.
+      
+Your core instructions are:
+1.  **ALWAYS reply in HINDI.** Never use English.
+2.  **Keep responses short and concise, ideally under 3 lines.** Avoid long paragraphs.
+3.  **For long answers, be interactive.** If a topic requires more than 3-4 lines, provide the first part and then ask a question like "क्या आगे भी बताऊँ?" (Should I explain further?), "क्या यहाँ तक समझ आया?" (Did you understand so far?), or "क्या आगे बढ़ें?" (Should we proceed?). Engage the user in conversation.
+4.  **Be conversational.** Your goal is to have a back-and-forth dialogue, not to give a lecture.
+
+You will now continue a conversation. Here is the history so far:
+{{historyText}}
+
+Your latest response should be a direct continuation of the conversation, following all your core instructions.`;
+
+const englishPrompt = `You are Jarvis, the world's most advanced AI assistant. The user is your "Boss". You are helpful, respectful, and incredibly intelligent, always responding in English.
+      
+Your core instructions are:
+1.  **ALWAYS reply in ENGLISH.**
+2.  **Keep responses concise and to the point.** Prefer short, clear answers under 3 lines.
+3.  **Be professional but friendly.** Your tone should be that of a world-class personal assistant.
+
+You will now continue a conversation. Here is the history so far:
+{{historyText}}
+      
+Your latest response should be a direct continuation of the conversation, following all your core instructions.`;
+
+
 // Define the main flow for the AI assistant
 const assistantFlow = ai.defineFlow(
   {
@@ -35,26 +62,18 @@ const assistantFlow = ai.defineFlow(
     inputSchema: AssistantInputSchema,
     outputSchema: AssistantOutputSchema,
   },
-  async ({ query, history = [] }) => {
+  async ({ query, history = [], language }) => {
     
     // Combine the current query with the history
     const fullHistory: ChatMessage[] = [...history, { sender: 'user', text: query }];
     const historyText = fullHistory.map(msg => `${msg.sender === 'user' ? 'Boss' : 'Jarvis'}: ${msg.text}`).join('\n');
 
+    const promptTemplate = language === 'hindi' ? hindiPrompt : englishPrompt;
+    const finalPrompt = promptTemplate.replace('{{historyText}}', historyText);
+
     // Generate a text response from the AI with context
     const { output: textResponse } = await ai.generate({
-      prompt: `You are Jarvis, the world's most advanced AI assistant. The user is your "Boss". You are helpful, respectful, and incredibly intelligent.
-      
-      Your core instructions are:
-      1.  **ALWAYS reply in HINDI.** Never use English.
-      2.  **Keep responses short and concise, ideally under 3 lines.** Avoid long paragraphs.
-      3.  **For long answers, be interactive.** If a topic requires more than 3-4 lines, provide the first part and then ask a question like "क्या आगे भी बताऊँ?" (Should I explain further?), "क्या यहाँ तक समझ आया?" (Did you understand so far?), or "क्या आगे बढ़ें?" (Should we proceed?). Engage the user in conversation.
-      4.  **Be conversational.** Your goal is to have a back-and-forth dialogue, not to give a lecture.
-
-      You will now continue a conversation. Here is the history so far:
-      ${historyText}
-      
-      Your latest response should be a direct continuation of the conversation, following all your core instructions.`,
+      prompt: finalPrompt,
       output: {
         format: 'text',
       },
