@@ -189,16 +189,14 @@ export default function VoiceAssistantPage() {
                     }
                 }
                 
-                if (finalTranscript.trim()) {
-                    processQuery(finalTranscript.trim());
-                    finalTranscript = '';
-                }
-
+                // Use a timeout to determine when the user has stopped speaking
                 speechTimeoutRef.current = setTimeout(() => {
-                    if (interimTranscript.trim() && !isProcessingQuery.current) {
-                       processQuery(interimTranscript.trim());
+                    const query = (finalTranscript || interimTranscript).trim();
+                    if (query && !isProcessingQuery.current) {
+                       processQuery(query);
+                       finalTranscript = '';
                     }
-                }, 1500);
+                }, 1500); // Wait for 1.5 seconds of silence
             };
             
             recognition.onstart = () => {
@@ -340,5 +338,3 @@ export default function VoiceAssistantPage() {
       </>
     );
 }
-
-    
