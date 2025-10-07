@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator, type Auth } from 'firebase/auth';
-import { getFirestore, connectFirestoreEmulator, type Firestore, enableIndexedDbPersistence } from 'firebase/firestore';
+import { getFirestore, connectFirestoreEmulator, type Firestore, initializeFirestore, IndexedDbCache } from 'firebase/firestore';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -37,23 +37,11 @@ export function FirebaseClientProvider({ children }: { children: React.ReactNode
 
     const app = getClientApp();
     const auth = getAuth(app);
-    const firestore = getFirestore(app);
-
-    const enablePersistence = async () => {
-        try {
-            await enableIndexedDbPersistence(firestore);
-        } catch (err: any) {
-            if (err.code === 'failed-precondition') {
-                console.warn('Multiple tabs open, persistence can only be enabled in one. Offline support may not work correctly.');
-            } else if (err.code === 'unimplemented') {
-                console.warn('The current browser does not support all of the features required to enable persistence.');
-            } else {
-                 console.error("Error enabling Firestore persistence:", err);
-            }
-        }
-    }
-
-    enablePersistence();
+    
+    // Use the new recommended way to initialize Firestore with persistence
+    const firestore = initializeFirestore(app, {
+        cache: new IndexedDbCache(),
+    });
     
     // If you want to use the local emulators, uncomment the lines below
     // if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
