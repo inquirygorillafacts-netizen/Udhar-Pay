@@ -81,11 +81,7 @@ export default function CustomerScanQrPage() {
 
       const config = {
           fps: 10,
-          qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
-              const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-              const qrboxSize = Math.floor(minEdge * 0.7);
-              return { width: qrboxSize, height: qrboxSize };
-          },
+          qrbox: { width: 250, height: 250 },
           aspectRatio: 1.0,
           supportedScanTypes: [],
       };
