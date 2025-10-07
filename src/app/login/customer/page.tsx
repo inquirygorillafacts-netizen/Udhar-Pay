@@ -8,10 +8,7 @@ import { useFirebase } from '@/firebase';
 import { 
     signInWithPhoneNumber,
     RecaptchaVerifier,
-    type ConfirmationResult,
-    signInAnonymously,
-    linkWithCredential,
-    PhoneAuthProvider
+    type ConfirmationResult
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { generateUniqueCustomerCode } from '@/lib/code-helpers';
@@ -61,7 +58,8 @@ export default function CustomerAuthPage() {
         return () => {
             document.removeEventListener("mousedown", handleClickOutside);
             if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-             if (window.recaptchaVerifier) {
+             // Clean up any existing verifier
+            if (window.recaptchaVerifier) {
                 window.recaptchaVerifier.clear();
             }
         };
@@ -133,6 +131,23 @@ export default function CustomerAuthPage() {
         return Object.keys(newErrors).length === 0;
     };
     
+   const setupRecaptcha = () => {
+        if (window.recaptchaVerifier) {
+            window.recaptchaVerifier.clear();
+        }
+        
+        const recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+            'size': 'invisible',
+            'callback': (response: any) => {
+                // reCAPTCHA solved, allow signInWithPhoneNumber.
+                console.log("reCAPTCHA verified!");
+            }
+        });
+
+        window.recaptchaVerifier = recaptchaVerifier;
+        return recaptchaVerifier;
+    }
+
    const handleSendOtp = async (e: React.FormEvent) => {
         e.preventDefault();
         if (loading || !validatePhone()) {
@@ -143,19 +158,9 @@ export default function CustomerAuthPage() {
         setErrors({});
 
         try {
-            // Silently sign in anonymously first
-            if (!auth.currentUser || auth.currentUser.isAnonymous) {
-                await signInAnonymously(auth);
-            }
-
-            // Then, proceed with phone number verification
-            const verifier = new RecaptchaVerifier(auth, 'send-code-btn', {
-                'size': 'invisible'
-            });
-            window.recaptchaVerifier = verifier;
-
+            const appVerifier = setupRecaptcha();
             const fullPhoneNumber = `${selectedCountry.code}${phone}`;
-            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, verifier);
+            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, appVerifier);
             
             setConfirmationResultState(confirmation);
             setTimer(60);
@@ -166,6 +171,8 @@ export default function CustomerAuthPage() {
                 errorMessage = "Too many requests. Please try again later.";
             } else if (error.code === 'auth/invalid-phone-number') {
                 errorMessage = "The phone number is not valid.";
+            } else if (error.code === 'auth/internal-error') {
+                 errorMessage = "reCAPTCHA error. Please refresh and try again.";
             }
             setErrors({ form: errorMessage });
              if (window.recaptchaVerifier) {
@@ -191,27 +198,14 @@ export default function CustomerAuthPage() {
         
         setLoading(true);
         try {
-            // Create a phone credential with the OTP
-            const credential = PhoneAuthProvider.credential(confirmationResultState.verificationId, otp);
-            
-            // If the user is anonymous, link the phone credential to the anonymous account.
-            if (auth.currentUser && auth.currentUser.isAnonymous) {
-                const userCredential = await linkWithCredential(auth.currentUser, credential);
-                await handleAuthSuccess(userCredential.user);
-            } else {
-                // This case handles users who might already be signed in with another method
-                // and are adding a phone number.
-                const result = await confirmationResultState.confirm(otp);
-                await handleAuthSuccess(result.user);
-            }
+            const result = await confirmationResultState.confirm(otp);
+            await handleAuthSuccess(result.user);
         } catch (error: any) {
              let errorMessage = "Invalid OTP or request expired. Please try again.";
              if (error.code === 'auth/invalid-verification-code') {
                 errorMessage = "Invalid OTP. Please check the code and try again.";
              } else if (error.code === 'auth/code-expired') {
                 errorMessage = "The OTP has expired. Please request a new one."
-             } else if (error.code === 'auth/credential-already-in-use') {
-                 errorMessage = "This phone number is already associated with another account."
              }
              console.error("OTP Verification Error: ", error);
              setErrors({ form: errorMessage });
@@ -222,6 +216,7 @@ export default function CustomerAuthPage() {
 
     return (
         <div className="login-container-wrapper">
+            <div id="recaptcha-container"></div>
             <div className="login-container">
                 <div className="login-card">
                     {!showSuccess ? (

@@ -8,10 +8,7 @@ import { useFirebase } from '@/firebase';
 import { 
     signInWithPhoneNumber,
     RecaptchaVerifier,
-    type ConfirmationResult,
-    signInAnonymously,
-    linkWithCredential,
-    PhoneAuthProvider
+    type ConfirmationResult
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { generateUniqueShopkeeperCode } from '@/lib/code-helpers';
@@ -26,6 +23,7 @@ const countryCodes = [
 declare global {
     interface Window {
         recaptchaVerifier?: RecaptchaVerifier;
+        confirmationResult?: ConfirmationResult;
     }
 }
 
@@ -130,6 +128,22 @@ export default function ShopkeeperAuthPage() {
         return Object.keys(newErrors).length === 0;
     };
     
+    const setupRecaptcha = () => {
+        if (window.recaptchaVerifier) {
+            window.recaptchaVerifier.clear();
+        }
+        
+        const recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+            'size': 'invisible',
+            'callback': (response: any) => {
+                console.log("reCAPTCHA verified!");
+            }
+        });
+
+        window.recaptchaVerifier = recaptchaVerifier;
+        return recaptchaVerifier;
+    }
+
     const handleSendOtp = async (e: React.FormEvent) => {
         e.preventDefault();
         if (loading || !validatePhone()) {
@@ -140,18 +154,9 @@ export default function ShopkeeperAuthPage() {
         setErrors({});
 
         try {
-            // Silently sign in anonymously first
-            if (!auth.currentUser || auth.currentUser.isAnonymous) {
-                await signInAnonymously(auth);
-            }
-
-            const verifier = new RecaptchaVerifier(auth, 'send-code-btn-shopkeeper', {
-                'size': 'invisible'
-            });
-            window.recaptchaVerifier = verifier;
-
+            const appVerifier = setupRecaptcha();
             const fullPhoneNumber = `${selectedCountry.code}${phone}`;
-            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, verifier);
+            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, appVerifier);
             setConfirmationResultState(confirmation);
             setTimer(60);
         } catch (error: any) {
@@ -161,6 +166,8 @@ export default function ShopkeeperAuthPage() {
                 errorMessage = "Too many requests. Please try again later.";
             } else if (error.code === 'auth/invalid-phone-number') {
                 errorMessage = "The phone number is not valid.";
+            } else if (error.code === 'auth/internal-error') {
+                 errorMessage = "reCAPTCHA error. Please refresh and try again.";
             }
             setErrors({ form: errorMessage });
              if (window.recaptchaVerifier) {
@@ -186,23 +193,14 @@ export default function ShopkeeperAuthPage() {
 
         setLoading(true);
         try {
-            const credential = PhoneAuthProvider.credential(confirmationResultState.verificationId, otp);
-            
-            if (auth.currentUser && auth.currentUser.isAnonymous) {
-                const userCredential = await linkWithCredential(auth.currentUser, credential);
-                await handleAuthSuccess(userCredential.user);
-            } else {
-                const result = await confirmationResultState.confirm(otp);
-                await handleAuthSuccess(result.user);
-            }
+            const result = await confirmationResultState.confirm(otp);
+            await handleAuthSuccess(result.user);
         } catch (error: any) {
              let errorMessage = "Invalid OTP or request expired. Please try again.";
              if (error.code === 'auth/invalid-verification-code') {
                 errorMessage = "Invalid OTP. Please check the code and try again.";
              } else if (error.code === 'auth/code-expired') {
                 errorMessage = "The OTP has expired. Please request a new one."
-             } else if (error.code === 'auth/credential-already-in-use') {
-                errorMessage = "This phone number is already associated with another account."
              }
              console.error("OTP Verification Error: ", error);
              setErrors({ form: errorMessage });
@@ -213,6 +211,7 @@ export default function ShopkeeperAuthPage() {
 
     return (
         <div className="login-container-wrapper">
+             <div id="recaptcha-container"></div>
             <div className="login-container">
                 <div className="login-card">
                     {!showSuccess ? (
