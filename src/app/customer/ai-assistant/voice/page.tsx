@@ -88,6 +88,79 @@ export default function VoiceAssistantPage() {
         }
     }
     
+    const startListening = useCallback(() => {
+        if (!SpeechRecognition || !hasPermission || isMuted || status === 'speaking' || status === 'thinking') {
+            return;
+        }
+
+        if (recognitionRef.current) {
+            recognitionRef.current.stop();
+        }
+
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true; 
+        recognition.interimResults = true;
+        recognition.lang = 'hi-IN';
+
+        recognition.onstart = () => {
+            setStatus('listening');
+        };
+
+        recognition.onresult = (event: any) => {
+            // If user speaks while AI is speaking, interrupt the AI
+            if (status === 'speaking') {
+                stopAudio();
+                setStatus('listening');
+            }
+
+            if (silenceTimeoutRef.current) clearTimeout(silenceTimeoutRef.current);
+
+            let finalTranscript = '';
+            for (let i = 0; i < event.results.length; ++i) {
+                if (event.results[i].isFinal) {
+                    finalTranscript += event.results[i][0].transcript;
+                }
+            }
+
+            const transcript = finalTranscript.trim();
+            if (transcript) {
+                silenceTimeoutRef.current = setTimeout(() => {
+                    if (!isMuted) {
+                        recognition.stop();
+                        processQuery(transcript);
+                    }
+                }, 1500); 
+            }
+        };
+        
+        recognition.onend = () => {
+             // Only restart if not processing a query, not muted, and has permission
+            if (status !== 'thinking' && status !== 'speaking' && hasPermission && !isMuted) {
+               startListening();
+            }
+        };
+
+        recognition.onerror = (event: any) => {
+            if (event.error === 'no-speech' || event.error === 'aborted') return;
+            console.error('Speech recognition error:', event.error);
+            const errorMessage = "माफ़ कीजिए, मैं आपकी बात नहीं सुन सका।";
+            addMessage({sender: 'ai', text: errorMessage});
+            setMessages(getHistory());
+            if (!isMuted) {
+                startListening();
+            } else {
+                setStatus('idle');
+            }
+        };
+        
+        try {
+            recognition.start();
+        } catch (e) {
+             console.error("Could not start recognition: ", e);
+        }
+        recognitionRef.current = recognition;
+    }, [hasPermission, isMuted, status]); // status is added as a dependency
+
     const processQuery = useCallback(async (text: string) => {
         setStatus('thinking');
         stopAudio(); 
@@ -106,16 +179,15 @@ export default function VoiceAssistantPage() {
             addMessage({ sender: 'ai', text: response.text });
             setMessages(getHistory());
 
-
             if (response.audio && audioRef.current) {
                 audioRef.current.src = response.audio;
-                audioRef.current.play();
                 setStatus('speaking');
-
+                await audioRef.current.play();
+                
                 audioRef.current.onended = () => {
                     // After speaking, go back to listening if not muted
                     if (!isMuted) {
-                       setStatus('listening');
+                       startListening();
                     } else {
                        setStatus('idle');
                     }
@@ -123,7 +195,7 @@ export default function VoiceAssistantPage() {
             } else {
                  // If no audio, go back to listening if not muted
                  if (!isMuted) {
-                    setStatus('listening');
+                    startListening();
                 } else {
                     setStatus('idle');
                 }
@@ -134,88 +206,19 @@ export default function VoiceAssistantPage() {
             addMessage({sender: 'ai', text: errorMessage});
             setMessages(getHistory());
             if (!isMuted) {
-                setStatus('listening');
+                startListening();
             } else {
                 setStatus('idle');
             }
         }
-    }, [currentVoiceId, isMuted]);
+    }, [currentVoiceId, isMuted, startListening]);
 
-
-    const startListening = useCallback(() => {
-        if (!SpeechRecognition || !hasPermission || isMuted) {
-            return;
-        }
-
-        if (recognitionRef.current) {
-            recognitionRef.current.stop();
-        }
-
-        const recognition = new SpeechRecognition();
-        recognition.continuous = true; 
-        recognition.interimResults = true;
-        recognition.lang = 'hi-IN';
-
-        recognition.onstart = () => {
-            setStatus('listening');
-        };
-
-        recognition.onresult = (event: any) => {
-            if (status === 'speaking') {
-                stopAudio();
-                setStatus('listening');
-            }
-
-            if (silenceTimeoutRef.current) clearTimeout(silenceTimeoutRef.current);
-
-            let finalTranscript = '';
-            for (let i = 0; i < event.results.length; ++i) {
-                if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript;
-            }
-
-            const transcript = finalTranscript.trim();
-            if (transcript) {
-                silenceTimeoutRef.current = setTimeout(() => {
-                    if (!isMuted) processQuery(transcript);
-                }, 2000); 
-            }
-        };
-        
-        recognition.onend = () => {
-             // If not muted, automatically restart listening
-            if (hasPermission && !isMuted) {
-                try {
-                   recognition.start();
-                } catch(e) {
-                    console.log("Could not restart recognition, it might have been stopped manually.");
-                }
-            } else {
-                setStatus('idle');
-            }
-        };
-
-        recognition.onerror = (event: any) => {
-            if (event.error === 'no-speech' || event.error === 'aborted') return;
-            console.error('Speech recognition error:', event.error);
-            const errorMessage = "माफ़ कीजिए, मैं आपकी बात नहीं सुन सका।";
-            addMessage({sender: 'ai', text: errorMessage});
-            setMessages(getHistory());
-            setStatus('idle');
-        };
-        
-        try {
-            recognition.start();
-        } catch (e) {
-             console.error("Could not start recognition: ", e);
-        }
-        recognitionRef.current = recognition;
-    }, [hasPermission, isMuted, processQuery, status]); 
 
     // Handle mute/unmute state
     useEffect(() => {
         if (isMuted) {
             if (recognitionRef.current) {
-                recognitionRef.current.abort();
+                recognitionRef.current.stop();
             }
             stopAudio();
             setStatus('idle');
