@@ -461,7 +461,7 @@ export default function CustomerDashboardPage() {
                 </div>
             </div>
 
-            <div style={{marginBottom: '40px', maxWidth: '600px', margin: 'auto' }}>
+            <div style={{marginBottom: '40px', padding: '0 20px'}}>
                 <div className="form-group" style={{marginBottom: 0}}>
                     <div className="neu-input" style={{display: 'flex', alignItems: 'center'}}>
                         <input
