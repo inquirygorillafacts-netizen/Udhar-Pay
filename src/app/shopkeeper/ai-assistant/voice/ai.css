@@ -37,7 +37,7 @@
 .ai-video-wrapper {
     position: relative;
     width: 100%;
-    max-width: 250px;
+    max-width: 238px;
     aspect-ratio: 1 / 1;
     display: flex;
     align-items: center;
@@ -73,7 +73,7 @@
 
 .ai-video-orb {
     width: 100%;
-    max-width: 250px;
+    max-width: 238px;
     aspect-ratio: 1 / 1;
     border-radius: 50%;
     object-fit: cover;
