@@ -149,7 +149,7 @@ export default function ShopkeeperAuthPage() {
             const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifier);
             window.confirmationResult = confirmation;
             setConfirmationResultState(confirmation);
-            setTimer(25);
+            setTimer(60);
         } catch (error: any) {
             console.error("OTP send error:", error);
             let errorMessage = "Failed to send OTP. Please try again.";
@@ -199,7 +199,8 @@ export default function ShopkeeperAuthPage() {
              }
              console.error("OTP Verification Error: ", error);
              setErrors({ form: errorMessage });
-             setLoading(false);
+        } finally {
+            setLoading(false);
         }
     };
 
