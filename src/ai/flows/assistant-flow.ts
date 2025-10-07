@@ -12,7 +12,6 @@ import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import wav from 'wav';
 import type { ChatMessage } from '@/lib/ai-memory';
-import { googleAI } from '@genkit-ai/googleai';
 
 
 const DEFAULT_VOICE_ID = 'Algenib';
@@ -79,7 +78,7 @@ const generateAudioFlow = ai.defineFlow(
     async ({ text, voiceId }) => {
         try {
             const { media } = await ai.generate({
-                model: googleAI('gemini-2.5-flash-preview-tts'),
+                model: ai.model('googleai/gemini-2.5-flash-preview-tts'),
                 config: {
                     responseModalities: ['AUDIO'],
                     speechConfig: {
