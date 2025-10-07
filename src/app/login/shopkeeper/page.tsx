@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import './shopkeeper.css';
-import { Store, Phone, Check, Shield, MessageCircle } from 'lucide-react';
+import { Store, Phone, Shield, MessageCircle } from 'lucide-react';
 import { useFirebase } from '@/firebase';
-import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
+import { RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult } from 'firebase/auth';
 
 // Extend Window interface to allow storing variables globally
 declare global {
@@ -27,18 +27,26 @@ export default function ShopkeeperAuthPage() {
     const [successMessage, setSuccessMessage] = useState('');
 
     useEffect(() => {
-        // This effect runs once when the component mounts
+        // This effect runs once when the component mounts to set up reCAPTCHA
         if (auth && !window.recaptchaVerifier) {
             try {
                 // Ensure the container is empty before rendering
                 const container = document.getElementById('recaptcha-container');
                 if (container) {
                     container.innerHTML = '';
+                    const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+                        'callback': (response: any) => {
+                            // reCAPTCHA solved, allow user to send OTP
+                            console.log("reCAPTCHA solved");
+                        },
+                        'expired-callback': () => {
+                            // Response expired. Ask user to solve reCAPTCHA again.
+                            console.log("reCAPTCHA expired");
+                        }
+                    });
+                    window.recaptchaVerifier = verifier;
+                    verifier.render();
                 }
-
-                const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {});
-                window.recaptchaVerifier = verifier;
-                verifier.render();
             } catch (e) {
                 console.error("reCAPTCHA render error:", e);
                 setError("Could not load reCAPTCHA. Please refresh the page.");
@@ -46,7 +54,8 @@ export default function ShopkeeperAuthPage() {
         }
     }, [auth]);
 
-    const handleSendOtp = async () => {
+    const handleSendOtp = async (e: React.FormEvent) => {
+        e.preventDefault();
         setError('');
         setLoading(true);
 
@@ -57,21 +66,23 @@ export default function ShopkeeperAuthPage() {
         }
 
         try {
-            const confirmationResult = await signInWithPhoneNumber(auth, `+91${phoneNumber}`, window.recaptchaVerifier);
+            const fullPhoneNumber = `+91${phoneNumber}`;
+            const confirmationResult = await signInWithPhoneNumber(auth, fullPhoneNumber, window.recaptchaVerifier);
             window.confirmationResult = confirmationResult;
             setIsOtpSent(true);
             setSuccessMessage("OTP sent successfully!");
         } catch (err: any) {
             console.error("Error sending OTP:", err);
             setError(err.message || "Failed to send OTP. Please check the number and try again.");
-            // Reset reCAPTCHA for the user to try again
-            window.recaptchaVerifier.render();
+            // In case of error, re-render reCAPTCHA
+            window.recaptchaVerifier.render().catch(console.error);
         } finally {
             setLoading(false);
         }
     };
 
-    const handleVerifyOtp = async () => {
+    const handleVerifyOtp = async (e: React.FormEvent) => {
+        e.preventDefault();
         setError('');
         setLoading(true);
         if (!window.confirmationResult) {
@@ -82,8 +93,7 @@ export default function ShopkeeperAuthPage() {
 
         try {
             const result = await window.confirmationResult.confirm(otp);
-            const user = result.user;
-            console.log("User signed in successfully:", user);
+            console.log("User signed in successfully:", result.user);
             setSuccessMessage("Login Successful! Redirecting...");
             localStorage.setItem('activeRole', 'shopkeeper');
             setTimeout(() => router.push('/shopkeeper/dashboard'), 2000);
@@ -102,11 +112,11 @@ export default function ShopkeeperAuthPage() {
                     {!isOtpSent ? (
                         <>
                             <div className="login-header">
-                                <div className="neu-icon"><Store /></div>
+                                <div className="neu-icon"><div className="icon-inner"><Store /></div></div>
                                 <h2>Shopkeeper Login</h2>
                                 <p>Enter your phone number to receive an OTP</p>
                             </div>
-                            <form className="login-form" noValidate onSubmit={(e) => { e.preventDefault(); handleSendOtp(); }}>
+                            <form className="login-form" noValidate onSubmit={handleSendOtp}>
                                 <div className="form-group">
                                     <div className="neu-input">
                                         <input type="tel" id="phone" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} required placeholder=" " maxLength={10} />
@@ -114,7 +124,7 @@ export default function ShopkeeperAuthPage() {
                                         <div className="input-icon"><Phone /></div>
                                     </div>
                                 </div>
-                                <div id="recaptcha-container" style={{ margin: '20px 0' }}></div>
+                                <div id="recaptcha-container" style={{ margin: '20px auto', display: 'flex', justifyContent: 'center' }}></div>
                                 {error && <p className="error-message show" style={{textAlign: 'center', marginLeft: 0}}>{error}</p>}
                                 <button type="submit" className={`neu-button ${loading ? 'loading' : ''}`} disabled={loading}>
                                     <span className="btn-text">Send OTP</span>
@@ -125,12 +135,12 @@ export default function ShopkeeperAuthPage() {
                     ) : (
                         <>
                             <div className="login-header">
-                                <div className="neu-icon"><Shield /></div>
+                                <div className="neu-icon"><div className="icon-inner"><Shield /></div></div>
                                 <h2>Verify OTP</h2>
                                 <p>Enter the 6-digit code sent to +91{phoneNumber}</p>
                             </div>
                              {successMessage && <p style={{color: '#00c896', textAlign: 'center', fontWeight: 500, marginBottom: '20px'}}>{successMessage}</p>}
-                            <form className="login-form" noValidate onSubmit={(e) => { e.preventDefault(); handleVerifyOtp(); }}>
+                            <form className="login-form" noValidate onSubmit={handleVerifyOtp}>
                                 <div className="form-group">
                                     <div className="neu-input">
                                         <input type="tel" id="otp" value={otp} onChange={(e) => setOtp(e.target.value)} required placeholder=" " maxLength={6} />
