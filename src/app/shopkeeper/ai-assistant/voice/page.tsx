@@ -36,16 +36,32 @@ export default function VoiceAssistantPage() {
     const recognitionRef = useRef<any>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const isProcessingQuery = useRef(false);
-
+    
     const currentVoiceId = availableVoices[currentVoiceIndex].voiceId;
 
     const stopAudio = useCallback(() => {
         if (audioRef.current) {
             audioRef.current.pause();
             audioRef.current.currentTime = 0;
-            audioRef.current.onended = null;
+            audioRef.current.onended = null; // Prevent onended from firing when manually stopped
         }
     }, []);
+
+    const startListening = useCallback(() => {
+        if (!SpeechRecognition || !hasPermission || isMuted || status !== 'idle') {
+            return;
+        }
+
+        if (recognitionRef.current) {
+            try {
+                recognitionRef.current.start();
+            } catch (e) {
+                console.error("Could not start recognition (might be running already): ", e);
+                // If it fails, reset to idle to allow a retry.
+                setStatus('idle');
+            }
+        }
+    }, [hasPermission, isMuted, status]);
     
     const processQuery = useCallback(async (text: string) => {
         if (isProcessingQuery.current) return;
@@ -75,12 +91,14 @@ export default function VoiceAssistantPage() {
                 audioRef.current.onended = () => {
                     isProcessingQuery.current = false;
                     setStatus('idle');
+                    startListening(); // Start listening again after speaking
                 };
                 await audioRef.current.play();
                 
             } else {
                  isProcessingQuery.current = false;
                  setStatus('idle');
+                 startListening(); // Start listening if no audio
             }
         } catch (error) {
             console.error('Error with AI Assistant:', error);
@@ -89,70 +107,9 @@ export default function VoiceAssistantPage() {
             setMessages(getHistory());
             isProcessingQuery.current = false;
             setStatus('idle');
+            startListening(); // Try listening again even after an error
         }
-    }, [currentVoiceId, stopAudio]);
-
-
-    const startListening = useCallback(() => {
-        if (!SpeechRecognition || !hasPermission || isMuted || status !== 'idle') {
-            return;
-        }
-        
-        if (!recognitionRef.current) {
-            const recognition = new SpeechRecognition();
-            recognition.continuous = false;
-            recognition.interimResults = false;
-            recognition.lang = 'hi-IN';
-
-            recognition.onstart = () => {
-                setStatus('listening');
-            };
-
-            recognition.onresult = (event: any) => {
-                const transcript = event.results[0][0].transcript.trim();
-                if (transcript) {
-                    processQuery(transcript);
-                }
-            };
-            
-            recognition.onend = () => {
-                if (!isProcessingQuery.current && !isMuted) {
-                    setStatus('idle');
-                }
-            };
-            
-            recognition.onerror = (event: any) => {
-                if (event.error === 'not-allowed') {
-                    setHasPermission(false);
-                    addMessage({ sender: 'ai', text: "Microphone permission denied. Please enable it in your browser settings to use the voice assistant." });
-                    setMessages(getHistory());
-                } else if (event.error !== 'no-speech' && event.error !== 'aborted') {
-                    console.error('Speech recognition error:', event.error);
-                }
-                isProcessingQuery.current = false;
-                setStatus('idle');
-            };
-            recognitionRef.current = recognition;
-        }
-        
-        try {
-             if (status === 'idle') {
-                recognitionRef.current.start();
-             }
-        } catch(e) {
-             console.error("Could not start recognition (might be running already): ", e);
-             setStatus('idle');
-        }
-
-    }, [hasPermission, isMuted, status, processQuery]);
-
-
-    // Effect to control listening state based on other states
-    useEffect(() => {
-        if (!isMuted && !isProcessingQuery.current && status === 'idle' && hasPermission) {
-            startListening();
-        }
-    }, [isMuted, status, hasPermission, startListening]);
+    }, [currentVoiceId, stopAudio, startListening]);
 
 
     // Initial permission check and setup
@@ -167,6 +124,47 @@ export default function VoiceAssistantPage() {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 stream.getTracks().forEach(track => track.stop());
                 setHasPermission(true);
+
+                // Setup recognition instance once permission is granted
+                const recognition = new SpeechRecognition();
+                recognition.continuous = false; // Important: process after each pause
+                recognition.interimResults = false;
+                recognition.lang = 'hi-IN';
+
+                recognition.onstart = () => {
+                    setStatus('listening');
+                };
+
+                recognition.onresult = (event: any) => {
+                    const transcript = event.results[0][0].transcript.trim();
+                    if (transcript) {
+                        processQuery(transcript);
+                    }
+                };
+                
+                recognition.onend = () => {
+                    // Only go back to idle if we are not in the middle of processing a query
+                    if (!isProcessingQuery.current) {
+                        setStatus('idle');
+                    }
+                };
+                
+                recognition.onerror = (event: any) => {
+                    if (event.error === 'not-allowed') {
+                        setHasPermission(false);
+                        addMessage({ sender: 'ai', text: "Microphone permission denied. Please enable it in your browser settings to use the voice assistant." });
+                        setMessages(getHistory());
+                    } else if (event.error !== 'no-speech' && event.error !== 'aborted') {
+                        console.error('Speech recognition error:', event.error);
+                    }
+                    isProcessingQuery.current = false;
+                    setStatus('idle');
+                };
+                recognitionRef.current = recognition;
+                
+                // Start listening for the first time
+                startListening();
+
             } catch (err) {
                 console.error('Microphone permission denied.', err);
                 setHasPermission(false);
@@ -177,6 +175,7 @@ export default function VoiceAssistantPage() {
         };
 
         checkPermissionAndStart();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
 
@@ -193,15 +192,24 @@ export default function VoiceAssistantPage() {
     }, [messages]);
     
     
-    useEffect(() => {
-        if (isMuted) {
+    const handleMuteToggle = () => {
+        const nextMuteState = !isMuted;
+        setIsMuted(nextMuteState);
+        
+        if (nextMuteState) {
             if (recognitionRef.current) {
-                recognitionRef.current.abort();
+                recognitionRef.current.abort(); // Stop listening immediately
             }
             stopAudio();
+            isProcessingQuery.current = false; // Reset processing state
             setStatus('idle');
+        } else {
+            // If we are unmuting and idle, start listening.
+            if (status === 'idle') {
+                startListening();
+            }
         }
-    }, [isMuted, stopAudio]);
+    };
 
 
     // Cleanup on unmount
@@ -217,8 +225,6 @@ export default function VoiceAssistantPage() {
             }
         }
     }, []);
-
-    const handleMuteToggle = () => setIsMuted(!isMuted);
 
     const statusInfo = {
         idle: { text: isMuted ? "Muted" : "Idle", icon: isMuted ? <MicOff size={16}/> : <Mic size={16}/> },
