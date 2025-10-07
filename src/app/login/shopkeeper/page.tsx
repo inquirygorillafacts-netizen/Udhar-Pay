@@ -47,40 +47,23 @@ export default function ShopkeeperAuthPage() {
 
     const [timer, setTimer] = useState(0);
     const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
-    
-    const [isRecaptchaVerified, setIsRecaptchaVerified] = useState(false);
 
-    // Setup reCAPTCHA on mount
     useEffect(() => {
-        if (!auth || confirmationResultState) return;
-
-        if (window.recaptchaVerifier) {
-            window.recaptchaVerifier.clear();
-        }
-        
-        window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-            'size': 'normal',
-            'callback': (response: any) => {
-                setIsRecaptchaVerified(true);
-            },
-            'expired-callback': () => {
-                setIsRecaptchaVerified(false);
-            }
-        });
-        window.recaptchaVerifier.render();
-
         const handleClickOutside = (event: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
                 setIsDropdownOpen(false);
             }
         };
         document.addEventListener("mousedown", handleClickOutside);
-
+        
         return () => {
             document.removeEventListener("mousedown", handleClickOutside);
-             if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+            if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+            if (window.recaptchaVerifier) {
+                window.recaptchaVerifier.clear();
+            }
         };
-    }, [auth, confirmationResultState]);
+    }, []);
 
      useEffect(() => {
         if (timer > 0) {
@@ -146,12 +129,23 @@ export default function ShopkeeperAuthPage() {
         return Object.keys(newErrors).length === 0;
     };
     
+    const setupRecaptcha = () => {
+        if (!auth) return null;
+        if (window.recaptchaVerifier) {
+            window.recaptchaVerifier.clear();
+        }
+        const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+            'size': 'invisible',
+             'callback': () => {
+                console.log("reCAPTCHA verified!");
+            }
+        });
+        return verifier;
+    };
+    
     const handleSendOtp = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (loading || !validatePhone() || !isRecaptchaVerified) {
-             if (!isRecaptchaVerified) {
-                setErrors({ form: "Please verify you are not a robot." });
-            }
+        if (loading || !validatePhone()) {
             return;
         }
 
@@ -159,7 +153,9 @@ export default function ShopkeeperAuthPage() {
         setErrors({});
 
         try {
-            const appVerifier = window.recaptchaVerifier!;
+            const appVerifier = setupRecaptcha();
+            if (!appVerifier) throw new Error("Could not set up reCAPTCHA verifier.");
+
             const fullPhoneNumber = `${selectedCountry.code}${phone}`;
             const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, appVerifier);
             setConfirmationResultState(confirmation);
@@ -173,11 +169,6 @@ export default function ShopkeeperAuthPage() {
                 errorMessage = "The phone number is not valid.";
             }
             setErrors({ form: errorMessage });
-            
-            if (window.grecaptcha && window.recaptchaVerifier) {
-                window.grecaptcha.reset(window.recaptchaVerifier.widgetId);
-            }
-            setIsRecaptchaVerified(false);
         } finally {
             setLoading(false);
         }
@@ -216,6 +207,7 @@ export default function ShopkeeperAuthPage() {
 
     return (
         <div className="login-container-wrapper">
+             <div id="recaptcha-container" style={{ position: 'absolute', top: 0, left: 0, zIndex: -1 }}></div>
             <div className="login-container">
                 <div className="login-card">
                     {!showSuccess ? (
@@ -247,11 +239,11 @@ export default function ShopkeeperAuthPage() {
                                         {timer > 0 ? (
                                              <p style={{color: '#9499b7', fontSize: '14px'}}>Resend OTP in {timer}s</p>
                                         ) : (
-                                            <button type="button" onClick={() => { setConfirmationResultState(null); setOtp(''); setErrors({}); setTimer(0); setIsRecaptchaVerified(false); }} disabled={loading} className="forgot-link">
+                                            <button type="button" onClick={() => { setConfirmationResultState(null); setOtp(''); setErrors({}); setTimer(0); }} disabled={loading} className="forgot-link">
                                                 Request new OTP
                                             </button>
                                         )}
-                                        <button type="button" className="neu-button" style={{margin: '10px 0 0 0', background: 'transparent', boxShadow: 'none'}} onClick={() => { setConfirmationResultState(null); setOtp(''); setErrors({}); setTimer(0); setIsRecaptchaVerified(false); }}>
+                                        <button type="button" className="neu-button" style={{margin: '10px 0 0 0', background: 'transparent', boxShadow: 'none'}} onClick={() => { setConfirmationResultState(null); setOtp(''); setErrors({}); setTimer(0); }}>
                                             <span style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'}}><ArrowLeft size={16}/> Back</span>
                                         </button>
                                      </div>
@@ -283,8 +275,8 @@ export default function ShopkeeperAuthPage() {
                                         </div>
                                         {errors.phone && <span className="error-message show">{errors.phone}</span>}
                                     </div>
-                                    <div id="recaptcha-container" style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}></div>
-                                    <button id="send-code-btn-shopkeeper" type="submit" className={`neu-button ${loading ? 'loading' : ''}`} disabled={loading || !isRecaptchaVerified}>
+                                    
+                                    <button id="send-code-btn-shopkeeper" type="submit" className={`neu-button ${loading ? 'loading' : ''}`} disabled={loading}>
                                         <span className="btn-text">Send OTP</span>
                                         <div className="btn-loader"><div className="neu-spinner"></div></div>
                                     </button>
@@ -303,4 +295,3 @@ export default function ShopkeeperAuthPage() {
         </div>
     );
 }
-    
