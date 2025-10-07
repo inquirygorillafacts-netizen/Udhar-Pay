@@ -1,8 +1,10 @@
+
 export const firebaseConfig = {
-  "projectId": "studio-9037180594-1b39d",
-  "appId": "1:231698445983:web:91006b2ba8087bde1b54aa",
-  "apiKey": "AIzaSyDAi478qyZo1FiFhxwgkWeDmLxBpOpw8JI",
-  "authDomain": "studio-9037180594-1b39d.firebaseapp.com",
-  "measurementId": "",
-  "messagingSenderId": "231698445983"
+  "projectId": "udhar-pay-b3ff7",
+  "appId": "1:964637228383:web:9f83216ab4907a755034c5",
+  "apiKey": "AIzaSyCf-JLtE26oGUKaNHo2QX3npzLt6reD-rw",
+  "authDomain": "udhar-pay-b3ff7.firebaseapp.com",
+  "measurementId": "G-9Q03535N1E",
+  "messagingSenderId": "964637228383",
+  "storageBucket": "udhar-pay-b3ff7.appspot.com"
 };
