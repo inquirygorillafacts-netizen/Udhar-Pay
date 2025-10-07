@@ -44,24 +44,20 @@ export default function CustomerAuthPage() {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     
+    // Setup invisible reCAPTCHA verifier
     useEffect(() => {
         if (!auth) return;
 
-        // Create and render the reCAPTCHA verifier
         const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-            'size': 'normal', // Use 'normal' for the visible checkbox
+            'size': 'invisible',
             'callback': (response: any) => {
-                // reCAPTCHA solved, allow user to send OTP
-                console.log("reCAPTCHA verified!");
-            },
-            'expired-callback': () => {
-                // Response expired. Ask user to solve reCAPTCHA again.
-                console.log("reCAPTCHA expired, please solve it again.");
+                // This callback is called when the invisible reCAPTCHA is successfully completed.
+                // We don't need to do anything here as the signInWithPhoneNumber promise will resolve.
+                console.log("Invisible reCAPTCHA verified!");
             }
         });
         
         window.recaptchaVerifier = verifier;
-        verifier.render();
 
         // Cleanup on unmount
         return () => {
@@ -153,15 +149,13 @@ export default function CustomerAuthPage() {
             setConfirmationResultState(confirmation);
         } catch (error: any) {
             console.error("OTP send error:", error);
-            let errorMessage = "Failed to send OTP. Make sure you've checked the reCAPTCHA box.";
+            let errorMessage = "Failed to send OTP. Please check your network and try again.";
             if (error.code === 'auth/too-many-requests') {
                 errorMessage = "Too many requests. Please try again later.";
             } else if (error.code === 'auth/invalid-phone-number') {
                 errorMessage = "The phone number is not valid.";
             }
             setErrors({ form: errorMessage });
-            // Reset reCAPTCHA so user can try again
-            window.recaptchaVerifier?.render();
         } finally {
             setLoading(false);
         }
@@ -200,6 +194,7 @@ export default function CustomerAuthPage() {
 
     return (
         <div className="login-container-wrapper">
+             <div id="recaptcha-container"></div>
             <div className="login-container">
                 <div className="login-card">
                     {!showSuccess ? (
@@ -262,9 +257,7 @@ export default function CustomerAuthPage() {
                                         </div>
                                         {errors.phone && <span className="error-message show">{errors.phone}</span>}
                                     </div>
-                                    
-                                    <div id="recaptcha-container" style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}></div>
-                                    
+                                                                        
                                     <button id="send-code-btn" type="submit" className={`neu-button ${loading ? 'loading' : ''}`} disabled={loading}>
                                         <span className="btn-text">Send OTP</span>
                                         <div className="btn-loader"><div className="neu-spinner"></div></div>

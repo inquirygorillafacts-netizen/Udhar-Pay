@@ -44,22 +44,18 @@ export default function ShopkeeperAuthPage() {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
+    // Setup invisible reCAPTCHA verifier
     useEffect(() => {
         if (!auth) return;
         
-        // Create and render the reCAPTCHA verifier
         const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-            'size': 'normal',
+            'size': 'invisible',
             'callback': (response: any) => {
-                console.log("reCAPTCHA verified!");
-            },
-            'expired-callback': () => {
-                console.log("reCAPTCHA expired, please solve it again.");
+                console.log("Invisible reCAPTCHA verified!");
             }
         });
         
         window.recaptchaVerifier = verifier;
-        verifier.render();
 
         return () => {
             verifier.clear();
@@ -147,14 +143,13 @@ export default function ShopkeeperAuthPage() {
             setConfirmationResultState(confirmation);
         } catch (error: any) {
             console.error("OTP send error:", error);
-            let errorMessage = "Failed to send OTP. Make sure you've checked the reCAPTCHA box.";
+            let errorMessage = "Failed to send OTP. Please check your network and try again.";
              if (error.code === 'auth/too-many-requests') {
                 errorMessage = "Too many requests. Please try again later.";
             } else if (error.code === 'auth/invalid-phone-number') {
                 errorMessage = "The phone number is not valid.";
             }
             setErrors({ form: errorMessage });
-            window.recaptchaVerifier?.render();
         } finally {
             setLoading(false);
         }
@@ -193,6 +188,7 @@ export default function ShopkeeperAuthPage() {
 
     return (
         <div className="login-container-wrapper">
+             <div id="recaptcha-container"></div>
             <div className="login-container">
                 <div className="login-card">
                     {!showSuccess ? (
@@ -253,8 +249,6 @@ export default function ShopkeeperAuthPage() {
                                         </div>
                                         {errors.phone && <span className="error-message show">{errors.phone}</span>}
                                     </div>
-                                    
-                                    <div id="recaptcha-container" style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}></div>
                                     
                                     <button id="send-code-btn-shopkeeper" type="submit" className={`neu-button ${loading ? 'loading' : ''}`} disabled={loading}>
                                         <span className="btn-text">Send OTP</span>
