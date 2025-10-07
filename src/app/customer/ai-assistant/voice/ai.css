@@ -112,6 +112,7 @@
     flex: 1;
     overflow-y: auto;
     padding: 1rem;
+    padding-bottom: 120px; /* Added padding to avoid overlap */
     display: flex;
     flex-direction: column-reverse; /* New messages appear at the bottom */
 }
