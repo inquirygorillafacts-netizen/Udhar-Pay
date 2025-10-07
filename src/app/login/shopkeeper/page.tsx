@@ -24,6 +24,7 @@ declare global {
     interface Window {
         confirmationResult?: ConfirmationResult;
         recaptchaVerifier?: RecaptchaVerifier;
+        grecaptcha?: any;
     }
 }
 
@@ -40,13 +41,32 @@ export default function ShopkeeperAuthPage() {
     
     const [confirmationResultState, setConfirmationResultState] = useState<ConfirmationResult | null>(null);
 
-
     const [selectedCountry, setSelectedCountry] = useState(countryCodes[0]);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
 
     useEffect(() => {
+        if (!auth) return;
+
+         const setupRecaptcha = () => {
+             if (window.recaptchaVerifier) {
+                window.recaptchaVerifier.clear();
+            }
+            // The button ID here should be unique if customer and shopkeeper pages could ever be loaded in a single page app context simultaneously.
+            window.recaptchaVerifier = new RecaptchaVerifier(auth, 'send-code-btn-shopkeeper', {
+                'size': 'invisible',
+                'callback': (response: any) => {
+                    console.log("reCAPTCHA verified for shopkeeper");
+                },
+                 'expired-callback': () => {
+                    console.log("reCAPTCHA for shopkeeper expired, please try again.");
+                }
+            });
+        };
+
+        setupRecaptcha();
+
         const handleClickOutside = (event: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
                 setIsDropdownOpen(false);
@@ -55,8 +75,11 @@ export default function ShopkeeperAuthPage() {
         document.addEventListener("mousedown", handleClickOutside);
         return () => {
             document.removeEventListener("mousedown", handleClickOutside);
+             if (window.recaptchaVerifier) {
+                window.recaptchaVerifier.clear();
+            }
         };
-    }, []);
+    }, [auth]);
 
 
     const handleFormTransition = () => {
@@ -117,40 +140,37 @@ export default function ShopkeeperAuthPage() {
         setLoading(true);
         setErrors({});
 
-        if (!auth) {
-            setErrors({ form: "Firebase not initialized. Please refresh." });
+        if (!auth || !window.recaptchaVerifier) {
+            setErrors({ form: "Verification service not ready. Please refresh." });
             setLoading(false);
             return;
         }
 
-       try {
-            const fullPhoneNumber = `${selectedCountry.code}${phone}`;
-            const recaptchaVerifier = new RecaptchaVerifier(auth, 'send-code-btn-shopkeeper', { size: 'invisible' });
-            
-            recaptchaVerifier.render().then(async (widgetId) => {
-                try {
-                    const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifier);
-                    window.confirmationResult = confirmation;
-                    setConfirmationResultState(confirmation);
-                } catch (error: any) {
-                     console.error("OTP send error (inner):", error);
-                    let errorMessage = "Failed to send OTP. Please try again.";
-                     if (error.code === 'auth/too-many-requests') {
-                        errorMessage = "Too many requests. Please try again later.";
-                    } else if (error.code === 'auth/invalid-phone-number') {
-                        errorMessage = "The phone number is not valid.";
-                    } else if (error.code === 'auth/captcha-check-failed') {
-                        errorMessage = "Security check failed. Please refresh and try again."
-                    }
-                    setErrors({ form: errorMessage });
-                } finally {
-                    setLoading(false);
-                }
-            });
+        const fullPhoneNumber = `${selectedCountry.code}${phone}`;
+        const appVerifier = window.recaptchaVerifier;
 
+        try {
+            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, appVerifier);
+            window.confirmationResult = confirmation;
+            setConfirmationResultState(confirmation);
         } catch (error: any) {
-            console.error("OTP send error (outer):", error);
-            setErrors({ form: "Failed to initialize OTP verification. Please refresh." });
+            console.error("OTP send error:", error);
+            let errorMessage = "Failed to send OTP. Please try again.";
+             if (error.code === 'auth/too-many-requests') {
+                errorMessage = "Too many requests. Please try again later.";
+            } else if (error.code === 'auth/invalid-phone-number') {
+                errorMessage = "The phone number is not valid.";
+            } else if (error.code === 'auth/captcha-check-failed' || error.code === 'auth/network-request-failed') {
+                errorMessage = "Verification failed. Check your internet connection and try again."
+            }
+            setErrors({ form: errorMessage });
+             // Reset reCAPTCHA on failure
+            if (window.grecaptcha && window.recaptchaVerifier) {
+                 window.recaptchaVerifier.render().then((widgetId: any) => {
+                    window.grecaptcha.reset(widgetId);
+                 });
+            }
+        } finally {
             setLoading(false);
         }
     };
@@ -200,9 +220,6 @@ export default function ShopkeeperAuthPage() {
                                 </div>
                                 <h2>Shopkeeper Portal</h2>
                                 <p>{confirmationResultState ? 'Enter OTP to continue' : 'Sign in with your mobile number'}</p>
-                            </div>
-                             <div style={{ background: '#d1d9e6', padding: '10px', borderRadius: '10px', fontSize: '12px', textAlign: 'center', marginBottom: '20px', color: '#3d4468' }}>
-                                <strong>Testing Note:</strong> Use phone <strong>+91 9876543210</strong> and OTP <strong>123456</strong> to bypass live SMS and CAPTCHA.
                             </div>
                             
                             {confirmationResultState ? (
