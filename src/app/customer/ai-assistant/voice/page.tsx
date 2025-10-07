@@ -37,6 +37,7 @@ export default function VoiceAssistantPage() {
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const messagesEndRef = useRef<HTMLDivElement | null>(null);
+    const isProcessingQuery = useRef(false);
     
     // Check permission and start listening on page load
     useEffect(() => {
@@ -94,12 +95,18 @@ export default function VoiceAssistantPage() {
         }
 
         if (recognitionRef.current) {
-            recognitionRef.current.stop();
+            try {
+                recognitionRef.current.stop();
+            } catch(e) {
+                // can ignore
+            }
         }
+        
+        isProcessingQuery.current = false;
 
         const recognition = new SpeechRecognition();
-        recognition.continuous = true; 
-        recognition.interimResults = true;
+        recognition.continuous = false; // Process single utterances
+        recognition.interimResults = false;
         recognition.lang = 'hi-IN';
 
         recognition.onstart = () => {
@@ -107,50 +114,34 @@ export default function VoiceAssistantPage() {
         };
 
         recognition.onresult = (event: any) => {
-            // If user speaks while AI is speaking, interrupt the AI
-            if (status === 'speaking') {
-                stopAudio();
-                setStatus('listening');
-            }
-
-            if (silenceTimeoutRef.current) clearTimeout(silenceTimeoutRef.current);
-
-            let finalTranscript = '';
-            for (let i = 0; i < event.results.length; ++i) {
-                if (event.results[i].isFinal) {
-                    finalTranscript += event.results[i][0].transcript;
-                }
-            }
-
-            const transcript = finalTranscript.trim();
+            if (isProcessingQuery.current) return;
+            const transcript = event.results[0][0].transcript.trim();
             if (transcript) {
-                silenceTimeoutRef.current = setTimeout(() => {
-                    if (!isMuted) {
-                        recognition.stop();
-                        processQuery(transcript);
-                    }
-                }, 1500); 
+                isProcessingQuery.current = true;
+                processQuery(transcript);
+            } else {
+                 // No speech detected, just restart
+                 startListening();
             }
         };
         
         recognition.onend = () => {
-             // Only restart if not processing a query, not muted, and has permission
-            if (status !== 'thinking' && status !== 'speaking' && hasPermission && !isMuted) {
+            // Restart listening only if not processing, muted, or speaking
+            if (!isProcessingQuery.current && !isMuted && status !== 'speaking' && status !== 'thinking') {
                startListening();
             }
         };
 
         recognition.onerror = (event: any) => {
-            if (event.error === 'no-speech' || event.error === 'aborted') return;
+            if (event.error === 'no-speech' || event.error === 'aborted') {
+                // This is normal, just restart listening if appropriate
+                 if (!isProcessingQuery.current && !isMuted) {
+                    startListening();
+                }
+                return;
+            };
             console.error('Speech recognition error:', event.error);
-            const errorMessage = "माफ़ कीजिए, मैं आपकी बात नहीं सुन सका।";
-            addMessage({sender: 'ai', text: errorMessage});
-            setMessages(getHistory());
-            if (!isMuted) {
-                startListening();
-            } else {
-                setStatus('idle');
-            }
+            // Don't show error message for common non-errors
         };
         
         try {
@@ -223,9 +214,12 @@ export default function VoiceAssistantPage() {
             stopAudio();
             setStatus('idle');
         } else {
-            startListening(); // Attempt to start listening when unmuted
+            // Only start listening if it's not already in a process
+            if (status === 'idle') {
+                startListening();
+            }
         }
-    }, [isMuted, startListening]);
+    }, [isMuted, startListening, status]);
 
     useEffect(() => {
         return () => {
