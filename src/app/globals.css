@@ -721,6 +721,7 @@ body {
 /* QR Scanner Styles */
 .qr-scanner-container {
     width: 100%;
+    max-width: 340px;
     aspect-ratio: 1 / 1;
     position: relative;
     display: flex;
@@ -736,8 +737,8 @@ body {
     position: absolute;
     top: 50%;
     left: 50%;
-    width: 75%;
-    height: 75%;
+    width: 80%; /* Adjusted to be relative to the container */
+    height: 80%; /* Adjusted to be relative to the container */
     transform: translate(-50%, -50%);
     pointer-events: none;
 }
