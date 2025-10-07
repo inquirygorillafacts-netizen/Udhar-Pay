@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Bot, MessageSquare, ListMusic, ArrowLeft, Mic, Ear, BrainCircuit, X } from 'lucide-react';
+import { Bot, MessageSquare, ListMusic, ArrowLeft, Mic, Ear, BrainCircuit, X, MicOff } from 'lucide-react';
 import { askAiAssistant } from '@/ai/flows/assistant-flow';
 import TextAssistantModal from '@/components/assistant/TextAssistantModal';
 import { getHistory, addMessage, ChatMessage } from '@/lib/ai-memory';
@@ -27,17 +27,46 @@ const SpeechRecognition =
 export default function VoiceAssistantPage() {
     const router = useRouter();
     const [status, setStatus] = useState<Status>('idle');
-    const [isAssistantOn, setIsAssistantOn] = useState(false);
+    const [isMuted, setIsMuted] = useState(false);
+    const [hasPermission, setHasPermission] = useState(true);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [isTextModalOpen, setIsTextModalOpen] = useState(false);
     const [currentVoiceIndex, setCurrentVoiceIndex] = useState(0);
-    const [hasPermission, setHasPermission] = useState<boolean | null>(null);
     const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
 
     const recognitionRef = useRef<any>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
-    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
+    // Check permission and start listening on page load
+    useEffect(() => {
+        const checkPermissionAndStart = async () => {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                alert('Your browser does not support audio recording.');
+                setHasPermission(false);
+                return;
+            }
+            try {
+                // Request permission
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                // Stop the tracks immediately, we only needed to ask for permission
+                stream.getTracks().forEach(track => track.stop());
+                setHasPermission(true);
+                // Automatically start listening if permission is granted
+                startListening();
+            } catch (err) {
+                console.error('Microphone permission denied.', err);
+                setHasPermission(false);
+                setStatus('idle');
+                addMessage({ sender: 'ai', text: "Microphone permission denied. Please enable it in your browser settings to use the voice assistant." });
+                setMessages(getHistory());
+            }
+        };
+
+        checkPermissionAndStart();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     useEffect(() => {
         setMessages(getHistory());
@@ -83,11 +112,11 @@ export default function VoiceAssistantPage() {
                 setStatus('speaking');
 
                 audioRef.current.onended = () => {
-                    if (isAssistantOn) setStatus('listening');
+                    if (!isMuted) setStatus('listening');
                     else setStatus('idle');
                 };
             } else {
-                 if (isAssistantOn) setStatus('listening');
+                 if (!isMuted) setStatus('listening');
                  else setStatus('idle');
             }
         } catch (error) {
@@ -95,21 +124,20 @@ export default function VoiceAssistantPage() {
             const errorMessage = "माफ़ कीजिए, कोई त्रुटि हुई। कृपया फिर प्रयास करें।";
             addMessage({sender: 'ai', text: errorMessage});
             setMessages(getHistory());
-            if (isAssistantOn) setStatus('listening');
+            if (!isMuted) setStatus('listening');
             else setStatus('idle');
         }
-    }, [currentVoiceId, isAssistantOn]);
+    }, [currentVoiceId, isMuted]);
 
 
     const startListening = useCallback(() => {
-        if (!SpeechRecognition) {
-            alert("माफ़ कीजिए, आपका ब्राउज़र वॉइस रिकग्निशन का समर्थन नहीं करता है।");
+        if (!SpeechRecognition || !hasPermission || isMuted) {
             return;
         }
         if (recognitionRef.current) recognitionRef.current.stop();
 
         const recognition = new SpeechRecognition();
-        recognition.continuous = false;
+        recognition.continuous = true;
         recognition.interimResults = true;
         recognition.lang = 'hi-IN';
 
@@ -118,17 +146,23 @@ export default function VoiceAssistantPage() {
         recognition.onresult = (event: any) => {
             if (status === 'speaking') stopAudio();
 
+            if (silenceTimeoutRef.current) clearTimeout(silenceTimeoutRef.current);
+
             let finalTranscript = '';
             for (let i = 0; i < event.results.length; ++i) {
                 if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript;
             }
             
             const transcript = finalTranscript.trim();
-            if (transcript) processQuery(transcript);
+            if (transcript) {
+                 silenceTimeoutRef.current = setTimeout(() => {
+                    if (!isMuted) processQuery(transcript);
+                }, 2000); 
+            }
         };
         
         recognition.onend = () => {
-            if (isAssistantOn) {
+            if (hasPermission && !isMuted) {
                 try { recognition.start(); }
                 catch (e) { console.error("Could not restart recognition:", e); }
             } else {
@@ -148,47 +182,40 @@ export default function VoiceAssistantPage() {
         catch (e) { console.error("Could not start recognition: ", e); }
         recognitionRef.current = recognition;
 
-    }, [isAssistantOn, processQuery, status]); 
-
-    const checkPermissionAndStart = async () => {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            alert('Your browser does not support audio recording.');
-            setHasPermission(false);
-            return;
-        }
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            stream.getTracks().forEach(track => track.stop());
-            setHasPermission(true);
-            setIsAssistantOn(true);
-        } catch (err) {
-            console.error('Microphone permission denied.', err);
-            setHasPermission(false);
-        }
-    };
+    }, [hasPermission, isMuted, processQuery, status]); 
     
-    const handlePowerToggle = () => {
-        if (!isAssistantOn) {
-            checkPermissionAndStart();
-        } else {
-            setIsAssistantOn(false);
-        }
-    };
-
+    // Handle mute/unmute state
     useEffect(() => {
-        if (isAssistantOn && hasPermission) {
-            startListening();
-        } else {
+        if (isMuted) {
             if (recognitionRef.current) {
-                recognitionRef.current.abort(); 
+                recognitionRef.current.abort();
             }
             stopAudio();
             setStatus('idle');
+        } else {
+            startListening(); // Attempt to start listening when unmuted
         }
-    }, [isAssistantOn, hasPermission, startListening]);
-    
+    }, [isMuted, startListening]);
+
+
+    useEffect(() => {
+        return () => {
+             if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current.onended = null;
+            }
+             if (recognitionRef.current) {
+                recognitionRef.current.abort(); 
+                recognitionRef.current = null;
+            }
+            if (silenceTimeoutRef.current) clearTimeout(silenceTimeoutRef.current);
+        }
+    }, []);
+
+    const handleMuteToggle = () => setIsMuted(!isMuted);
+
     const statusInfo = {
-        idle: { text: "AI is Off", icon: <Mic size={16}/> },
+        idle: { text: isMuted ? "Muted" : "Idle", icon: isMuted ? <MicOff size={16}/> : <Mic size={16}/> },
         listening: { text: "Listening...", icon: <Ear size={16}/> },
         thinking: { text: "Thinking...", icon: <BrainCircuit size={16}/> },
         speaking: { text: "Speaking...", icon: <Bot size={16}/> },
@@ -261,15 +288,15 @@ export default function VoiceAssistantPage() {
                  <button onClick={() => setIsVoiceModalOpen(true)} className="glass-button">
                     <ListMusic size={18}/>
                 </button>
-                <div className={`neu-toggle-switch big-toggle ${isAssistantOn ? 'active' : ''}`} onClick={handlePowerToggle}>
-                    <div className="neu-toggle-handle"></div>
-                </div>
+                <button onClick={handleMuteToggle} className={`glass-button ${isMuted ? 'active' : ''}`}>
+                    {isMuted ? <MicOff size={18}/> : <Mic size={18}/>}
+                </button>
                 <button onClick={() => setIsTextModalOpen(true)} className="glass-button">
                     <MessageSquare size={18}/>
                 </button>
                  <div className="status-indicator">
-                    {isAssistantOn ? statusInfo[status].icon : statusInfo.idle.icon}
-                    <span>{isAssistantOn ? statusInfo[status].text : statusInfo.idle.text}</span>
+                    {statusInfo[status].icon}
+                    <span>{statusInfo[status].text}</span>
                 </div>
             </div>
         </main>
