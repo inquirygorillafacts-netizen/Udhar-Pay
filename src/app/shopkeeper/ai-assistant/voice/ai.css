@@ -4,7 +4,7 @@
     flex-direction: column;
     overflow: hidden;
     position: relative;
-    background: linear-gradient(to bottom, #000 70%, #e0e5ec 30%);
+    background: #000;
 }
 
 .ai-header, .ai-chat-area, .ai-control-panel {
@@ -20,7 +20,7 @@
     padding: 1rem;
     flex-shrink: 0;
     width: 100%;
-    position: sticky;
+    position: absolute;
     top: 0;
     background: rgba(0,0,0,0.3);
     backdrop-filter: blur(10px);
@@ -154,8 +154,9 @@
 .ai-control-panel {
     padding: 1rem;
     border-top: 1px solid rgba(255,255,255,0.2);
-    background: transparent;
-    color: #3d4468;
+    background: rgba(0,0,0,0.3);
+    backdrop-filter: blur(10px);
+    color: #fff;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -166,10 +167,10 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    background: rgba(0,0,0,0.05);
+    background: rgba(255,255,255,0.1);
     padding: 8px 15px;
     border-radius: 20px;
-    color: #3d4468;
+    color: #fff;
     font-size: 14px;
     font-weight: 500;
 }
@@ -178,7 +179,7 @@
 .neu-toggle-switch {
     width: 50px;
     height: 28px;
-    background: rgba(0,0,0,0.1);
+    background: rgba(255,255,255,0.2);
     border-radius: 14px;
     cursor: pointer;
     box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);

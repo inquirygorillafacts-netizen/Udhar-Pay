@@ -228,18 +228,6 @@ export default function VoiceAssistantPage() {
         )}
 
         <main className="ai-container">
-            <header className="ai-header">
-                <button onClick={() => router.back()} className="glass-button">
-                    <ArrowLeft size={20}/>
-                </button>
-                <div className="flex-grow text-center">
-                    <h1 className="text-xl font-bold text-white">AI Voice Assistant</h1>
-                </div>
-                <button onClick={() => setIsTextModalOpen(true)} className="glass-button">
-                    <MessageSquare size={18}/>
-                </button>
-            </header>
-
             <div className="ai-video-container">
                  <div className="ai-video-wrapper">
                     <video 
@@ -267,22 +255,21 @@ export default function VoiceAssistantPage() {
             </div>
 
             <div className="ai-control-panel">
-                <div className="status-indicator">
+                <button onClick={() => router.back()} className="glass-button">
+                    <ArrowLeft size={20}/>
+                </button>
+                 <button onClick={() => setIsVoiceModalOpen(true)} className="glass-button">
+                    <ListMusic size={18}/>
+                </button>
+                <div className={`neu-toggle-switch big-toggle ${isAssistantOn ? 'active' : ''}`} onClick={handlePowerToggle}>
+                    <div className="neu-toggle-handle"></div>
+                </div>
+                <button onClick={() => setIsTextModalOpen(true)} className="glass-button">
+                    <MessageSquare size={18}/>
+                </button>
+                 <div className="status-indicator">
                     {isAssistantOn ? statusInfo[status].icon : statusInfo.idle.icon}
                     <span>{isAssistantOn ? statusInfo[status].text : statusInfo.idle.text}</span>
-                </div>
-                 {hasPermission === false && (
-                    <div style={{color: '#ff9999', textAlign: 'center', fontSize: '14px', fontWeight: 500}}>
-                        Enable mic permission.
-                    </div>
-                 )}
-                 <div className="flex items-center gap-4">
-                     <button onClick={() => setIsVoiceModalOpen(true)} className="neu-button" style={{margin: 0, padding: '10px 15px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', height: 'auto'}}>
-                        <ListMusic size={16}/> Voice Mode
-                    </button>
-                    <div className={`neu-toggle-switch big-toggle ${isAssistantOn ? 'active' : ''}`} onClick={handlePowerToggle}>
-                        <div className="neu-toggle-handle"></div>
-                    </div>
                 </div>
             </div>
         </main>
