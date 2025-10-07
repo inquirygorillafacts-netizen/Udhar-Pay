@@ -110,7 +110,11 @@ export default function VoiceAssistantPage() {
         }
 
         if (recognitionRef.current) {
-            recognitionRef.current.start();
+            try {
+                recognitionRef.current.start();
+            } catch (e) {
+                // Ignore error if it's already started, onend will handle it.
+            }
             return;
         }
         
