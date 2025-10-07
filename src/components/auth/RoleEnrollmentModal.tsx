@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useFirebase } from '@/firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { generateUniqueCustomerCode, generateUniqueShopkeeperCode } from '@/lib/code-helpers';
@@ -32,6 +32,13 @@ export default function RoleEnrollmentModal({ role, onClose, onSuccess }: RoleEn
     const [isProcessing, setIsProcessing] = useState(false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
+    
+    useEffect(() => {
+        if (auth.currentUser?.phoneNumber) {
+            setMobile(auth.currentUser.phoneNumber);
+        }
+    }, [auth.currentUser]);
+
 
     const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -99,6 +106,7 @@ export default function RoleEnrollmentModal({ role, onClose, onSuccess }: RoleEn
             const docRef = doc(firestore, collectionName, auth.currentUser.uid);
             
             let data: any = {
+                uid: auth.currentUser.uid,
                 email: auth.currentUser.email,
                 displayName: name,
                 mobileNumber: mobile,
@@ -198,7 +206,15 @@ export default function RoleEnrollmentModal({ role, onClose, onSuccess }: RoleEn
                             </div>
                             <div className="form-group">
                                 <div className="neu-input">
-                                    <input type="tel" id="mobile" value={mobile} onChange={(e) => setMobile(e.target.value)} required placeholder=" " />
+                                    <input 
+                                        type="tel" 
+                                        id="mobile" 
+                                        value={mobile} 
+                                        onChange={(e) => setMobile(e.target.value)} 
+                                        required 
+                                        placeholder=" " 
+                                        disabled={!!auth.currentUser?.phoneNumber}
+                                    />
                                     <label htmlFor="mobile">मोबाइल नंबर</label>
                                     <div className="input-icon"><Phone /></div>
                                 </div>
