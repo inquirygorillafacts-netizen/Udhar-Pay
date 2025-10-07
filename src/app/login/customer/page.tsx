@@ -44,6 +44,10 @@ export default function CustomerAuthPage() {
     const [selectedCountry, setSelectedCountry] = useState(countryCodes[0]);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    
+    const [timer, setTimer] = useState(0);
+    const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -54,8 +58,23 @@ export default function CustomerAuthPage() {
         document.addEventListener("mousedown", handleClickOutside);
         return () => {
             document.removeEventListener("mousedown", handleClickOutside);
+            if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
         };
     }, []);
+    
+    useEffect(() => {
+        if (timer > 0) {
+            timerIntervalRef.current = setInterval(() => {
+                setTimer(prev => prev - 1);
+            }, 1000);
+        } else if (timer === 0 && timerIntervalRef.current) {
+            clearInterval(timerIntervalRef.current);
+        }
+        return () => {
+            if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+        };
+    }, [timer]);
+
 
     const handleFormTransition = () => {
         localStorage.setItem('activeRole', 'customer');
@@ -125,7 +144,6 @@ export default function CustomerAuthPage() {
 
         try {
             const fullPhoneNumber = `${selectedCountry.code}${phone}`;
-            
             const recaptchaVerifier = new RecaptchaVerifier(auth, 'send-code-btn', {
                 'size': 'invisible',
             });
@@ -133,6 +151,7 @@ export default function CustomerAuthPage() {
             const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifier);
             window.confirmationResult = confirmation;
             setConfirmationResultState(confirmation);
+            setTimer(25);
         } catch (error: any) {
             console.error("OTP send error:", error);
             let errorMessage = "Failed to send OTP. Please try again.";
@@ -144,6 +163,11 @@ export default function CustomerAuthPage() {
                 errorMessage = "Verification failed. Check your internet connection and try again."
             }
             setErrors({ form: errorMessage });
+             if (window.grecaptcha && window.recaptchaVerifier) {
+                window.recaptchaVerifier.render().then(function(widgetId) {
+                    window.grecaptcha.reset(widgetId);
+                });
+            }
         } finally {
             setLoading(false);
         }
@@ -212,16 +236,22 @@ export default function CustomerAuthPage() {
                                         <span className="btn-text">Verify & Continue</span>
                                         <div className="btn-loader"><div className="neu-spinner"></div></div>
                                     </button>
-                                     <button type="button" className="neu-button" style={{margin: 0, background: 'transparent', boxShadow: 'none'}} onClick={() => { setConfirmationResultState(null); setOtp(''); setErrors({}); }}>
-                                        <span style={{display: 'flex', alignItems: 'center', gap: '8px'}}><ArrowLeft size={16}/> Back</span>
-                                    </button>
+                                     <div style={{textAlign: 'center', marginTop: '-10px'}}>
+                                        {timer > 0 ? (
+                                             <p style={{color: '#9499b7', fontSize: '14px'}}>Resend OTP in {timer}s</p>
+                                        ) : (
+                                            <button type="button" onClick={handleSendOtp} disabled={loading} className="forgot-link">
+                                                Resend OTP
+                                            </button>
+                                        )}
+                                        <button type="button" className="neu-button" style={{margin: '10px 0 0 0', background: 'transparent', boxShadow: 'none'}} onClick={() => { setConfirmationResultState(null); setOtp(''); setErrors({}); setTimer(0); }}>
+                                            <span style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'}}><ArrowLeft size={16}/> Back</span>
+                                        </button>
+                                     </div>
                                 </form>
                             ) : (
                                 // --- Phone Number Form ---
                                 <form className="login-form" noValidate onSubmit={handleSendOtp}>
-                                    <div style={{textAlign: 'center', background: '#eef2f5', padding: '10px', borderRadius: '10px', marginBottom: '20px', border: '1px solid #dce4e9'}}>
-                                        <p style={{fontSize: '12px', color: '#6c7293', margin: 0}}>For testing, use phone: <strong style={{color: '#3d4468'}}>9876543210</strong> and OTP: <strong style={{color: '#3d4468'}}>123456</strong></p>
-                                    </div>
                                     {errors.form && <div className="error-message show" style={{textAlign: 'center', marginBottom: '1rem', marginLeft: 0}}>{errors.form}</div>}
                                     <div className={`form-group ${errors.phone ? 'error' : ''}`}>
                                         <div className="neu-input" style={{display: 'flex', alignItems: 'center'}}>
