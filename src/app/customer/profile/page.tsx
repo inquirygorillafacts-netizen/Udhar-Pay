@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
-import { Camera, User, Phone, LogOut, Settings, Lock, ShieldOff, KeyRound, Store, CheckCircle, AlertTriangle, LandPlot } from 'lucide-react';
+import { Camera, User, Phone, LogOut, Settings, Lock, ShieldOff, KeyRound, Store, CheckCircle, AlertTriangle, LandPlot, CreditCard } from 'lucide-react';
 import Link from 'next/link';
 import RoleEnrollmentModal from '@/components/auth/RoleEnrollmentModal';
 import axios from 'axios';
@@ -349,6 +349,15 @@ export default function CustomerProfilePage() {
                   </div>
               )}
           </div>
+        
+        <div className="setting-section" style={{marginTop: '40px'}}>
+             <h3 className="setting-title" style={{textAlign: 'center'}}>Financial Services</h3>
+             <Link href="/customer/credit-cards" className="neu-button" style={{margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
+                <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}><CreditCard size={20} /><span>Credit Card & Loans</span></div>
+                <span>&rarr;</span>
+            </Link>
+        </div>
+
 
         <div style={{marginTop: '30px'}}>
             <button className="neu-button sign-out-btn" onClick={handleSignOut} style={{width: '100%', margin: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'}}><LogOut size={20}/><span>Sign Out</span></button>
