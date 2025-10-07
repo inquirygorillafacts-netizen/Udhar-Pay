@@ -359,7 +359,7 @@ export default function CustomerDashboardPage() {
         )}
         {activeRequest && (
             <div className="modal-overlay">
-                <div className="login-card modal-content" style={{maxWidth: '450px'}} onClick={(e) => e.stopPropagation()}>
+                <div className="login-card modal-content" onClick={(e) => e.stopPropagation()}>
                     <div className="modal-header" style={{flexDirection: 'column', textAlign: 'center'}}>
                          <div className="neu-icon" style={{width: '70px', height: '70px', background: '#00c896', color: 'white', marginBottom: '20px'}}>
                             <Send size={30} />
