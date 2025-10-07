@@ -83,7 +83,7 @@ export default function CustomerLedgerPage() {
 
   return (
     <main className="dashboard-main-content" style={{padding: '20px'}}>
-      <div className="login-card" style={{width: '100%', maxWidth: '700px', margin: 'auto auto 30px auto', padding: '8px 30px'}}>
+      <div className="login-card" style={{width: '100%', margin: 'auto auto 30px auto', padding: '8px 30px'}}>
         <h1 style={{ color: '#3d4468', fontSize: '1.5rem', fontWeight: '600', textAlign: 'center' }}>
             All Transactions
         </h1>
