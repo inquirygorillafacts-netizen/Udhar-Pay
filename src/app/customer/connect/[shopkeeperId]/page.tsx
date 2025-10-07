@@ -124,7 +124,7 @@ export default function ConnectPage() {
       </header>
 
       <main className="login-container">
-        <div className="login-card" style={{ maxWidth: '450px', textAlign: 'center' }}>
+        <div className="login-card" style={{ textAlign: 'center' }}>
             <div className="user-avatar neu-icon" style={{width: '100px', height: '100px', margin: 'auto', marginBottom: '20px'}}>
                 {shopkeeper.photoURL ? (
                     <img src={shopkeeper.photoURL} alt={shopkeeper.displayName} style={{width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover'}} />
@@ -133,7 +133,7 @@ export default function ConnectPage() {
                 )}
             </div>
             
-            <h2 style={{color: '#3d4468', fontSize: '1.75rem', marginBottom: '10px'}}>{shopkeeper.displayName}</h2>
+            <h2 style={{color: '#3d4468', fontSize: '1.75rem', marginBottom: '10px'}}>Hello {shopkeeper.displayName}</h2>
             <p style={{color: '#9499b7', marginBottom: '30px', fontSize: '1rem'}}>
                 Send a request to connect and start managing your Udhaar with this shopkeeper.
             </p>
