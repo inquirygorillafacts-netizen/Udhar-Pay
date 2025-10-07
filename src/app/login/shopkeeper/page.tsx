@@ -8,7 +8,10 @@ import { useFirebase } from '@/firebase';
 import { 
     signInWithPhoneNumber,
     RecaptchaVerifier,
-    type ConfirmationResult
+    type ConfirmationResult,
+    signInAnonymously,
+    linkWithCredential,
+    PhoneAuthProvider
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { generateUniqueShopkeeperCode } from '@/lib/code-helpers';
@@ -137,8 +140,9 @@ export default function ShopkeeperAuthPage() {
         setErrors({});
 
         try {
-            if (window.recaptchaVerifier) {
-                window.recaptchaVerifier.clear();
+            // Silently sign in anonymously first
+            if (!auth.currentUser || auth.currentUser.isAnonymous) {
+                await signInAnonymously(auth);
             }
 
             const verifier = new RecaptchaVerifier(auth, 'send-code-btn-shopkeeper', {
@@ -182,14 +186,23 @@ export default function ShopkeeperAuthPage() {
 
         setLoading(true);
         try {
-            const result = await confirmationResultState.confirm(otp);
-            await handleAuthSuccess(result.user);
+            const credential = PhoneAuthProvider.credential(confirmationResultState.verificationId, otp);
+            
+            if (auth.currentUser && auth.currentUser.isAnonymous) {
+                const userCredential = await linkWithCredential(auth.currentUser, credential);
+                await handleAuthSuccess(userCredential.user);
+            } else {
+                const result = await confirmationResultState.confirm(otp);
+                await handleAuthSuccess(result.user);
+            }
         } catch (error: any) {
              let errorMessage = "Invalid OTP or request expired. Please try again.";
              if (error.code === 'auth/invalid-verification-code') {
                 errorMessage = "Invalid OTP. Please check the code and try again.";
              } else if (error.code === 'auth/code-expired') {
                 errorMessage = "The OTP has expired. Please request a new one."
+             } else if (error.code === 'auth/credential-already-in-use') {
+                errorMessage = "This phone number is already associated with another account."
              }
              console.error("OTP Verification Error: ", error);
              setErrors({ form: errorMessage });
