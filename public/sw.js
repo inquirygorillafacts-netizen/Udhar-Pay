@@ -1,27 +1,30 @@
-const CACHE_NAME = 'udhar-pay-cache-v1';
-const APP_SHELL_URLS = [
+/**
+ * SERVICE WORKER
+ *
+ * This file is the heart of the PWA functionality. It controls caching strategies
+ * and ensures the app works offline and loads the latest content.
+ */
+
+const CACHE_NAME = 'udhar-pay-cache-v1'; // Change version to force update
+const urlsToCache = [
   '/',
   '/manifest.json',
   '/logo.png',
-  '/favicon.ico',
-  // Add other critical shell assets here if needed
+  // Add other critical static assets here if needed
 ];
 
-// 1. Install the service worker and cache the app shell
+// Install the service worker and cache essential assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('Opened cache and caching app shell');
-        return cache.addAll(APP_SHELL_URLS);
-      })
-      .catch(err => {
-        console.error("App Shell caching failed: ", err);
+        console.log('Opened cache');
+        return cache.addAll(urlsToCache);
       })
   );
 });
 
-// 2. Activate the service worker and clean up old caches
+// Clean up old caches when a new service worker is activated
 self.addEventListener('activate', (event) => {
   const cacheWhitelist = [CACHE_NAME];
   event.waitUntil(
@@ -36,50 +39,63 @@ self.addEventListener('activate', (event) => {
       );
     })
   );
+  // Take control of the page immediately
+  return self.clients.claim();
 });
 
-// 3. Intercept fetch requests
+
+// --- Network First Strategy ---
+// This strategy ensures users always get the latest version of the app if they are online.
+// It only falls back to the cache if the network request fails (i.e., they are offline).
+
 self.addEventListener('fetch', (event) => {
-  const requestUrl = new URL(event.request.url);
-
-  // CRITICAL FIX: Never cache Firebase Firestore/Auth API calls.
-  // Always go to the network for these to ensure live data.
-  if (requestUrl.hostname.includes('googleapis.com')) {
-    event.respondWith(fetch(event.request));
-    return;
-  }
-  
-  // For other requests (app shell, static assets), use a cache-first strategy.
-  event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        // If the request is in the cache, return it.
-        if (response) {
+  // We only apply this strategy to navigation requests (i.e., opening pages)
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          // If the network request is successful, clone it and cache it for offline use.
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
           return response;
-        }
-
-        // Otherwise, fetch it from the network, cache it, and return it.
-        return fetch(event.request).then((networkResponse) => {
-          // Check if we received a valid response
-          if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
-            return networkResponse;
-          }
-
-          // Clone the response because it's a stream and can only be consumed once.
-          const responseToCache = networkResponse.clone();
-
-          caches.open(CACHE_NAME)
-            .then((cache) => {
-              cache.put(event.request, responseToCache);
+        })
+        .catch(() => {
+          // If the network request fails, try to serve the page from the cache.
+          return caches.match(event.request)
+            .then((response) => {
+              // If we find it in the cache, return it.
+              // If not, you might want a generic offline fallback page here.
+              return response || caches.match('/'); 
             });
-
-          return networkResponse;
-        });
-      })
-      .catch(() => {
-        // If both cache and network fail, you can provide a generic fallback
-        // This is optional and depends on your app's needs.
-        // For example, return an offline page for navigation requests.
-      })
-  );
+        })
+    );
+  } else {
+    // For non-navigation requests (images, CSS, JS), use a cache-first strategy for speed,
+    // as these assets don't change as frequently as page content.
+    event.respondWith(
+      caches.match(event.request)
+        .then((response) => {
+          // Cache hit - return response
+          if (response) {
+            return response;
+          }
+          // Not in cache - fetch from network, then cache it for next time.
+          return fetch(event.request).then(
+            (response) => {
+              if(!response || response.status !== 200 || response.type !== 'basic') {
+                return response;
+              }
+              const responseToCache = response.clone();
+              caches.open(CACHE_NAME)
+                .then((cache) => {
+                  cache.put(event.request, responseToCache);
+                });
+              return response;
+            }
+          );
+        })
+    );
+  }
 });
