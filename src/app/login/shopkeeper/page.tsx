@@ -48,6 +48,13 @@ export default function ShopkeeperAuthPage() {
 
 
     useEffect(() => {
+        if (!auth) return;
+
+        const verifier = new RecaptchaVerifier(auth, 'recaptcha-container-shopkeeper', {
+            'size': 'invisible'
+        });
+        window.recaptchaVerifier = verifier;
+
         const handleClickOutside = (event: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
                 setIsDropdownOpen(false);
@@ -58,15 +65,13 @@ export default function ShopkeeperAuthPage() {
         return () => {
             document.removeEventListener("mousedown", handleClickOutside);
              if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-             if (window.recaptchaVerifier) {
-                try {
-                    window.recaptchaVerifier.clear();
-                } catch (e) {
-                    console.error("Error clearing recaptcha verifier:", e);
-                }
+             try {
+                window.recaptchaVerifier?.clear();
+            } catch (e) {
+                console.error("Error clearing recaptcha verifier on unmount:", e);
             }
         };
-    }, []);
+    }, [auth]);
 
      useEffect(() => {
         if (timer > 0) {
@@ -134,27 +139,14 @@ export default function ShopkeeperAuthPage() {
     
     const handleSendOtp = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!validatePhone()) return;
+        if (!validatePhone() || !window.recaptchaVerifier) return;
 
         setLoading(true);
         setErrors({});
 
-        if (!auth) {
-            setErrors({ form: "Verification service not ready. Please refresh." });
-            setLoading(false);
-            return;
-        }
-
         try {
-            if (window.recaptchaVerifier) {
-                window.recaptchaVerifier.clear();
-            }
-            const recaptchaVerifier = new RecaptchaVerifier(auth, 'send-code-btn-shopkeeper', {
-                size: 'invisible',
-            });
-
             const fullPhoneNumber = `${selectedCountry.code}${phone}`;
-            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifier);
+            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, window.recaptchaVerifier);
             setConfirmationResultState(confirmation);
             setTimer(60);
         } catch (error: any) {
@@ -164,8 +156,8 @@ export default function ShopkeeperAuthPage() {
                 errorMessage = "Too many requests. Please try again later.";
             } else if (error.code === 'auth/invalid-phone-number') {
                 errorMessage = "The phone number is not valid.";
-            } else if (error.code === 'auth/captcha-check-failed' || error.code === 'auth/network-request-failed' || error.code === 'auth/internal-error') {
-                errorMessage = "Verification failed. Check your internet or authorized domains in Firebase."
+            } else if (error.code === 'auth/captcha-check-failed' || error.code === 'auth/hostname-mismatch') {
+                 errorMessage = "Verification failed. Ensure your domain is authorized in Firebase."
             }
             setErrors({ form: errorMessage });
         } finally {
@@ -207,7 +199,7 @@ export default function ShopkeeperAuthPage() {
     return (
         <div className="login-container-wrapper">
             <div className="login-container">
-                 <div id="recaptcha-container"></div>
+                 <div id="recaptcha-container-shopkeeper"></div>
                 <div className="login-card">
                     {!showSuccess ? (
                         <>
