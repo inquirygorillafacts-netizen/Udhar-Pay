@@ -271,14 +271,16 @@ export default function VoiceAssistantPage() {
             </header>
 
             <div className="ai-video-container">
-                 <video 
-                    src="/ai.mp4" 
-                    autoPlay 
-                    loop 
-                    muted 
-                    playsInline
-                    className="ai-video-orb"
-                />
+                 <div className="ai-video-wrapper">
+                    <video 
+                        src="/ai.mp4" 
+                        autoPlay 
+                        loop 
+                        muted 
+                        playsInline
+                        className="ai-video-orb"
+                    />
+                </div>
             </div>
             
             <div className="ai-chat-area">
