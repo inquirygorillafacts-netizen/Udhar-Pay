@@ -38,10 +38,10 @@ export default function TextAssistantModal({ onClose }: TextAssistantModalProps)
     setStatus('thinking');
 
     try {
+      // Removed generateAudio: false from the call
       const response = await askAiAssistant({
         query: query,
         history: getHistory(),
-        generateAudio: false, // We only want text
       });
       addMessage({ sender: 'ai', text: response.text });
       setMessages(getHistory());
