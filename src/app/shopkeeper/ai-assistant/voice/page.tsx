@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Bot, MessageSquare, Shuffle, User, ArrowLeft, Power, Mic, Ear, BrainCircuit } from 'lucide-react';
+import { Bot, MessageSquare, ListMusic, User, ArrowLeft, Power, Mic, Ear, BrainCircuit, X } from 'lucide-react';
 import { askAiAssistant } from '@/ai/flows/assistant-flow';
 import TextAssistantModal from '@/components/assistant/TextAssistantModal';
 import { getHistory, addMessage, ChatMessage } from '@/lib/ai-memory';
@@ -12,11 +12,12 @@ import './ai.css';
 type Status = 'idle' | 'listening' | 'thinking' | 'speaking';
 
 const availableVoices = [
-    { voiceId: 'it-IT-lorenzo', style: 'Conversational', multiNativeLocale: 'hi-IN' },
-    { voiceId: 'hi-IN-kabir', style: 'General' },
-    { voiceId: 'en-UK-hazel', style: 'Conversational', multiNativeLocale: 'hi_IN' },
-    { voiceId: 'de-DE-josephine', style: 'Conversational', multiNativeLocale: 'hi-IN' },
+    { voiceId: 'it-IT-lorenzo', name: 'Lorenzo (Male)', lang: 'Italian Accent', style: 'Conversational', multiNativeLocale: 'hi-IN' },
+    { voiceId: 'hi-IN-kabir', name: 'Kabir (Male)', lang: 'Indian Hindi', style: 'General' },
+    { voiceId: 'en-UK-hazel', name: 'Hazel (Female)', lang: 'UK English Accent', style: 'Conversational', multiNativeLocale: 'hi_IN' },
+    { voiceId: 'de-DE-josephine', name: 'Josephine (Female)', lang: 'German Accent', style: 'Conversational', multiNativeLocale: 'hi-IN' },
 ];
+
 
 const SpeechRecognition =
   typeof window !== 'undefined'
@@ -31,16 +32,15 @@ export default function VoiceAssistantPage() {
     const [isTextModalOpen, setIsTextModalOpen] = useState(false);
     const [currentVoiceIndex, setCurrentVoiceIndex] = useState(0);
     const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+    const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
 
     const recognitionRef = useRef<any>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
-    const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
 
     useEffect(() => {
         setMessages(getHistory());
-        // Initialize audioRef once.
         if (!audioRef.current) {
             audioRef.current = new Audio();
         }
@@ -109,7 +109,7 @@ export default function VoiceAssistantPage() {
         if (recognitionRef.current) recognitionRef.current.stop();
 
         const recognition = new SpeechRecognition();
-        recognition.continuous = false; // Process after a single utterance.
+        recognition.continuous = false;
         recognition.interimResults = true;
         recognition.lang = 'hi-IN';
 
@@ -128,7 +128,6 @@ export default function VoiceAssistantPage() {
         };
         
         recognition.onend = () => {
-            // If the assistant is still on, automatically restart listening.
             if (isAssistantOn) {
                 try { recognition.start(); }
                 catch (e) { console.error("Could not restart recognition:", e); }
@@ -158,9 +157,8 @@ export default function VoiceAssistantPage() {
             return;
         }
         try {
-            // Request permission. This will trigger the browser's permission prompt if not already granted.
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            stream.getTracks().forEach(track => track.stop()); // We don't need to keep the stream, just get permission.
+            stream.getTracks().forEach(track => track.stop());
             setHasPermission(true);
             setIsAssistantOn(true);
         } catch (err) {
@@ -177,7 +175,6 @@ export default function VoiceAssistantPage() {
         }
     };
 
-    // Effect to start/stop listening when the assistant is toggled on/off
     useEffect(() => {
         if (isAssistantOn && hasPermission) {
             startListening();
@@ -188,7 +185,6 @@ export default function VoiceAssistantPage() {
             stopAudio();
             setStatus('idle');
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isAssistantOn, hasPermission, startListening]);
     
     const statusInfo = {
@@ -197,9 +193,40 @@ export default function VoiceAssistantPage() {
         thinking: { text: "Thinking...", icon: <BrainCircuit size={16}/> },
         speaking: { text: "Speaking...", icon: <Bot size={16}/> },
     };
+    
+    const selectVoice = (index: number) => {
+        setCurrentVoiceIndex(index);
+        setIsVoiceModalOpen(false);
+    }
 
     return (
       <>
+        {isVoiceModalOpen && (
+            <div className="modal-overlay" onClick={() => setIsVoiceModalOpen(false)}>
+                <div className="login-card modal-content" style={{maxWidth: '450px'}} onClick={(e) => e.stopPropagation()}>
+                    <div className="modal-header">
+                        <h2>Select a Voice</h2>
+                        <button className="close-button" onClick={() => setIsVoiceModalOpen(false)}><X size={24}/></button>
+                    </div>
+                    <div style={{display: 'flex', flexDirection: 'column', gap: '15px'}}>
+                        {availableVoices.map((voice, index) => (
+                            <button
+                                key={voice.voiceId}
+                                className={`neu-button role-btn ${index === currentVoiceIndex ? 'active' : ''}`}
+                                style={{margin: 0, justifyContent: 'flex-start', textAlign: 'left', padding: '15px 20px', height: 'auto'}}
+                                onClick={() => selectVoice(index)}
+                            >
+                                <div>
+                                    <h4 style={{margin:0, fontSize: '1rem', color: index === currentVoiceIndex ? 'white' : '#3d4468'}}>{voice.name}</h4>
+                                    <p style={{margin:0, fontSize: '0.8rem', color: index === currentVoiceIndex ? 'rgba(255,255,255,0.8)' : '#9499b7'}}>{voice.lang}</p>
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        )}
+
         <main className="ai-container">
              <header className="dashboard-header" style={{ position: 'sticky', top: '20px', zIndex: 10, background: '#e0e5ec', margin: '0 20px', width: 'auto' }}>
                 <button onClick={() => router.back()} className="neu-button" style={{width: '45px', height: '45px', padding: 0, margin: 0, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
@@ -212,8 +239,8 @@ export default function VoiceAssistantPage() {
                      <button onClick={() => setIsTextModalOpen(true)} className="neu-button" style={{width: '45px', height: '45px', padding: 0, margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
                         <MessageSquare size={18}/>
                     </button>
-                    <button onClick={() => setCurrentVoiceIndex((prev) => (prev + 1) % availableVoices.length)} className="neu-button" style={{width: '45px', height: '45px', padding: 0, margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-                        <Shuffle size={18}/>
+                    <button onClick={() => setIsVoiceModalOpen(true)} className="neu-button" style={{width: '45px', height: '45px', padding: 0, margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                        <ListMusic size={18}/>
                     </button>
                 </div>
             </header>
@@ -249,7 +276,6 @@ export default function VoiceAssistantPage() {
                         Microphone permission denied. Please enable it in your browser settings.
                     </div>
                  )}
-
             </div>
 
             <div className="ai-chat-area">
