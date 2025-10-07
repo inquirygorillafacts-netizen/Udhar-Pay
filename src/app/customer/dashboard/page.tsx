@@ -490,7 +490,7 @@ export default function CustomerDashboardPage() {
           {(loadingShopkeepers) ? (
             <div className="neu-spinner" style={{margin: '40px auto'}}></div>
           ) : (connectedShopkeepers.length > 0) && (
-              <div style={{maxWidth: '600px', margin: '40px auto'}}>
+              <div style={{margin: '40px auto', padding: '0 20px'}}>
                    <h2 style={{color: '#3d4468', fontSize: '1.5rem', fontWeight: '600', textAlign: 'center', marginBottom: '30px' }}>
                       Your Connected Shopkeepers
                     </h2>
