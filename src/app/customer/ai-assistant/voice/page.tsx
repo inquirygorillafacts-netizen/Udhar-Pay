@@ -122,7 +122,11 @@ export default function VoiceAssistantPage() {
             };
             
             recognition.onerror = (event: any) => {
-                if (event.error !== 'no-speech' && event.error !== 'aborted') {
+                if (event.error === 'not-allowed') {
+                    setHasPermission(false);
+                    addMessage({ sender: 'ai', text: "Microphone permission denied. Please enable it in your browser settings to use the voice assistant." });
+                    setMessages(getHistory());
+                } else if (event.error !== 'no-speech' && event.error !== 'aborted') {
                     console.error('Speech recognition error:', event.error);
                 }
                 isProcessingQuery.current = false;
@@ -145,10 +149,10 @@ export default function VoiceAssistantPage() {
 
     // Effect to control listening state based on other states
     useEffect(() => {
-        if (!isMuted && !isProcessingQuery.current && status === 'idle') {
+        if (!isMuted && !isProcessingQuery.current && status === 'idle' && hasPermission) {
             startListening();
         }
-    }, [isMuted, status, startListening]);
+    }, [isMuted, status, hasPermission, startListening]);
 
 
     // Initial permission check and setup
