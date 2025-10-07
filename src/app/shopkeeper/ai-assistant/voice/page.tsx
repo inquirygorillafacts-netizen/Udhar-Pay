@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Bot, MessageSquare, Shuffle, User, ArrowLeft } from 'lucide-react';
+import { Bot, MessageSquare, Shuffle, User, ArrowLeft, Power, Mic, Ear, BrainCircuit } from 'lucide-react';
 import { askAiAssistant } from '@/ai/flows/assistant-flow';
 import TextAssistantModal from '@/components/assistant/TextAssistantModal';
 import { getHistory, addMessage, ChatMessage } from '@/lib/ai-memory';
 import { useRouter } from 'next/navigation';
+import './ai.css';
+
 
 type Status = 'idle' | 'listening' | 'thinking' | 'speaking';
 
@@ -28,15 +30,25 @@ export default function VoiceAssistantPage() {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [isTextModalOpen, setIsTextModalOpen] = useState(false);
     const [currentVoiceIndex, setCurrentVoiceIndex] = useState(0);
+    const [hasPermission, setHasPermission] = useState<boolean | null>(null);
 
     const recognitionRef = useRef<any>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+
 
     useEffect(() => {
         setMessages(getHistory());
+        // Initialize audioRef once.
+        if (!audioRef.current) {
+            audioRef.current = new Audio();
+        }
     }, []);
-
+    
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages]);
 
     const currentVoiceId = availableVoices[currentVoiceIndex].voiceId;
     
@@ -46,14 +58,14 @@ export default function VoiceAssistantPage() {
             audioRef.current.currentTime = 0;
         }
     }
-
+    
     const processQuery = useCallback(async (text: string) => {
         setStatus('thinking');
-        stopAudio();
-        
+        stopAudio(); 
+
         addMessage({ sender: 'user', text });
         setMessages(getHistory());
-
+        
         try {
             const response = await askAiAssistant({
                 query: text,
@@ -61,165 +73,113 @@ export default function VoiceAssistantPage() {
                 generateAudio: true,
                 voiceId: currentVoiceId,
             });
+
             addMessage({ sender: 'ai', text: response.text });
             setMessages(getHistory());
 
-
             if (response.audio && audioRef.current) {
                 audioRef.current.src = response.audio;
-                audioRef.current.play();
+                await audioRef.current.play();
                 setStatus('speaking');
 
                 audioRef.current.onended = () => {
-                    if (isAssistantOn) {
-                        setStatus('listening'); 
-                    } else {
-                        setStatus('idle');
-                    }
+                    if (isAssistantOn) setStatus('listening');
+                    else setStatus('idle');
                 };
             } else {
-                 if (isAssistantOn) {
-                    setStatus('listening');
-                } else {
-                    setStatus('idle');
-                }
+                 if (isAssistantOn) setStatus('listening');
+                 else setStatus('idle');
             }
         } catch (error) {
             console.error('Error with AI Assistant:', error);
             const errorMessage = "माफ़ कीजिए, कोई त्रुटि हुई। कृपया फिर प्रयास करें।";
             addMessage({sender: 'ai', text: errorMessage});
             setMessages(getHistory());
-             if (isAssistantOn) {
-                setStatus('listening');
-            } else {
-                setStatus('idle');
-            }
+            if (isAssistantOn) setStatus('listening');
+            else setStatus('idle');
         }
     }, [currentVoiceId, isAssistantOn]);
+
 
     const startListening = useCallback(() => {
         if (!SpeechRecognition) {
             alert("माफ़ कीजिए, आपका ब्राउज़र वॉइस रिकग्निशन का समर्थन नहीं करता है।");
             return;
         }
-
-        if (recognitionRef.current) {
-            recognitionRef.current.stop();
-        }
+        if (recognitionRef.current) recognitionRef.current.stop();
 
         const recognition = new SpeechRecognition();
-        recognition.continuous = true; 
+        recognition.continuous = false; // Process after a single utterance.
         recognition.interimResults = true;
         recognition.lang = 'hi-IN';
 
-        recognition.onstart = () => {
-            setStatus('listening');
-        };
+        recognition.onstart = () => setStatus('listening');
 
         recognition.onresult = (event: any) => {
-             // If the AI is speaking, interrupt it
-            if (status === 'speaking') {
-                stopAudio();
-                setStatus('listening');
-            }
-
-            if (silenceTimeoutRef.current) {
-                clearTimeout(silenceTimeoutRef.current);
-            }
+            if (status === 'speaking') stopAudio();
 
             let finalTranscript = '';
             for (let i = 0; i < event.results.length; ++i) {
-                if (event.results[i].isFinal) {
-                    finalTranscript += event.results[i][0].transcript;
-                }
+                if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript;
             }
-
+            
             const transcript = finalTranscript.trim();
-            if (transcript) {
-                silenceTimeoutRef.current = setTimeout(() => {
-                    if (isAssistantOn) {
-                       processQuery(transcript);
-                    }
-                }, 2000); 
-            }
+            if (transcript) processQuery(transcript);
         };
         
         recognition.onend = () => {
+            // If the assistant is still on, automatically restart listening.
             if (isAssistantOn) {
-                try {
-                   if (recognitionRef.current) recognitionRef.current.start();
-                } catch(e) {
-                    console.log("Could not restart recognition, it might have been stopped manually.");
-                }
+                try { recognition.start(); }
+                catch (e) { console.error("Could not restart recognition:", e); }
             } else {
                 setStatus('idle');
             }
         };
 
         recognition.onerror = (event: any) => {
-            if (event.error === 'no-speech' || event.error === 'aborted') {
-                return;
+            if (event.error !== 'no-speech' && event.error !== 'aborted') {
+                console.error('Speech recognition error:', event.error);
+                addMessage({sender: 'ai', text: "माफ़ कीजिए, मैं आपकी बात नहीं सुन सका।"});
+                setMessages(getHistory());
             }
-            console.error('Speech recognition error:', event.error);
-            const errorMessage = "माफ़ कीजिए, मैं आपकी बात नहीं सुन सका।";
-            addMessage({sender: 'ai', text: errorMessage});
-            setMessages(getHistory());
-            setStatus('idle');
         };
         
-        try {
-            recognition.start();
-        } catch (e) {
-             console.error("Could not start recognition: ", e);
-        }
+        try { recognition.start(); } 
+        catch (e) { console.error("Could not start recognition: ", e); }
         recognitionRef.current = recognition;
+
     }, [isAssistantOn, processQuery, status]); 
 
-
-    // Initialize and play greeting audio, then auto-start the assistant
-    useEffect(() => {
-        if (!audioRef.current) {
-            audioRef.current = new Audio("/jarvis.mp3");
+    const checkPermissionAndStart = async () => {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            alert('Your browser does not support audio recording.');
+            setHasPermission(false);
+            return;
         }
-
-        const playGreetingAndListen = () => {
-             if (audioRef.current) {
-                audioRef.current.play().then(() => {
-                    // When greeting ends, turn on the assistant and start listening
-                    audioRef.current!.onended = () => {
-                        setIsAssistantOn(true); 
-                    };
-                }).catch(e => {
-                    if (e.name === 'NotAllowedError') {
-                        setIsAssistantOn(true); // If blocked, just start listening
-                        console.log("Greeting audio blocked by browser. User needs to toggle AI on manually.");
-                    }
-                });
-            }
-        };
-
-        playGreetingAndListen();
-
-        // Cleanup function to stop everything when the component unmounts
-        return () => {
-            if (audioRef.current) {
-                audioRef.current.pause();
-                audioRef.current.onended = null;
-            }
-             if (recognitionRef.current) {
-                recognitionRef.current.abort();
-                recognitionRef.current = null;
-            }
-            if (silenceTimeoutRef.current) {
-                clearTimeout(silenceTimeoutRef.current);
-            }
+        try {
+            // Request permission. This will trigger the browser's permission prompt if not already granted.
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            stream.getTracks().forEach(track => track.stop()); // We don't need to keep the stream, just get permission.
+            setHasPermission(true);
+            setIsAssistantOn(true);
+        } catch (err) {
+            console.error('Microphone permission denied.', err);
+            setHasPermission(false);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    };
+    
+    const handlePowerClick = () => {
+        if (!isAssistantOn) {
+            checkPermissionAndStart();
+        } else {
+            setIsAssistantOn(false);
+        }
+    };
 
     // Effect to start/stop listening when the assistant is toggled on/off
     useEffect(() => {
-        if (isAssistantOn) {
+        if (isAssistantOn && hasPermission) {
             startListening();
         } else {
             if (recognitionRef.current) {
@@ -229,61 +189,79 @@ export default function VoiceAssistantPage() {
             setStatus('idle');
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isAssistantOn, startListening]);
+    }, [isAssistantOn, hasPermission, startListening]);
     
+    const statusInfo = {
+        idle: { text: "AI is idle", icon: <Mic size={16}/> },
+        listening: { text: "Listening...", icon: <Ear size={16}/> },
+        thinking: { text: "Thinking...", icon: <BrainCircuit size={16}/> },
+        speaking: { text: "Speaking...", icon: <Bot size={16}/> },
+    };
 
     return (
       <>
-        <main style={{ height: '100svh', position: 'relative', background: '#000000', padding: '20px', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ position: 'absolute', top: '20px', left: '20px', display: 'flex', gap: '10px', zIndex: 10 }}>
-                 <button onClick={() => router.back()} className="neu-button" style={{margin: 0, width: 'auto', padding: '10px 15px', background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', boxShadow: 'none' }}>
-                    <ArrowLeft size={18}/>
+        <main className="ai-container">
+             <header className="dashboard-header" style={{ position: 'sticky', top: '20px', zIndex: 10, background: '#e0e5ec', margin: '0 20px', width: 'auto' }}>
+                <button onClick={() => router.back()} className="neu-button" style={{width: '45px', height: '45px', padding: 0, margin: 0, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                    <ArrowLeft size={20}/>
                 </button>
-            </div>
-            <div style={{ position: 'absolute', top: '20px', right: '20px', display: 'flex', gap: '10px', zIndex: 10 }}>
-                 <button onClick={() => setIsTextModalOpen(true)} className="neu-button" style={{margin: 0, width: 'auto', padding: '10px 15px', background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', boxShadow: 'none' }}>
-                    <MessageSquare size={18}/>
-                </button>
-                <button onClick={() => setCurrentVoiceIndex((prev) => (prev + 1) % availableVoices.length)} className="neu-button" style={{margin: 0, width: 'auto', padding: '10px 15px', background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', boxShadow: 'none' }}>
-                    <Shuffle size={18}/>
-                </button>
-            </div>
-
-            <header className="login-header" style={{flexShrink: 0, paddingTop: '20px', paddingBottom: '0'}}>
-                <div className="neu-icon" style={{width: '300px', height: '300px', position: 'relative', overflow: 'hidden', border: 'none', boxShadow: 'none', background: 'transparent'}}>
-                     <video 
-                        src="/1.mp4" 
-                        autoPlay 
-                        loop 
-                        muted 
-                        playsInline
-                        style={{ 
-                          width: '100%', 
-                          height: '100%', 
-                          objectFit: 'cover' 
-                        }}
-                      />
+                <div style={{textAlign: 'center', flexGrow: 1}}>
+                    <h1 style={{color: '#3d4468', fontSize: '1.2rem', fontWeight: '600'}}>AI Voice Assistant</h1>
+                </div>
+                <div style={{display: 'flex', gap: '10px'}}>
+                     <button onClick={() => setIsTextModalOpen(true)} className="neu-button" style={{width: '45px', height: '45px', padding: 0, margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                        <MessageSquare size={18}/>
+                    </button>
+                    <button onClick={() => setCurrentVoiceIndex((prev) => (prev + 1) % availableVoices.length)} className="neu-button" style={{width: '45px', height: '45px', padding: 0, margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                        <Shuffle size={18}/>
+                    </button>
                 </div>
             </header>
-            
-            <div style={{height: '2px', background: 'rgba(255,255,255,0.1)', margin: '20px 0', flexShrink: 0}}></div>
-            
-            <div style={{ flex: 1, overflowY: 'hidden', display: 'flex', flexDirection: 'column-reverse', padding: '0 10px 20px', width: '100%', maxWidth: '700px', margin: '0 auto' }}>
-                <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
-                    {messages.slice().reverse().map((msg, index) => (
-                      <div key={index} style={{display: 'flex', justifyContent: msg.sender === 'user' ? 'flex-end' : 'flex-start' }}>
-                        <div style={{
-                          padding: '12px 18px',
-                          background: msg.sender === 'user' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 200, 150, 0.15)',
-                          color: 'white',
-                          borderRadius: '20px',
-                          border: `1px solid ${msg.sender === 'user' ? 'rgba(255,255,255,0.2)' : 'rgba(0, 200, 150, 0.3)'}`,
-                          maxWidth: '80%'
-                        }}>
-                          <p style={{ margin: 0, lineHeight: 1.5, fontSize: '15px', color: 'inherit' }}>{msg.text}</p>
+
+            <div className="ai-visualizer">
+                 <div className={`ai-orb-wrapper ${isAssistantOn ? 'on' : 'off'}`}>
+                    <div className="ai-orb">
+                        <div className={`ai-glow ${status}`}></div>
+                        <video 
+                            src="/ai.mp4" 
+                            autoPlay 
+                            loop 
+                            muted 
+                            playsInline
+                            className="ai-video-core"
+                          />
+                    </div>
+                 </div>
+                 
+                 <button className={`neu-button power-button ${isAssistantOn ? 'on' : 'off'}`} onClick={handlePowerClick}>
+                    <Power size={24}/>
+                    <span>{isAssistantOn ? 'Turn Off' : 'Turn On'}</span>
+                 </button>
+
+                 {isAssistantOn && (
+                    <div className="status-indicator">
+                        {statusInfo[status].icon}
+                        <span>{statusInfo[status].text}</span>
+                    </div>
+                 )}
+                 {hasPermission === false && (
+                    <div style={{color: '#ff3b5c', textAlign: 'center', marginTop: '10px', fontSize: '14px', fontWeight: 500}}>
+                        Microphone permission denied. Please enable it in your browser settings.
+                    </div>
+                 )}
+
+            </div>
+
+            <div className="ai-chat-area">
+                <div className="ai-chat-messages">
+                      {messages.map((msg, index) => (
+                      <div key={index} className={`chat-bubble-wrapper ${msg.sender === 'user' ? 'user' : 'ai'}`}>
+                        <div className="chat-bubble">
+                          <p>{msg.text}</p>
                         </div>
                       </div>
                     ))}
+                    <div ref={messagesEndRef} />
                 </div>
             </div>
         </main>
