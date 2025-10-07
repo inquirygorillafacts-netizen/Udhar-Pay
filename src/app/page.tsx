@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useFirebase } from '@/firebase/client-provider';
+import { useFirebase } from '@/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import PinLockScreen from '@/components/auth/PinLockScreen';
 
@@ -22,7 +22,7 @@ export default function InitialRoutingPage() {
         const validRoles = ['customer', 'shopkeeper', 'owner'];
         if (validRoles.includes(activeRole)) {
           try {
-            const collectionName = `${activeRole}s`; // customer -> customers
+            const collectionName = activeRole === 'owner' ? 'owner_o2Vco2LqnvWsZijYtb4EDMNdOOC2' : `${activeRole}s`;
             const userDocRef = doc(firestore, collectionName, user.uid);
             const userDoc = await getDoc(userDocRef);
 

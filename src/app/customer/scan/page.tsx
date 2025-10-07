@@ -5,7 +5,7 @@ import { ArrowLeft, Flashlight, CameraOff, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { Html5Qrcode, Html5QrcodeScannerState } from 'html5-qrcode';
-import { useFirebase } from '@/firebase/client-provider';
+import { useFirebase } from '@/firebase';
 import { collection, getDocs, query, where, getDoc, doc } from 'firebase/firestore';
 
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useFirebase } from '@/firebase/client-provider';
+import { useFirebase } from '@/firebase';
 import { doc, onSnapshot, collection, query, where, getDocs, writeBatch, updateDoc, getDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import Link from 'next/link';
 import { Paperclip, X, User, Check, AlertCircle, Send, IndianRupee, ArrowRight, Repeat, Bell, MessageSquare } from 'lucide-react';

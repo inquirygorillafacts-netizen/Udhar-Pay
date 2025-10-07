@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useFirebase } from '@/firebase/client-provider';
+import { useFirebase } from '@/firebase';
 import { onSnapshot, doc, updateDoc, collection, query, where, getDoc, Timestamp } from 'firebase/firestore';
 import { LifeBuoy, Phone, UploadCloud, Lock, CheckCircle, ShieldAlert, KeyRound, HelpCircle, X, AlertTriangle, SlidersHorizontal, IndianRupee, LandPlot } from 'lucide-react';
 import Link from 'next/link';

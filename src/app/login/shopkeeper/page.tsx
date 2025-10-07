@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import './shopkeeper.css';
 import { Store, Key, Check, User, ArrowLeft, ChevronDown } from 'lucide-react';
-import { useFirebase } from '@/firebase/client-provider';
+import { useFirebase } from '@/firebase';
 import { 
     signInWithPhoneNumber,
     RecaptchaVerifier,

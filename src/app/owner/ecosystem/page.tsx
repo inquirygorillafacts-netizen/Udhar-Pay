@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useFirebase } from '@/firebase/client-provider';
+import { useFirebase } from '@/firebase';
 import { collection, onSnapshot, doc, updateDoc, query, where, Timestamp } from 'firebase/firestore';
 import { Network, ChevronRight, User, Search, Users, QrCode, IndianRupee, Edit, Save, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -64,7 +64,12 @@ export default function EcosystemPage() {
       let settlementData: { [shopkeeperId: string]: number } = {};
 
       const processData = () => {
-          if (!shopkeepersData.length) return;
+          if (!shopkeepersData.length) {
+              setAllShopkeepers([]);
+              setFilteredShopkeepers([]);
+              setLoading(false);
+              return;
+          }
           
           const combinedData = shopkeepersData.map(shopkeeper => ({
               ...shopkeeper,

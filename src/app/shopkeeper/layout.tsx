@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { LayoutDashboard, User, LifeBuoy, Users, PieChart, Bot, Wallet, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useFirebase } from '@/firebase/client-provider';
+import { useFirebase } from '@/firebase';
 
 export default function ShopkeeperLayout({
   children,

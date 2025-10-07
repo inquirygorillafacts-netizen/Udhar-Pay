@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useFirebase } from '@/firebase/client-provider';
+import { useFirebase } from '@/firebase';
 import { doc, getDoc, collection, query, where, onSnapshot, orderBy, Timestamp, writeBatch, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { ArrowLeft, User, IndianRupee, Send, CheckCircle, AlertTriangle, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
 import Script from 'next/script';

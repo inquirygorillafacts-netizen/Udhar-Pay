@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useFirebase } from '@/firebase/client-provider';
+import { useFirebase } from '@/firebase';
 import { doc, onSnapshot, collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import CustomerCard from '@/app/shopkeeper/components/CustomerCard';
 import { Search, Users } from 'lucide-react';

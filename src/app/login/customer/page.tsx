@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import './customer.css';
 import { Phone, Key, Check, User, ArrowLeft, ChevronDown } from 'lucide-react';
-import { useFirebase } from '@/firebase/client-provider';
+import { useFirebase } from '@/firebase';
 import { 
     signInWithPhoneNumber,
     RecaptchaVerifier,
@@ -137,7 +137,6 @@ export default function CustomerAuthPage() {
         setErrors({});
 
         try {
-            // Create a new RecaptchaVerifier instance on demand
             const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
                 'size': 'invisible'
             });

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import './auth.css';
 import { User, Store, Lock, Shield, X } from 'lucide-react';
-import { useFirebase } from '@/firebase/client-provider';
+import { useFirebase } from '@/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import Link from 'next/link';
 

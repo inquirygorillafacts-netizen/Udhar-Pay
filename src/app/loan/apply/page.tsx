@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useFirebase } from '@/firebase/client-provider';
+import { useFirebase } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { doc, getDoc, addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { ArrowLeft, User, IndianRupee, Briefcase, GraduationCap, Send, CheckCircle, AlertTriangle } from 'lucide-react';

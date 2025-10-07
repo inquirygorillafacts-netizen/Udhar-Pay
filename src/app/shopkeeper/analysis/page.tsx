@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useFirebase } from '@/firebase/client-provider';
+import { useFirebase } from '@/firebase';
 import { doc, onSnapshot, collection, query, where, Timestamp } from 'firebase/firestore';
 import { Users, BookUser, UserCheck, IndianRupee, PieChart } from 'lucide-react';
 
