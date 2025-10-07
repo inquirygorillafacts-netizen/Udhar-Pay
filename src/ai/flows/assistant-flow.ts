@@ -56,7 +56,7 @@ async function streamToBase64(stream: Stream): Promise<string> {
 
 
 /**
- * Generates audio from text using the Murf.ai Streaming API.
+ * Generates audio from text using the Murf.ai Non-Streaming API.
  */
 const generateAudioFlow = ai.defineFlow(
     {
@@ -66,8 +66,9 @@ const generateAudioFlow = ai.defineFlow(
     },
     async ({ text, voiceId }) => {
         try {
-            const response = await axios.post(
-                'https://api.murf.ai/v1/speech/stream', 
+            // Step 1: Call the generate endpoint to get the audio URL
+            const generateResponse = await axios.post(
+                'https://api.murf.ai/v1/speech/generate', 
                 {
                     text: text,
                     voiceId: voiceId || DEFAULT_VOICE_ID,
@@ -79,19 +80,29 @@ const generateAudioFlow = ai.defineFlow(
                         'Content-Type': 'application/json',
                         'api-key': process.env.MURF_API_KEY, 
                     },
-                    responseType: 'stream',
                 }
             );
 
-            // Convert the audio stream to a base64 data URI
-            const audioBase64 = await streamToBase64(response.data);
+            const audioUrl = generateResponse.data?.audio_url;
+
+            if (!audioUrl) {
+                throw new Error("Murf.ai did not return an audio URL.");
+            }
+
+            // Step 2: Download the audio from the URL
+            const audioResponse = await axios.get(audioUrl, {
+                responseType: 'arraybuffer' // Get the response as a raw buffer
+            });
+            
+            // Step 3: Convert the buffer to a base64 data URI
+            const audioBase64 = Buffer.from(audioResponse.data).toString('base64');
             
             return {
                 audio: `data:audio/wav;base64,${audioBase64}`,
             };
 
         } catch (error: any) {
-            console.error("Error calling Murf.ai streaming API:", error.response?.data || error.message);
+            console.error("Error calling Murf.ai API:", error.response?.data || error.message);
             throw new Error("Failed to generate audio from Murf.ai");
         }
     }
