@@ -79,7 +79,7 @@ const generateAudioFlow = ai.defineFlow(
     async ({ text, voiceId }) => {
         try {
             const { media } = await ai.generate({
-                model: googleAI.model('gemini-2.5-flash-preview-tts'),
+                model: googleAI('gemini-2.5-flash-preview-tts'),
                 config: {
                     responseModalities: ['AUDIO'],
                     speechConfig: {
@@ -92,6 +92,7 @@ const generateAudioFlow = ai.defineFlow(
             });
 
             if (!media || !media.url) {
+                console.error("Google TTS API did not return an audio file.", {media});
                 throw new Error("Google TTS did not return an audio file.");
             }
             
