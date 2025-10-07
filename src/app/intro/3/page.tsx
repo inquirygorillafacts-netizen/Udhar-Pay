@@ -2,13 +2,11 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { LifeBuoy, CheckCircle, Volume2, VolumeX } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { LifeBuoy, CheckCircle } from 'lucide-react';
+import Image from 'next/image';
 
 export default function IntroPage3() {
   const router = useRouter();
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [isMuted, setIsMuted] = useState(true);
 
   const handleGetStarted = () => {
     // Set the flag in localStorage to indicate that the user has completed the onboarding.
@@ -17,22 +15,11 @@ export default function IntroPage3() {
     router.replace('/auth');
   };
 
-  const toggleMute = () => {
-    if (videoRef.current) {
-        videoRef.current.muted = !videoRef.current.muted;
-        setIsMuted(videoRef.current.muted);
-        if(!videoRef.current.muted) {
-            videoRef.current.currentTime = 0; // Restart video with sound
-            videoRef.current.play();
-        }
-    }
-  }
-
   return (
     <main>
        <div className="login-container" style={{ justifyContent: 'flex-end', flexDirection: 'column', gap: '2rem', paddingBottom: '3rem' }}>
         
-        {/* Video Player */}
+        {/* Image Player */}
         <div 
           className="login-card" 
           style={{ 
@@ -48,22 +35,17 @@ export default function IntroPage3() {
             position: 'relative'
           }}
         >
-           <video 
-            ref={videoRef}
-            src="/help.mp4" 
-            autoPlay 
-            loop 
-            muted 
-            playsInline
+           <Image 
+            src="/help.jpg" 
+            alt="Helpline"
+            width={320}
+            height={320}
             style={{ 
               width: '100%', 
               height: '100%', 
               objectFit: 'cover' 
             }}
           />
-          <button onClick={toggleMute} className="neu-button" style={{ position: 'absolute', bottom: '15px', right: '15px', width: '45px', height: '45px', borderRadius: '50%', padding: 0, margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
-          </button>
         </div>
         
         {/* Content Card */}
