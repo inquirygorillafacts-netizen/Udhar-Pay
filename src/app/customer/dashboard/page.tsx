@@ -385,7 +385,7 @@ export default function CustomerDashboardPage() {
 
         {modalInfo && (
             <div className="modal-overlay" onClick={() => setModalInfo(null)}>
-                <div className="login-card modal-content" onClick={(e) => e.stopPropagation()}>
+                <div className="login-card modal-content" style={{maxWidth: '450px'}} onClick={(e) => e.stopPropagation()}>
                     <div className="modal-header">
                         <h2>{modalInfo.title}</h2>
                         <button className="close-button" onClick={() => setModalInfo(null)}><X size={24} /></button>
@@ -514,3 +514,4 @@ export default function CustomerDashboardPage() {
     
 
     
+
