@@ -49,12 +49,16 @@ export default function CustomerAuthPage() {
 
     // Setup RecaptchaVerifier on mount
     useEffect(() => {
-        if (!auth) return;
+        if (!auth || window.recaptchaVerifier) return;
 
-        const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
-            'size': 'invisible'
-        });
-        window.recaptchaVerifier = verifier;
+        try {
+            const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+                'size': 'invisible'
+            });
+            window.recaptchaVerifier = verifier;
+        } catch (e) {
+            console.error("Error creating recaptcha verifier:", e);
+        }
 
         const handleClickOutside = (event: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -67,10 +71,12 @@ export default function CustomerAuthPage() {
         return () => {
             document.removeEventListener("mousedown", handleClickOutside);
             if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-            try {
-                window.recaptchaVerifier?.clear();
-            } catch (e) {
-                console.error("Error clearing recaptcha verifier on unmount:", e);
+            if (window.recaptchaVerifier) {
+                try {
+                    window.recaptchaVerifier.clear();
+                } catch (e) {
+                     console.error("Error clearing recaptcha verifier on unmount:", e);
+                }
             }
         };
     }, [auth]);
@@ -143,7 +149,10 @@ export default function CustomerAuthPage() {
     
    const handleSendOtp = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!validatePhone() || !window.recaptchaVerifier) return;
+        if (!validatePhone() || !window.recaptchaVerifier) {
+            setErrors({form: 'reCAPTCHA not ready. Please wait a moment and try again.'});
+            return;
+        }
 
         setLoading(true);
         setErrors({});
@@ -151,10 +160,8 @@ export default function CustomerAuthPage() {
         try {
             const fullPhoneNumber = `${selectedCountry.code}${phone}`;
             const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, window.recaptchaVerifier);
-
             setConfirmationResultState(confirmation);
             setTimer(60);
-
         } catch (error: any) {
             console.error("OTP send error:", error);
             let errorMessage = "Failed to send OTP. Please try again.";
@@ -163,7 +170,7 @@ export default function CustomerAuthPage() {
             } else if (error.code === 'auth/invalid-phone-number') {
                 errorMessage = "The phone number is not valid.";
             } else if (error.code === 'auth/captcha-check-failed' || error.code === 'auth/hostname-mismatch') {
-                errorMessage = "Verification failed. Ensure your domain is authorized in Firebase."
+                errorMessage = "Verification failed. Please add your domain to the Firebase Console's authorized domains."
             }
             setErrors({ form: errorMessage });
         } finally {
@@ -205,7 +212,7 @@ export default function CustomerAuthPage() {
     return (
         <div className="login-container-wrapper">
             <div className="login-container">
-                <div id="recaptcha-container"></div>
+                <div id="recaptcha-container" style={{ position: 'fixed' }}></div>
                 <div className="login-card">
                     {!showSuccess ? (
                         <>
