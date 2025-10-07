@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useFirebase } from '@/firebase/client-provider';
+import { useFirebase } from '@/firebase';
 import { collection, query, where, onSnapshot, orderBy, Timestamp, getDocs } from 'firebase/firestore';
 import { ArrowUpCircle, ArrowDownCircle, BookText } from 'lucide-react';
 import Link from 'next/link';
