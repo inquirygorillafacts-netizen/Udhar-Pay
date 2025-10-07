@@ -87,7 +87,9 @@ export default function VoiceAssistantPage() {
                  isProcessingQuery.current = false;
                  // Re-start listening if no audio
                  if (recognitionRef.current) {
-                    recognitionRef.current.start();
+                    try {
+                       recognitionRef.current.start();
+                    } catch(e) {/* Already started */}
                  }
             }
         } catch (error) {
@@ -98,7 +100,9 @@ export default function VoiceAssistantPage() {
             
             isProcessingQuery.current = false;
             if (recognitionRef.current) {
-               recognitionRef.current.start();
+               try {
+                  recognitionRef.current.start();
+               } catch(e) {/* Already started */}
             }
         }
     }, [currentVoiceId, stopAudio]);
@@ -133,7 +137,7 @@ export default function VoiceAssistantPage() {
             const transcript = event.results[0][0].transcript.trim();
             if (transcript && !isProcessingQuery.current) {
                 isProcessingQuery.current = true;
-                recognition.stop(); // Stop listening explicitly
+                // recognition.stop(); is implicitly called due to continuous=false
                 processQuery(transcript);
             }
         };
@@ -142,7 +146,10 @@ export default function VoiceAssistantPage() {
              // Only restart listening if we are not processing, speaking, or muted.
              if (!isProcessingQuery.current && !isMuted && status !== 'speaking' && status !== 'thinking') {
                 try {
-                    recognition.start();
+                    // Check if the instance still exists before starting
+                    if (recognitionRef.current) {
+                        recognitionRef.current.start();
+                    }
                 } catch(e) {
                     // Ignore errors if it's already started
                 }
