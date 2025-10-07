@@ -23,6 +23,7 @@ const countryCodes = [
 declare global {
     interface Window {
         recaptchaVerifier?: RecaptchaVerifier;
+        confirmationResult?: ConfirmationResult;
         grecaptcha?: any;
     }
 }
@@ -56,31 +57,19 @@ export default function CustomerAuthPage() {
         };
         document.addEventListener("mousedown", handleClickOutside);
         
-        // Setup recaptcha on mount
-        const setupRecaptcha = () => {
-             if (!auth) return;
-             // Ensure it's only created once.
-             if (window.recaptchaVerifier) {
-                 window.recaptchaVerifier.clear();
-             }
-             window.recaptchaVerifier = new RecaptchaVerifier(auth, 'send-code-btn', {
-                 'size': 'invisible',
-                 'callback': (response: any) => {
-                    // reCAPTCHA solved, allow sending OTP.
-                 },
-                 'expired-callback': () => {
-                    // Response expired. User needs to solve reCAPTCHA again.
-                 }
-             });
-        };
-
-        setupRecaptcha();
-
         return () => {
             document.removeEventListener("mousedown", handleClickOutside);
             if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+            // Clean up RecaptchaVerifier instance on component unmount
+            if (window.recaptchaVerifier) {
+                try {
+                    window.recaptchaVerifier.clear();
+                } catch (e) {
+                    console.error("Error clearing recaptcha verifier:", e);
+                }
+            }
         };
-    }, [auth]);
+    }, []);
     
     useEffect(() => {
         if (timer > 0) {
@@ -155,20 +144,27 @@ export default function CustomerAuthPage() {
         setLoading(true);
         setErrors({});
         
-        if (!auth || !window.recaptchaVerifier) {
+        if (!auth) {
             setErrors({ form: "Verification service not ready. Please refresh." });
             setLoading(false);
             return;
         }
 
         try {
+            // Always create a new verifier instance before sending OTP
+            if (window.recaptchaVerifier) {
+                window.recaptchaVerifier.clear();
+            }
+            const recaptchaVerifier = new RecaptchaVerifier(auth, 'send-code-btn', {
+                size: 'invisible',
+            });
+
             const fullPhoneNumber = `${selectedCountry.code}${phone}`;
-            const appVerifier = window.recaptchaVerifier;
-            
-            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, appVerifier);
+            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifier);
 
             setConfirmationResultState(confirmation);
             setTimer(60);
+
         } catch (error: any) {
             console.error("OTP send error:", error);
             let errorMessage = "Failed to send OTP. Please try again.";
@@ -177,14 +173,9 @@ export default function CustomerAuthPage() {
             } else if (error.code === 'auth/invalid-phone-number') {
                 errorMessage = "The phone number is not valid.";
             } else if (error.code === 'auth/captcha-check-failed' || error.code === 'auth/network-request-failed' || error.code === 'auth/internal-error') {
-                errorMessage = "Verification failed. Check your internet connection and try again."
+                errorMessage = "Verification failed. Check your internet and Firebase domain settings."
             }
             setErrors({ form: errorMessage });
-             if (window.grecaptcha && window.recaptchaVerifier) {
-                window.recaptchaVerifier.render().then(function(widgetId) {
-                    window.grecaptcha.reset(widgetId);
-                });
-            }
         } finally {
             setLoading(false);
         }

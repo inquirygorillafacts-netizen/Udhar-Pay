@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator, type Auth } from 'firebase/auth';
-import { getFirestore, connectFirestoreEmulator, type Firestore, initializeFirestore, IndexedDbCache } from 'firebase/firestore';
+import { getFirestore, connectFirestoreEmulator, type Firestore, initializeFirestore, memoryLocalCache, persistentLocalCache, CACHE_SIZE_UNLIMITED } from 'firebase/firestore';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -40,18 +40,9 @@ export function FirebaseClientProvider({ children }: { children: React.ReactNode
     
     // Use the new recommended way to initialize Firestore with persistence
     const firestore = initializeFirestore(app, {
-        cache: new IndexedDbCache(),
+      // Using persistent cache for offline capabilities
+      localCache: persistentLocalCache({ cacheSizeBytes: CACHE_SIZE_UNLIMITED }),
     });
-    
-    // If you want to use the local emulators, uncomment the lines below
-    // if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
-    //   if (!auth.emulatorConfig) {
-    //     connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
-    //   }
-    //   if (!(firestore as any)._settings.host) {
-    //     connectFirestoreEmulator(firestore, 'localhost', 8080);
-    //   }
-    // }
     
     setContextValue({ app, auth, firestore });
 
