@@ -341,7 +341,7 @@ export default function CustomerDashboardPage() {
 
   return (
     <>
-      {showRoleModal && (
+    {showRoleModal && (
           <div className="modal-overlay" onClick={() => setShowRoleModal(false)}>
             <div className="login-card modal-content" style={{maxWidth: '450px'}} onClick={(e) => e.stopPropagation()}>
                 <div className="modal-header">
@@ -450,7 +450,7 @@ export default function CustomerDashboardPage() {
         
         <main className="dashboard-main-content">
             
-            <div style={{display: 'flex', gap: '20px', maxWidth: '600px', margin: '20px auto 40px auto' }}>
+            <div style={{display: 'flex', gap: '20px', margin: '20px auto 40px auto', padding: '0 20px' }}>
                 <div className="token-balance" style={{ flex: 1, flexDirection: 'column', padding: '15px', height: 'auto', gap: '2px' }}>
                     <span style={{fontSize: '12px', color: '#6c7293', fontWeight: 500}}>Your Code</span>
                     <span style={{fontSize: '1rem', fontWeight: 'bold', letterSpacing: '1px'}}>{userProfile?.customerCode || '...'}</span>
