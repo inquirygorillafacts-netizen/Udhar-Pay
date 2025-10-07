@@ -35,14 +35,12 @@ export default function VoiceAssistantPage() {
 
     const recognitionRef = useRef<any>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
-    const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const messagesEndRef = useRef<HTMLDivElement | null>(null);
     const isProcessingQuery = useRef(false);
     
     // Check permission and start listening on page load
     useEffect(() => {
         const checkPermissionAndStart = async () => {
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            if (!SpeechRecognition || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 alert('Your browser does not support audio recording.');
                 setHasPermission(false);
                 return;
@@ -59,7 +57,7 @@ export default function VoiceAssistantPage() {
                 console.error('Microphone permission denied.', err);
                 setHasPermission(false);
                 setStatus('idle');
-                 addMessage({ sender: 'ai', text: "Microphone permission denied. Please enable it in your browser settings to use the voice assistant." });
+                addMessage({ sender: 'ai', text: "Microphone permission denied. Please enable it in your browser settings to use the voice assistant." });
                 setMessages(getHistory());
             }
         };
@@ -76,81 +74,83 @@ export default function VoiceAssistantPage() {
         }
     }, []);
     
+    const messagesEndRef = useRef<HTMLDivElement | null>(null);
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
     const currentVoiceId = availableVoices[currentVoiceIndex].voiceId;
     
-    const stopAudio = () => {
+    const stopAudio = useCallback(() => {
         if (audioRef.current) {
             audioRef.current.pause();
             audioRef.current.currentTime = 0;
+            audioRef.current.onended = null; // Prevent onended from firing on manual stop
         }
-    }
+    }, []);
     
     const startListening = useCallback(() => {
-        if (!SpeechRecognition || !hasPermission || isMuted || status === 'speaking' || status === 'thinking') {
+        if (!SpeechRecognition || !hasPermission || isMuted || status === 'speaking' || status === 'thinking' || isProcessingQuery.current) {
             return;
         }
-
+    
         if (recognitionRef.current) {
             try {
                 recognitionRef.current.stop();
-            } catch(e) {
-                // can ignore
+            } catch (e) {
+                // Ignore if already stopped
             }
         }
-        
+    
         isProcessingQuery.current = false;
-
+    
         const recognition = new SpeechRecognition();
-        recognition.continuous = false; // Process single utterances
+        recognition.continuous = false;
         recognition.interimResults = false;
         recognition.lang = 'hi-IN';
-
+    
         recognition.onstart = () => {
             setStatus('listening');
         };
-
+    
         recognition.onresult = (event: any) => {
             if (isProcessingQuery.current) return;
+            isProcessingQuery.current = true; // Mark as processing as soon as a result comes in
             const transcript = event.results[0][0].transcript.trim();
             if (transcript) {
-                isProcessingQuery.current = true;
                 processQuery(transcript);
             } else {
-                 // No speech detected, just restart
-                 startListening();
+                isProcessingQuery.current = false; // No transcript, reset flag
+                startListening();
             }
         };
-        
+    
         recognition.onend = () => {
-            // Restart listening only if not processing, muted, or speaking
-            if (!isProcessingQuery.current && !isMuted && status !== 'speaking' && status !== 'thinking') {
-               startListening();
-            }
+             // Only restart listening if we are not in the middle of processing a query,
+             // speaking, thinking, or if the mic is muted.
+             if (!isProcessingQuery.current && !isMuted && status !== 'speaking' && status !== 'thinking') {
+                startListening();
+             }
         };
-
+    
         recognition.onerror = (event: any) => {
             if (event.error === 'no-speech' || event.error === 'aborted') {
-                // This is normal, just restart listening if appropriate
-                 if (!isProcessingQuery.current && !isMuted) {
-                    startListening();
-                }
-                return;
-            };
-            console.error('Speech recognition error:', event.error);
-            // Don't show error message for common non-errors
+                // Do nothing, onend will handle restart if needed
+            } else {
+                console.error('Speech recognition error:', event.error);
+            }
+            isProcessingQuery.current = false; // Reset on error
         };
-        
+    
         try {
             recognition.start();
         } catch (e) {
-             console.error("Could not start recognition: ", e);
+            console.error("Could not start recognition: ", e);
+            isProcessingQuery.current = false;
         }
         recognitionRef.current = recognition;
-    }, [hasPermission, isMuted, status]); // status is added as a dependency
+    }, [hasPermission, isMuted, status, processQuery]); // Added processQuery to dependency array
+
 
     const processQuery = useCallback(async (text: string) => {
         setStatus('thinking');
@@ -173,18 +173,19 @@ export default function VoiceAssistantPage() {
             if (response.audio && audioRef.current) {
                 audioRef.current.src = response.audio;
                 setStatus('speaking');
-                await audioRef.current.play();
                 
                 audioRef.current.onended = () => {
-                    // After speaking, go back to listening if not muted
+                    isProcessingQuery.current = false; // Processing is finished
                     if (!isMuted) {
                        startListening();
                     } else {
                        setStatus('idle');
                     }
                 };
+                await audioRef.current.play();
+                
             } else {
-                 // If no audio, go back to listening if not muted
+                 isProcessingQuery.current = false;
                  if (!isMuted) {
                     startListening();
                 } else {
@@ -196,13 +197,15 @@ export default function VoiceAssistantPage() {
             const errorMessage = "माफ़ कीजिए, कोई त्रुटि हुई। कृपया फिर प्रयास करें।";
             addMessage({sender: 'ai', text: errorMessage});
             setMessages(getHistory());
+            
+            isProcessingQuery.current = false;
             if (!isMuted) {
                 startListening();
             } else {
                 setStatus('idle');
             }
         }
-    }, [currentVoiceId, isMuted, startListening]);
+    }, [currentVoiceId, isMuted, startListening, stopAudio]);
 
 
     // Handle mute/unmute state
@@ -212,14 +215,15 @@ export default function VoiceAssistantPage() {
                 recognitionRef.current.stop();
             }
             stopAudio();
+            isProcessingQuery.current = false; // Reset processing flag
             setStatus('idle');
         } else {
-            // Only start listening if it's not already in a process
+            // Only start listening if it's idle
             if (status === 'idle') {
                 startListening();
             }
         }
-    }, [isMuted, startListening, status]);
+    }, [isMuted, startListening, status, stopAudio]);
 
     useEffect(() => {
         return () => {
@@ -230,9 +234,6 @@ export default function VoiceAssistantPage() {
              if (recognitionRef.current) {
                 recognitionRef.current.abort();
                 recognitionRef.current = null;
-            }
-            if (silenceTimeoutRef.current) {
-                clearTimeout(silenceTimeoutRef.current);
             }
         }
     }, []);
@@ -279,6 +280,15 @@ export default function VoiceAssistantPage() {
             </div>
         )}
         <main className="ai-container">
+             <div className="ai-header">
+                <button onClick={() => router.back()} className="glass-button">
+                    <ArrowLeft size={20}/>
+                </button>
+                 <div className="status-indicator">
+                    {statusInfo[status].icon}
+                    <span>{statusInfo[status].text}</span>
+                </div>
+            </div>
             <div className="ai-video-container">
                  <div className="ai-video-wrapper">
                     <video 
@@ -306,9 +316,6 @@ export default function VoiceAssistantPage() {
             </div>
 
             <div className="ai-control-panel">
-                <button onClick={() => router.back()} className="glass-button">
-                    <ArrowLeft size={20}/>
-                </button>
                  <button onClick={() => setIsVoiceModalOpen(true)} className="glass-button">
                     <ListMusic size={18}/>
                 </button>
@@ -318,10 +325,6 @@ export default function VoiceAssistantPage() {
                 <button onClick={() => setIsTextModalOpen(true)} className="glass-button">
                     <MessageSquare size={18}/>
                 </button>
-                 <div className="status-indicator">
-                    {statusInfo[status].icon}
-                    <span>{statusInfo[status].text}</span>
-                </div>
             </div>
         </main>
         {isTextModalOpen && <TextAssistantModal onClose={() => setIsTextModalOpen(false)} />}
