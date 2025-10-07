@@ -252,17 +252,17 @@ export default function VoiceAssistantPage() {
       <>
         <main className="ai-container">
              <header className="dashboard-header" style={{ position: 'sticky', top: '20px', zIndex: 10, background: '#e0e5ec', margin: '0 20px', width: 'auto' }}>
-                <button onClick={() => router.back()} className="neu-button" style={{width: '45px', height: '45px', padding: 0, margin: 0, flexShrink: 0}}>
+                <button onClick={() => router.back()} className="neu-button" style={{width: '45px', height: '45px', padding: 0, margin: 0, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
                     <ArrowLeft size={20}/>
                 </button>
                 <div style={{textAlign: 'center', flexGrow: 1}}>
                     <h1 style={{color: '#3d4468', fontSize: '1.2rem', fontWeight: '600'}}>AI Voice Assistant</h1>
                 </div>
                 <div style={{display: 'flex', gap: '10px'}}>
-                     <button onClick={() => setIsTextModalOpen(true)} className="neu-button" style={{width: '45px', height: '45px', padding: 0, margin: 0}}>
+                     <button onClick={() => setIsTextModalOpen(true)} className="neu-button" style={{width: '45px', height: '45px', padding: 0, margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
                         <MessageSquare size={18}/>
                     </button>
-                    <button onClick={() => setCurrentVoiceIndex((prev) => (prev + 1) % availableVoices.length)} className="neu-button" style={{width: '45px', height: '45px', padding: 0, margin: 0}}>
+                    <button onClick={() => setCurrentVoiceIndex((prev) => (prev + 1) % availableVoices.length)} className="neu-button" style={{width: '45px', height: '45px', padding: 0, margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
                         <Shuffle size={18}/>
                     </button>
                 </div>
@@ -271,9 +271,14 @@ export default function VoiceAssistantPage() {
             <div className="ai-visualizer">
                 <div className="ai-orb">
                     <div className={`ai-glow ${status}`}></div>
-                    <div className="ai-core">
-                        <Bot size={50} />
-                    </div>
+                    <video 
+                        src="/ai.mp4" 
+                        autoPlay 
+                        loop 
+                        muted 
+                        playsInline
+                        className="ai-video-core"
+                      />
                 </div>
                 <div className="status-indicator">
                     {statusInfo[status].icon}
