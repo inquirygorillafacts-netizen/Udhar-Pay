@@ -140,15 +140,14 @@ export default function CustomerAuthPage() {
         setErrors({});
 
         try {
-             if (window.recaptchaVerifier) {
+            if (window.recaptchaVerifier) {
                 window.recaptchaVerifier.clear();
             }
 
-            const verifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+            const verifier = new RecaptchaVerifier(auth, 'send-code-btn', {
                 'size': 'invisible'
             });
             window.recaptchaVerifier = verifier;
-
 
             const fullPhoneNumber = `${selectedCountry.code}${phone}`;
             const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, verifier);
@@ -164,6 +163,9 @@ export default function CustomerAuthPage() {
                 errorMessage = "The phone number is not valid.";
             }
             setErrors({ form: errorMessage });
+             if (window.recaptchaVerifier) {
+                window.recaptchaVerifier.clear();
+            }
         } finally {
             setLoading(false);
         }
@@ -202,7 +204,6 @@ export default function CustomerAuthPage() {
 
     return (
         <div className="login-container-wrapper">
-             <div id="recaptcha-container" style={{ position: 'absolute', top: 0, left: 0 }}></div>
             <div className="login-container">
                 <div className="login-card">
                     {!showSuccess ? (
