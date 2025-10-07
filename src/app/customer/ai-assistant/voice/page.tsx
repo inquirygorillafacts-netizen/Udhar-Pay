@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Bot, MessageSquare, Shuffle, User, ArrowLeft } from 'lucide-react';
+import { Bot, MessageSquare, Shuffle, User, ArrowLeft, Mic, Ear, BrainCircuit } from 'lucide-react';
 import { askAiAssistant } from '@/ai/flows/assistant-flow';
 import TextAssistantModal from '@/components/assistant/TextAssistantModal';
 import { getHistory, addMessage, ChatMessage } from '@/lib/ai-memory';
 import { useRouter } from 'next/navigation';
+import './ai.css';
 
 
 type Status = 'idle' | 'listening' | 'thinking' | 'speaking';
@@ -33,10 +34,16 @@ export default function VoiceAssistantPage() {
     const recognitionRef = useRef<any>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+
 
     useEffect(() => {
         setMessages(getHistory());
     }, []);
+    
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [messages]);
 
     const currentVoiceId = availableVoices[currentVoiceIndex].voiceId;
     
@@ -234,59 +241,56 @@ export default function VoiceAssistantPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isAssistantOn, startListening]);
     
+    const statusInfo = {
+        idle: { text: "AI is idle", icon: <Mic size={16}/> },
+        listening: { text: "Listening...", icon: <Ear size={16}/> },
+        thinking: { text: "Thinking...", icon: <BrainCircuit size={16}/> },
+        speaking: { text: "Speaking...", icon: <Bot size={16}/> },
+    };
 
     return (
       <>
-        <main style={{ height: '100svh', position: 'relative', background: '#000000', padding: '20px', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ position: 'absolute', top: '20px', left: '20px', display: 'flex', gap: '10px', zIndex: 10 }}>
-                 <button onClick={() => router.back()} className="neu-button" style={{margin: 0, width: 'auto', padding: '10px 15px', background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', boxShadow: 'none' }}>
-                    <ArrowLeft size={18}/>
+        <main className="ai-container">
+             <header className="dashboard-header" style={{ position: 'sticky', top: '20px', zIndex: 10, background: '#e0e5ec', margin: '0 20px', width: 'auto' }}>
+                <button onClick={() => router.back()} className="neu-button" style={{width: '45px', height: '45px', padding: 0, margin: 0, flexShrink: 0}}>
+                    <ArrowLeft size={20}/>
                 </button>
-            </div>
-            <div style={{ position: 'absolute', top: '20px', right: '20px', display: 'flex', gap: '10px', zIndex: 10 }}>
-                <button onClick={() => setIsTextModalOpen(true)} className="neu-button" style={{margin: 0, width: 'auto', padding: '10px 15px', background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', boxShadow: 'none' }}>
-                    <MessageSquare size={18}/>
-                </button>
-                <button onClick={() => setCurrentVoiceIndex((prev) => (prev + 1) % availableVoices.length)} className="neu-button" style={{margin: 0, width: 'auto', padding: '10px 15px', background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.2)', boxShadow: 'none' }}>
-                    <Shuffle size={18}/>
-                </button>
-            </div>
-
-            <header className="login-header" style={{flexShrink: 0, paddingTop: '20px', paddingBottom: '0'}}>
-                 <div className="neu-icon" style={{width: '300px', height: '300px', position: 'relative', overflow: 'hidden', border: 'none', boxShadow: 'none', background: 'transparent'}}>
-                     <video 
-                        src="/1.mp4" 
-                        autoPlay 
-                        loop 
-                        muted 
-                        playsInline
-                        style={{ 
-                          width: '100%', 
-                          height: '100%', 
-                          objectFit: 'cover' 
-                        }}
-                      />
+                <div style={{textAlign: 'center', flexGrow: 1}}>
+                    <h1 style={{color: '#3d4468', fontSize: '1.2rem', fontWeight: '600'}}>AI Voice Assistant</h1>
+                </div>
+                <div style={{display: 'flex', gap: '10px'}}>
+                     <button onClick={() => setIsTextModalOpen(true)} className="neu-button" style={{width: '45px', height: '45px', padding: 0, margin: 0}}>
+                        <MessageSquare size={18}/>
+                    </button>
+                    <button onClick={() => setCurrentVoiceIndex((prev) => (prev + 1) % availableVoices.length)} className="neu-button" style={{width: '45px', height: '45px', padding: 0, margin: 0}}>
+                        <Shuffle size={18}/>
+                    </button>
                 </div>
             </header>
-            
-            <div style={{height: '2px', background: 'rgba(255,255,255,0.1)', margin: '20px 0', flexShrink: 0}}></div>
 
-            <div style={{ flex: 1, overflowY: 'hidden', display: 'flex', flexDirection: 'column-reverse', padding: '0 10px 20px', width: '100%', maxWidth: '700px', margin: '0 auto' }}>
-                <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
-                      {messages.slice().reverse().map((msg, index) => (
-                      <div key={index} style={{display: 'flex', justifyContent: msg.sender === 'user' ? 'flex-end' : 'flex-start' }}>
-                        <div style={{
-                          padding: '12px 18px',
-                          background: msg.sender === 'user' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 200, 150, 0.15)',
-                          color: 'white',
-                          borderRadius: '20px',
-                          border: `1px solid ${msg.sender === 'user' ? 'rgba(255,255,255,0.2)' : 'rgba(0, 200, 150, 0.3)'}`,
-                          maxWidth: '80%'
-                        }}>
-                          <p style={{ margin: 0, lineHeight: 1.5, fontSize: '15px', color: 'inherit' }}>{msg.text}</p>
+            <div className="ai-visualizer">
+                <div className="ai-orb">
+                    <div className={`ai-glow ${status}`}></div>
+                    <div className="ai-core">
+                        <Bot size={50} />
+                    </div>
+                </div>
+                <div className="status-indicator">
+                    {statusInfo[status].icon}
+                    <span>{statusInfo[status].text}</span>
+                </div>
+            </div>
+
+            <div className="ai-chat-area">
+                <div className="ai-chat-messages">
+                      {messages.map((msg, index) => (
+                      <div key={index} className={`chat-bubble-wrapper ${msg.sender === 'user' ? 'user' : 'ai'}`}>
+                        <div className="chat-bubble">
+                          <p>{msg.text}</p>
                         </div>
                       </div>
                     ))}
+                    <div ref={messagesEndRef} />
                 </div>
             </div>
         </main>

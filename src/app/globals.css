@@ -614,12 +614,11 @@ body {
 }
 
 .admin-nav-item-primary {
-    flex-grow: 1.2;
-    transform: translateY(-10px); /* Raise it more */
+    flex-grow: 1.5;
+    transform: translateY(-15px); /* Raise it more */
     background: #e0e5ec;
     border-radius: 20px;
-    padding-top: 10px;
-    padding-bottom: 10px;
+    padding: 12px 10px;
     box-shadow: 8px 8px 20px #bec3cf, -8px -8px 20px #ffffff;
 }
 
@@ -722,7 +721,6 @@ body {
 /* QR Scanner Styles */
 .qr-scanner-container {
     width: 100%;
-    max-width: 400px;
     aspect-ratio: 1 / 1;
     position: relative;
     display: flex;
