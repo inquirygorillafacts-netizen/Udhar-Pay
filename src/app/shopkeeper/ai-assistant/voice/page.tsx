@@ -67,7 +67,7 @@ export default function VoiceAssistantPage() {
     };
 
     const startListening = useCallback(() => {
-        if (!SpeechRecognition || !hasPermission || isMuted || status === 'listening' || status === 'uninitialized') {
+        if (!SpeechRecognition || !hasPermission || isMuted || status === 'listening' || status === 'uninitialized' || isProcessingQuery.current) {
             return;
         }
 
@@ -75,6 +75,7 @@ export default function VoiceAssistantPage() {
             try {
                 recognitionRef.current.lang = language === 'hindi' ? 'hi-IN' : 'en-US';
                 recognitionRef.current.start();
+                setStatus('listening');
             } catch (e) {
                 // Ignore if already starting
             }
@@ -124,13 +125,14 @@ export default function VoiceAssistantPage() {
     
     const processQuery = useCallback(async (text: string) => {
         if (isProcessingQuery.current || !text) return;
-        isProcessingQuery.current = true;
         
+        isProcessingQuery.current = true;
         setStatus('thinking');
-        stopAudio();
+        
         if (recognitionRef.current) {
             recognitionRef.current.stop();
         }
+        stopAudio();
 
         addMessage({ sender: 'user', text });
         setMessages(getHistory());
@@ -189,24 +191,27 @@ export default function VoiceAssistantPage() {
                     }
                 }
                 
-                // Use a timeout to determine when the user has stopped speaking
                 speechTimeoutRef.current = setTimeout(() => {
                     const query = (finalTranscript || interimTranscript).trim();
                     if (query && !isProcessingQuery.current) {
                        processQuery(query);
                        finalTranscript = '';
                     }
-                }, 1500); // Wait for 1.5 seconds of silence
+                }, 1500);
             };
             
             recognition.onstart = () => {
                 setStatus('listening');
-                isProcessingQuery.current = false;
             };
 
             recognition.onend = () => {
-                if (speechTimeoutRef.current) clearTimeout(speechTimeoutRef.current);
-                if (!isProcessingQuery.current) setStatus('idle');
+                if (speechTimeoutRef.current) {
+                    clearTimeout(speechTimeoutRef.current);
+                }
+                // Do not automatically restart listening here. Let the state transitions handle it.
+                if (status === 'listening') {
+                    setStatus('idle');
+                }
             };
 
             recognition.onerror = (event: any) => {
@@ -218,7 +223,6 @@ export default function VoiceAssistantPage() {
                 } else if (event.error !== 'no-speech' && event.error !== 'aborted') {
                     console.error('Speech recognition error:', event.error);
                 }
-                isProcessingQuery.current = false;
                 setStatus('idle');
             };
             recognitionRef.current = recognition;
@@ -235,7 +239,7 @@ export default function VoiceAssistantPage() {
     };
     
     useEffect(() => {
-        if(status === 'idle' && !isProcessingQuery.current && !isMuted && recognitionRef.current) {
+        if(status === 'idle' && !isMuted) {
             startListening();
         }
     }, [status, isMuted, startListening]);
@@ -253,7 +257,7 @@ export default function VoiceAssistantPage() {
         if (status === 'speaking') {
             stopAudio();
             setStatus('idle');
-            if(recognitionRef.current) recognitionRef.current.start();
+            isProcessingQuery.current = false;
             return;
         }
         const nextMuteState = !isMuted;
@@ -261,8 +265,8 @@ export default function VoiceAssistantPage() {
         if (nextMuteState) {
             if (recognitionRef.current) recognitionRef.current.stop();
             stopAudio();
-            isProcessingQuery.current = false;
             setStatus('idle');
+            isProcessingQuery.current = false;
         }
     };
 
