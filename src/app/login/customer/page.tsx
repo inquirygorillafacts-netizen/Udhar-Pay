@@ -45,28 +45,7 @@ export default function CustomerAuthPage() {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
-    // Setup recaptcha verifier on component mount
     useEffect(() => {
-        if (!auth) return;
-
-        const setupRecaptcha = () => {
-             if (window.recaptchaVerifier) {
-                window.recaptchaVerifier.clear();
-            }
-            window.recaptchaVerifier = new RecaptchaVerifier(auth, 'send-code-btn', {
-                'size': 'invisible',
-                'callback': (response: any) => {
-                    // reCAPTCHA solved, allow sending OTP.
-                    console.log("reCAPTCHA verified");
-                },
-                 'expired-callback': () => {
-                    console.log("reCAPTCHA expired, please try again.");
-                }
-            });
-        };
-
-        setupRecaptcha();
-        
         const handleClickOutside = (event: MouseEvent) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
                 setIsDropdownOpen(false);
@@ -75,11 +54,16 @@ export default function CustomerAuthPage() {
         document.addEventListener("mousedown", handleClickOutside);
         return () => {
             document.removeEventListener("mousedown", handleClickOutside);
+            // Cleanup any existing verifier instance on component unmount
             if (window.recaptchaVerifier) {
-                window.recaptchaVerifier.clear();
+                try {
+                    window.recaptchaVerifier.clear();
+                } catch (e) {
+                    console.error("Error clearing recaptcha verifier on unmount", e);
+                }
             }
         };
-    }, [auth]);
+    }, []);
 
     const handleFormTransition = () => {
         localStorage.setItem('activeRole', 'customer');
@@ -141,17 +125,21 @@ export default function CustomerAuthPage() {
         setLoading(true);
         setErrors({});
         
-        if (!auth || !window.recaptchaVerifier) {
+        if (!auth) {
             setErrors({ form: "Verification service not ready. Please refresh." });
             setLoading(false);
             return;
         }
 
-        const fullPhoneNumber = `${selectedCountry.code}${phone}`;
-        const appVerifier = window.recaptchaVerifier;
-
         try {
-            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, appVerifier);
+            const fullPhoneNumber = `${selectedCountry.code}${phone}`;
+            
+            // Create a new verifier on each attempt.
+            const recaptchaVerifier = new RecaptchaVerifier(auth, 'send-code-btn', {
+                'size': 'invisible',
+            });
+
+            const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, recaptchaVerifier);
             window.confirmationResult = confirmation;
             setConfirmationResultState(confirmation);
         } catch (error: any) {
@@ -161,16 +149,10 @@ export default function CustomerAuthPage() {
                 errorMessage = "Too many requests. Please try again later.";
             } else if (error.code === 'auth/invalid-phone-number') {
                 errorMessage = "The phone number is not valid.";
-            } else if (error.code === 'auth/captcha-check-failed' || error.code === 'auth/network-request-failed') {
+            } else if (error.code === 'auth/captcha-check-failed' || error.code === 'auth/network-request-failed' || error.code === 'auth/internal-error') {
                 errorMessage = "Verification failed. Check your internet connection and try again."
             }
             setErrors({ form: errorMessage });
-            // Reset reCAPTCHA on failure
-            if (window.grecaptcha && window.recaptchaVerifier) {
-                 window.recaptchaVerifier.render().then((widgetId: any) => {
-                    window.grecaptcha.reset(widgetId);
-                 });
-            }
         } finally {
             setLoading(false);
         }
