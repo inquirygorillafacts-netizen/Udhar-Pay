@@ -203,22 +203,22 @@ export default function VoiceAssistantPage() {
       <>
         {isVoiceModalOpen && (
             <div className="modal-overlay" onClick={() => setIsVoiceModalOpen(false)}>
-                <div className="glass-card modal-content" style={{maxWidth: '450px'}} onClick={(e) => e.stopPropagation()}>
+                <div className="login-card modal-content" style={{maxWidth: '450px', background: 'white'}} onClick={(e) => e.stopPropagation()}>
                     <div className="modal-header">
-                        <h2>Select a Voice</h2>
-                        <button className="glass-button" style={{width: '40px', height: '40px', padding: 0}} onClick={() => setIsVoiceModalOpen(false)}><X size={20}/></button>
+                        <h2 style={{color: '#3d4468'}}>Select a Voice</h2>
+                        <button className="close-button" style={{color: '#9499b7'}} onClick={() => setIsVoiceModalOpen(false)}><X size={28}/></button>
                     </div>
                     <div style={{display: 'flex', flexDirection: 'column', gap: '15px'}}>
                         {availableVoices.map((voice, index) => (
                             <button
                                 key={voice.voiceId}
-                                className={`glass-button text-left ${index === currentVoiceIndex ? 'active' : ''}`}
+                                className={`neu-button text-left ${index === currentVoiceIndex ? 'active' : ''}`}
                                 style={{margin: 0, justifyContent: 'flex-start', textAlign: 'left', padding: '15px 20px', height: 'auto'}}
                                 onClick={() => selectVoice(index)}
                             >
                                 <div>
-                                    <h4 style={{margin:0, fontSize: '1rem', color: '#fff'}}>{voice.name}</h4>
-                                    <p style={{margin:0, fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)'}}>{voice.description}</p>
+                                    <h4 style={{margin:0, fontSize: '1rem', color: index === currentVoiceIndex ? '#fff' : '#3d4468' }}>{voice.name}</h4>
+                                    <p style={{margin:0, fontSize: '0.8rem', color: index === currentVoiceIndex ? 'rgba(255,255,255,0.7)' : '#6c7293'}}>{voice.description}</p>
                                 </div>
                             </button>
                         ))}

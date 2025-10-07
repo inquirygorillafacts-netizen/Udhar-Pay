@@ -234,15 +234,3 @@
     padding: 1.5rem;
     color: white;
 }
-
-.modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.5rem;
-}
-.modal-header h2 {
-    font-size: 1.5rem;
-    font-weight: 600;
-    margin: 0;
-}
