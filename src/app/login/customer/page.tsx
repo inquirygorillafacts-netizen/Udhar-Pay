@@ -23,8 +23,6 @@ const countryCodes = [
 declare global {
     interface Window {
         recaptchaVerifier?: RecaptchaVerifier;
-        confirmationResult?: ConfirmationResult;
-        grecaptcha?: any;
     }
 }
 
@@ -60,7 +58,6 @@ export default function CustomerAuthPage() {
         return () => {
             document.removeEventListener("mousedown", handleClickOutside);
             if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
-            // Clean up RecaptchaVerifier instance on component unmount
             if (window.recaptchaVerifier) {
                 try {
                     window.recaptchaVerifier.clear();
@@ -151,10 +148,10 @@ export default function CustomerAuthPage() {
         }
 
         try {
-            // Always create a new verifier instance before sending OTP
             if (window.recaptchaVerifier) {
                 window.recaptchaVerifier.clear();
             }
+            
             const recaptchaVerifier = new RecaptchaVerifier(auth, 'send-code-btn', {
                 size: 'invisible',
             });
@@ -173,7 +170,7 @@ export default function CustomerAuthPage() {
             } else if (error.code === 'auth/invalid-phone-number') {
                 errorMessage = "The phone number is not valid.";
             } else if (error.code === 'auth/captcha-check-failed' || error.code === 'auth/network-request-failed' || error.code === 'auth/internal-error') {
-                errorMessage = "Verification failed. Check your internet and Firebase domain settings."
+                errorMessage = "Verification failed. Check your internet or authorized domains in Firebase."
             }
             setErrors({ form: errorMessage });
         } finally {
@@ -190,7 +187,7 @@ export default function CustomerAuthPage() {
         }
         
         if (!confirmationResultState) {
-            setErrors({ form: "Something went wrong. Please try sending OTP again." });
+            setErrors({ form: "Something went wrong. Please request OTP again." });
             return;
         }
         

@@ -23,8 +23,6 @@ const countryCodes = [
 declare global {
     interface Window {
         recaptchaVerifier?: RecaptchaVerifier;
-        confirmationResult?: ConfirmationResult;
-        grecaptcha?: any;
     }
 }
 
@@ -167,7 +165,7 @@ export default function ShopkeeperAuthPage() {
             } else if (error.code === 'auth/invalid-phone-number') {
                 errorMessage = "The phone number is not valid.";
             } else if (error.code === 'auth/captcha-check-failed' || error.code === 'auth/network-request-failed' || error.code === 'auth/internal-error') {
-                errorMessage = "Verification failed. Check your internet and Firebase domain settings."
+                errorMessage = "Verification failed. Check your internet or authorized domains in Firebase."
             }
             setErrors({ form: errorMessage });
         } finally {
@@ -184,7 +182,7 @@ export default function ShopkeeperAuthPage() {
         }
 
         if (!confirmationResultState) {
-            setErrors({ form: "Something went wrong. Please try sending OTP again." });
+            setErrors({ form: "Something went wrong. Please request OTP again." });
             return;
         }
 
