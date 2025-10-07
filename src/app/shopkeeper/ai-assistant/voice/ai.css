@@ -154,7 +154,6 @@
     left: 50%;
     transform: translateX(-50%);
     width: 90%;
-    max-width: 400px;
     background: #e0e5ec;
     border-radius: 20px;
     padding: 10px;
