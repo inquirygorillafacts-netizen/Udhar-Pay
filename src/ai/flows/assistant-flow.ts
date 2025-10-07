@@ -13,6 +13,7 @@ import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import type { ChatMessage } from '@/lib/ai-memory';
 import axios from 'axios';
+import { Stream } from 'stream';
 
 
 const DEFAULT_VOICE_ID = 'it-IT-lorenzo';
@@ -43,8 +44,19 @@ const GenerateAudioInputSchema = z.object({
     voiceId: z.string().optional().default(DEFAULT_VOICE_ID),
 });
 
+// Helper function to convert a readable stream to a Base64 string
+async function streamToBase64(stream: Stream): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const chunks: Buffer[] = [];
+        stream.on('data', (chunk) => chunks.push(chunk));
+        stream.on('end', () => resolve(Buffer.concat(chunks).toString('base64')));
+        stream.on('error', (error) => reject(`Error converting stream to base64: ${error.message}`));
+    });
+}
+
+
 /**
- * Generates audio from text using the Murf.ai API.
+ * Generates audio from text using the Murf.ai Streaming API.
  */
 const generateAudioFlow = ai.defineFlow(
     {
@@ -54,29 +66,32 @@ const generateAudioFlow = ai.defineFlow(
     },
     async ({ text, voiceId }) => {
         try {
-            const response = await axios.post('https://api.murf.ai/v1/speech:synthesize', {
-                text: text,
-                voice: voiceId || DEFAULT_VOICE_ID,
-                format: 'wav', // Requesting WAV format
-                sampleRate: 24000,
-            }, {
-                headers: {
-                    'Content-Type': 'application/json',
-                    'api-key': process.env.MURFAI_API_KEY, // Use server-side env var
-                },
-                responseType: 'arraybuffer' // Get response as a buffer
-            });
+            const response = await axios.post(
+                'https://api.murf.ai/v1/speech/stream', 
+                {
+                    text: text,
+                    voiceId: voiceId || DEFAULT_VOICE_ID,
+                    format: 'wav',
+                    sampleRate: 24000,
+                }, 
+                {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'api-key': process.env.MURF_API_KEY, 
+                    },
+                    responseType: 'stream',
+                }
+            );
 
-            // Convert the binary audio data to a base64 data URI
-            const audioBuffer = Buffer.from(response.data, 'binary');
-            const audioBase64 = audioBuffer.toString('base64');
+            // Convert the audio stream to a base64 data URI
+            const audioBase64 = await streamToBase64(response.data);
             
             return {
                 audio: `data:audio/wav;base64,${audioBase64}`,
             };
 
-        } catch (error) {
-            console.error("Error calling Murf.ai API:", error);
+        } catch (error: any) {
+            console.error("Error calling Murf.ai streaming API:", error.response?.data || error.message);
             throw new Error("Failed to generate audio from Murf.ai");
         }
     }
