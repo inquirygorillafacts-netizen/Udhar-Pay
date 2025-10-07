@@ -106,6 +106,7 @@ export default function ShopkeeperAuthPage() {
 
             setSuccessMessage("Login Successful! Redirecting...");
             localStorage.setItem('activeRole', 'shopkeeper');
+            sessionStorage.setItem('post_login_nav', 'true'); // Flag for initial navigation
             setTimeout(() => router.push('/shopkeeper/dashboard'), 1500);
         } catch (err: any) {
             console.error("Error verifying OTP:", err);

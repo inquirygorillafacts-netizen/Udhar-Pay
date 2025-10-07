@@ -23,6 +23,7 @@ export default function OwnerAuthPage() {
 
     const handleFormTransition = () => {
         localStorage.setItem('activeRole', 'owner');
+        sessionStorage.setItem('post_login_nav', 'true'); // Flag for initial navigation
         const formElements = document.querySelectorAll('.login-form');
         formElements.forEach(el => el.classList.add('form-hiding'));
         

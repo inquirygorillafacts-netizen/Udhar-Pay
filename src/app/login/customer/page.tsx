@@ -108,6 +108,7 @@ export default function CustomerAuthPage() {
 
             setSuccessMessage("Login Successful! Redirecting...");
             localStorage.setItem('activeRole', 'customer');
+            sessionStorage.setItem('post_login_nav', 'true'); // Flag for initial navigation
             setTimeout(() => router.push('/customer/dashboard'), 1500);
         } catch (err: any) {
             console.error("Error verifying OTP:", err);

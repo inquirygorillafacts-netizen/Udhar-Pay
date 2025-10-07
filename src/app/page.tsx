@@ -11,11 +11,13 @@ export default function InitialRoutingPage() {
   const { auth, firestore } = useFirebase();
   const [loading, setLoading] = useState(true);
   const [showPinLock, setShowPinLock] = useState(false);
-  const [pinCheckData, setPinCheckData] = useState<{ role: string; correctPin: string } | null>(null);
+  const [pinCheckData, setPinCheckData] = useState<{ role: string; correctPin: string; targetPath: string; } | null>(null);
 
   useEffect(() => {
     const activeRole = localStorage.getItem('activeRole');
     const hasSeenOnboarding = localStorage.getItem('hasSeenOnboarding');
+    // Check if this is the first navigation after login/registration
+    const isPostLogin = sessionStorage.getItem('post_login_nav');
 
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user && activeRole) {
@@ -27,24 +29,31 @@ export default function InitialRoutingPage() {
             const userDoc = await getDoc(userDocRef);
 
             if (userDoc.exists()) {
+                let targetPath: string;
+                if(isPostLogin) {
+                    targetPath = `/${activeRole}/dashboard`;
+                    sessionStorage.removeItem('post_login_nav'); // Clear the flag
+                } else {
+                    // Default navigation for subsequent visits
+                    targetPath = activeRole === 'customer' ? '/customer/scan' : `/${activeRole}/dashboard`;
+                }
+
                 if (userDoc.data().pinEnabled && userDoc.data().pin) {
                     // User has a PIN lock enabled for the active role
-                    setPinCheckData({ role: activeRole, correctPin: userDoc.data().pin });
+                    setPinCheckData({ role: activeRole, correctPin: userDoc.data().pin, targetPath: targetPath });
                     setShowPinLock(true);
                     setLoading(false);
                 } else {
-                    // No PIN lock, redirect to dashboard
-                    router.replace(`/${activeRole}/dashboard`);
+                    // No PIN lock, redirect to the determined path
+                    router.replace(targetPath);
                 }
             } else {
                 // User document for this role doesn't exist, something is wrong.
-                // Clear the bad role and send to auth.
                 localStorage.removeItem('activeRole');
                 router.replace('/auth');
             }
           } catch (error) {
             console.error("Error checking for PIN:", error);
-            // Fallback: if check fails, go to dashboard but clear role first to be safe
             localStorage.removeItem('activeRole');
             router.replace('/auth');
           }
@@ -56,15 +65,16 @@ export default function InitialRoutingPage() {
       } else if (user) {
         // User is logged in but has no active role selected.
         // This can happen on first login on a new device.
-        // We'll default them to the customer role if they are one, otherwise shopkeeper, else auth.
         const customerDoc = await getDoc(doc(firestore, 'customers', user.uid));
         if (customerDoc.exists()) {
             localStorage.setItem('activeRole', 'customer');
-            router.replace('/customer/dashboard');
+            sessionStorage.setItem('post_login_nav', 'true');
+            router.replace('/customer/dashboard'); // First time always to dashboard
         } else {
             const shopkeeperDoc = await getDoc(doc(firestore, 'shopkeepers', user.uid));
              if (shopkeeperDoc.exists()) {
                 localStorage.setItem('activeRole', 'shopkeeper');
+                sessionStorage.setItem('post_login_nav', 'true');
                 router.replace('/shopkeeper/dashboard');
              } else {
                  router.replace('/auth');
@@ -75,7 +85,7 @@ export default function InitialRoutingPage() {
       } else {
         router.replace('/intro/1');
       }
-      // Only set loading to false here if not showing PIN lock
+      
       if (!showPinLock) {
          setLoading(false);
       }
@@ -87,7 +97,7 @@ export default function InitialRoutingPage() {
 
   const handlePinSuccess = () => {
     if (pinCheckData) {
-      router.replace(`/${pinCheckData.role}/dashboard`);
+      router.replace(pinCheckData.targetPath);
     }
   };
 
