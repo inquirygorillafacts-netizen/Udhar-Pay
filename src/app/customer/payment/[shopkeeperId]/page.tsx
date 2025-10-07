@@ -269,7 +269,7 @@ export default function PaymentPage() {
         </header>
 
         <main className="dashboard-main-content" style={{padding: '20px'}}>
-          <div className="login-card" style={{ maxWidth: '600px', margin: 'auto', marginBottom: '30px' }}>
+          <div className="login-card" style={{ margin: 'auto', marginBottom: '30px' }}>
               <div style={{textAlign: 'center'}}>
                   <p style={{fontSize: '0.9rem', color: '#6c7293', margin: 0, fontWeight: 500}}>Your Current Balance</p>
                   <p style={{fontSize: '3rem', fontWeight: 'bold', margin: '5px 0', color: balanceColor}}>₹{Math.abs(customerBalance).toLocaleString('en-IN')}</p>
@@ -277,7 +277,7 @@ export default function PaymentPage() {
               </div>
           </div>
 
-          <div className="login-card" style={{ maxWidth: '600px', margin: 'auto', marginBottom: '40px' }}>
+          <div className="login-card" style={{ margin: 'auto', marginBottom: '40px' }}>
               <h2 style={{textAlign: 'center', color: '#3d4468', fontWeight: 600, fontSize: '1.5rem', marginBottom: '25px'}}>Pay Amount</h2>
               <div className="form-group" style={{marginBottom: 0}}>
                   <div className="neu-input" style={{display: 'flex', alignItems: 'center'}}>
@@ -302,7 +302,7 @@ export default function PaymentPage() {
               </div>
           </div>
 
-          <div style={{ maxWidth: '600px', margin: 'auto' }}>
+          <div style={{ margin: 'auto' }}>
               <h2 style={{textAlign: 'center', color: '#3d4468', fontWeight: 600, fontSize: '1.5rem', marginBottom: '25px'}}>Transaction History</h2>
               {transactions.length > 0 ? (
                   <div style={{display: 'flex', flexDirection: 'column', gap: '15px'}}>
