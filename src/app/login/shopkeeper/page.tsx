@@ -39,27 +39,33 @@ export default function ShopkeeperAuthPage() {
     const [successMessage, setSuccessMessage] = useState('');
 
     useEffect(() => {
-        if (!isOtpSent && auth && !window.recaptchaVerifier) {
-            const container = document.getElementById('recaptcha-container');
-            if (container) {
-                container.innerHTML = ''; // Clear previous instance
-                const verifier = new RecaptchaVerifier(auth, container, {
-                    'size': 'normal',
-                    'callback': () => console.log("reCAPTCHA solved"),
-                    'expired-callback': () => {
-                        if (window.recaptchaVerifier) {
-                            window.recaptchaVerifier.render().catch(console.error);
+        if (!auth || isOtpSent) return;
+
+        // Delay rendering reCAPTCHA to ensure Firebase is ready
+        const timer = setTimeout(() => {
+            if (!window.recaptchaVerifier) {
+                const container = document.getElementById('recaptcha-container');
+                if (container) {
+                    container.innerHTML = ''; // Clear previous instance
+                    const verifier = new RecaptchaVerifier(auth, container, {
+                        'size': 'normal',
+                        'callback': () => {},
+                        'expired-callback': () => {
+                            window.recaptchaVerifier?.clear();
                         }
-                    }
-                });
-                window.recaptchaVerifier = verifier;
-                verifier.render().catch((err) => {
-                    console.error("reCAPTCHA render error:", err);
-                    setError("Could not load reCAPTCHA. Please refresh.");
-                });
+                    });
+                    verifier.render().then(() => {
+                        window.recaptchaVerifier = verifier;
+                    }).catch((err) => {
+                        console.error("reCAPTCHA render error:", err);
+                        setError("Could not load reCAPTCHA. Please refresh.");
+                    });
+                }
             }
-        }
-    }, [isOtpSent, auth]);
+        }, 500);
+
+        return () => clearTimeout(timer);
+    }, [auth, isOtpSent]);
 
     const handleSendOtp = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -81,7 +87,7 @@ export default function ShopkeeperAuthPage() {
         } catch (err: any) {
             console.error("Error sending OTP:", err);
             setError(err.message || "Failed to send OTP.");
-            window.recaptchaVerifier.render().catch(console.error);
+            window.recaptchaVerifier?.render().catch(console.error);
         } finally {
             setLoading(false);
         }
@@ -101,13 +107,12 @@ export default function ShopkeeperAuthPage() {
             const result = await window.confirmationResult.confirm(otp);
             const user = result.user;
 
-            // Check if user doc exists, if not, create it
             const userDocRef = doc(firestore, 'shopkeepers', user.uid);
             const userDoc = await getDoc(userDocRef);
             if (!userDoc.exists()) {
                 await setDoc(userDocRef, {
                     uid: user.uid,
-                    displayName: 'New Shopkeeper',
+                    displayName: user.displayName || 'New Shopkeeper',
                     email: user.email,
                     phoneNumber: user.phoneNumber,
                     photoURL: user.photoURL,
@@ -120,11 +125,10 @@ export default function ShopkeeperAuthPage() {
 
             setSuccessMessage("Login Successful! Redirecting...");
             localStorage.setItem('activeRole', 'shopkeeper');
-            setTimeout(() => router.push('/shopkeeper/dashboard'), 2000);
+            setTimeout(() => router.push('/shopkeeper/dashboard'), 1500);
         } catch (err: any) {
             console.error("Error verifying OTP:", err);
             setError(err.message || "Invalid OTP.");
-        } finally {
             setLoading(false);
         }
     };
@@ -211,7 +215,7 @@ export default function ShopkeeperAuthPage() {
                                 <h2>Verify OTP</h2>
                                 <p>Enter the 6-digit code sent to +91{phoneNumber}</p>
                             </div>
-                             {successMessage && <p style={{color: '#00c896', textAlign: 'center', fontWeight: 500, marginBottom: '20px'}}>{successMessage}</p>}
+                             {successMessage && !error && <p style={{color: '#00c896', textAlign: 'center', fontWeight: 500, marginBottom: '20px'}}>{successMessage}</p>}
                             <form className="login-form" noValidate onSubmit={handleVerifyOtp}>
                                 <div className="form-group">
                                     <div className="neu-input">
