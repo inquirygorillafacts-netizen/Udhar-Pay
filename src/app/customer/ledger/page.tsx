@@ -95,7 +95,7 @@ export default function CustomerLedgerPage() {
                 <p style={{marginTop: '20px', color: '#6c7293'}}>Loading your ledger...</p>
             </div>
         ) : transactions.length > 0 ? (
-          <div style={{display: 'flex', flexDirection: 'column', gap: '15px', maxWidth: '700px', margin: 'auto'}}>
+          <div style={{display: 'flex', flexDirection: 'column', gap: '15px', margin: 'auto'}}>
               {transactions.map(tx => (
                 <Link key={tx.id} href={`/customer/payment/${tx.shopkeeperId}`} style={{ textDecoration: 'none' }}>
                   <div className="neu-input" style={{display: 'flex', alignItems: 'center', padding: '15px 20px', boxShadow: '5px 5px 10px #d1d9e6, -5px -5px 10px #ffffff', cursor: 'pointer' }}>
@@ -130,7 +130,7 @@ export default function CustomerLedgerPage() {
               ))}
           </div>
         ) : (
-            <div className="login-card" style={{maxWidth: '700px', margin: 'auto', padding: '40px 20px', textAlign: 'center'}}>
+            <div className="login-card" style={{margin: 'auto', padding: '40px 20px', textAlign: 'center'}}>
                 <p style={{color: '#9499b7'}}>You have no transactions yet. Start by connecting with a shopkeeper!</p>
             </div>
         )}
