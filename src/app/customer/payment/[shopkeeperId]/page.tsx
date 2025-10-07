@@ -329,7 +329,7 @@ export default function PaymentPage() {
                                 {tx.notes && <p style={{fontSize: '13px', color: '#6c7293', marginTop: '5px', fontStyle: 'italic'}}>"{tx.notes}"</p>}
                             </div>
                             <p style={{fontWeight: 'bold', fontSize: '1.2rem', color: tx.type === 'payment' ? '#00c896' : '#ff3b5c'}}>
-                                ₹{tx.amount}
+                                ₹{tx.amount.toLocaleString('en-IN')}
                             </p>
                         </div>
                       ))}

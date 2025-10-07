@@ -8,7 +8,7 @@ import Link from 'next/link';
 
 interface Transaction {
   id: string;
-  type: 'credit' | 'payment';
+  type: 'credit' | 'payment' | 'commission';
   amount: number;
   timestamp: Timestamp;
   notes?: string;
@@ -80,6 +80,19 @@ export default function CustomerLedgerPage() {
 
     return () => unsubscribe();
   }, [auth.currentUser, firestore, shopkeepers]);
+  
+  const getTransactionTypeLabel = (type: 'credit' | 'payment' | 'commission') => {
+      switch (type) {
+          case 'credit': return 'Udhaar Taken';
+          case 'payment': return 'Payment Made';
+          case 'commission': return 'Platform Fee';
+          default: return 'Transaction';
+      }
+  };
+  
+  const isCreditType = (type: 'credit' | 'payment' | 'commission') => {
+      return type === 'credit' || type === 'commission';
+  }
 
   return (
     <main className="dashboard-main-content" style={{padding: '20px'}}>
@@ -100,7 +113,7 @@ export default function CustomerLedgerPage() {
                 <Link key={tx.id} href={`/customer/payment/${tx.shopkeeperId}`} style={{ textDecoration: 'none' }}>
                   <div className="neu-input" style={{display: 'flex', alignItems: 'center', padding: '15px 20px', boxShadow: '5px 5px 10px #d1d9e6, -5px -5px 10px #ffffff', cursor: 'pointer' }}>
                     <div style={{ marginRight: '15px' }}>
-                          {tx.type === 'credit' ? (
+                          {isCreditType(tx.type) ? (
                               <div className="neu-icon" style={{ width: '45px', height: '45px', margin: 0, background: 'rgba(255, 59, 92, 0.1)', boxShadow: 'none' }}>
                                   <ArrowUpCircle size={24} color="#ff3b5c" />
                               </div>
@@ -112,7 +125,7 @@ export default function CustomerLedgerPage() {
                       </div>
                       <div style={{flexGrow: 1}}>
                           <p style={{fontWeight: 600, color: '#3d4468', textTransform: 'capitalize', marginBottom: '2px'}}>
-                              {tx.type === 'credit' ? 'Udhaar Taken' : 'Payment Made'}
+                              {getTransactionTypeLabel(tx.type)}
                           </p>
                           <p style={{fontSize: '14px', color: '#6c7293', fontWeight: 500, margin: '2px 0'}}>
                               To: {shopkeepers[tx.shopkeeperId]?.displayName || '...'}
@@ -122,7 +135,7 @@ export default function CustomerLedgerPage() {
                           </p>
                           {tx.notes && <p style={{fontSize: '13px', color: '#6c7293', marginTop: '5px', fontStyle: 'italic'}}>"{tx.notes}"</p>}
                       </div>
-                      <p style={{fontWeight: 'bold', fontSize: '1.2rem', color: tx.type === 'credit' ? '#ff3b5c' : '#00c896'}}>
+                      <p style={{fontWeight: 'bold', fontSize: '1.2rem', color: isCreditType(tx.type) ? '#ff3b5c' : '#00c896'}}>
                           ₹{tx.amount}
                       </p>
                   </div>
