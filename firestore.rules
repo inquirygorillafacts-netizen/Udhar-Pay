@@ -1,0 +1,79 @@
+/**
+ * @fileoverview
+ * This ruleset enforces a strict user-ownership model for user profiles and restricts OTP verification access to the associated phone number.
+ *
+ * Data Structure:
+ * - /users/{userId}/profile: Stores user profile information, directly owned by the user.
+ * - /otp_verifications/{phoneNumber}: Stores OTP verification details, indexed by phone number.
+ *
+ * Key Security Decisions:
+ * - Users can only create, read, update, and delete their own profile data.
+ * - OTP verification documents can be created without authentication, but only the associated phone number can read or write.
+ * - Listing of user profiles and OTP verifications is disallowed to prevent information disclosure.
+ *
+ * Denormalization for Authorization:
+ * - User profiles are stored under /users/{userId}/profile, ensuring the user ID is readily available in the path for authorization checks,
+ *   removing the need to read the document to determine ownership.
+ *
+ * Structural Segregation:
+ * - User profiles and OTP verification data are stored in separate collections, reflecting their distinct access control requirements.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Enforces document ownership for user profiles.
+     * @path /users/{userId}/profile
+     * @allow (create) User with UID 'user_abc' can create their profile at /users/user_abc/profile.
+     * @allow (get, update, delete) User with UID 'user_abc' can read, update, and delete their profile at /users/user_abc/profile.
+     * @deny (create) User with UID 'user_xyz' cannot create a profile at /users/user_abc/profile.
+     * @deny (get, update, delete) User with UID 'user_xyz' cannot read, update, or delete the profile at /users/user_abc/profile.
+     * @principle Enforces document ownership for writes and restricts access to a user's own data tree.
+     */
+    match /users/{userId}/profile {
+      // Helper function to check if the user is signed in and is the owner
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      function isOwner(userId) {
+        return isSignedIn() && request.auth.uid == userId;
+      }
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isExistingOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Restricts access to OTP verification documents to the associated phone number.
+     * @path /otp_verifications/{phoneNumber}
+     * @allow (create) Any unauthenticated client can create an OTP verification request.
+     * @allow (get, update) Client with phone number 'phone_123' can read/update the OTP verification at /otp_verifications/phone_123 if authenticated as such.
+     * @deny (get, update) Client with phone number 'phone_456' cannot read/update the OTP verification at /otp_verifications/phone_123.
+     * @deny (delete) No one can delete an OTP verification.
+     * @principle Restricts OTP access to requests originating from the verified phone number.
+     */
+    match /otp_verifications/{phoneNumber} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      function isValidPhoneNumber(phoneNumber) {
+          return isSignedIn() && request.auth.token.phone_number == phoneNumber;
+      }
+      function isExistingOwner(phoneNumber) {
+        return isValidPhoneNumber(phoneNumber) && resource != null;
+      }
+
+      allow get, update: if isExistingOwner(phoneNumber);
+      allow list: if false;
+      allow create: if true;
+      allow delete: if false;
+    }
+  }
+}

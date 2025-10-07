@@ -1,0 +1,116 @@
+{
+  "entities": {
+    "UserProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "UserProfile",
+      "type": "object",
+      "description": "Represents a user profile in the Udhar Pay application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the UserProfile entity."
+        },
+        "phoneNumber": {
+          "type": "string",
+          "description": "User's phone number."
+        },
+        "name": {
+          "type": "string",
+          "description": "User's full name."
+        },
+        "email": {
+          "type": "string",
+          "description": "User's email address, if provided.",
+          "format": "email"
+        },
+        "photoUrl": {
+          "type": "string",
+          "description": "URL of the user's profile picture, if available.",
+          "format": "uri"
+        }
+      },
+      "required": [
+        "id",
+        "phoneNumber"
+      ]
+    },
+    "OtpVerification": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "OtpVerification",
+      "type": "object",
+      "description": "Stores OTP verification details for user authentication.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the OTP verification record."
+        },
+        "phoneNumber": {
+          "type": "string",
+          "description": "Phone number associated with the OTP."
+        },
+        "otp": {
+          "type": "string",
+          "description": "The one-time password for verification."
+        },
+        "expiryTime": {
+          "type": "string",
+          "description": "Timestamp indicating when the OTP expires.",
+          "format": "date-time"
+        },
+        "verified": {
+          "type": "boolean",
+          "description": "Indicates whether the OTP has been successfully verified."
+        }
+      },
+      "required": [
+        "id",
+        "phoneNumber",
+        "otp",
+        "expiryTime"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}/profile",
+        "definition": {
+          "entityName": "UserProfile",
+          "schema": {
+            "$ref": "#/backend/entities/UserProfile"
+          },
+          "description": "Stores user profile information, directly owned by the user. Includes denormalized 'userId' for authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user, derived from Firebase Authentication."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/otp_verifications/{phoneNumber}",
+        "definition": {
+          "entityName": "OtpVerification",
+          "schema": {
+            "$ref": "#/backend/entities/OtpVerification"
+          },
+          "description": "Stores OTP verification details, indexed by phone number. This collection does not require user authentication for creation (used during sign-up/login), but security rules should restrict reading/writing to only allow the current phone number during verification.",
+          "params": [
+            {
+              "name": "phoneNumber",
+              "description": "The phone number being verified; used as the document ID."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "This Firestore data structure is designed to support the 'Offline First' PWA application, focusing on user authentication and profile management while adhering to the core design principles of Authorization Independence, Clarity of Intent, DBAC, and QAPs. The structure separates user profiles and OTP verification data into distinct collections, each following path-based ownership for private data and leveraging structural segregation. This design supports secure list operations and makes authorization rules simple and efficient, enhancing the application's security and debuggability.\n\nAuthorization Independence is achieved by directly linking the UserProfile document to the user's UID via the path `/users/{userId}/profile`, eliminating the need for `get()` calls in security rules to validate ownership. Similarly, OTP verification data is stored under `/otp_verifications/{phoneNumber}` with the document ID being the phone number, ensuring each document is independent and manageable. This structure supports the QAP by enabling simple security rules that grant access based on the authenticated user's UID and/or phone number without complex filtering or hierarchical dependencies."
+  }
+}
