@@ -45,6 +45,46 @@ export default function ShopkeeperAuthPage() {
 
     const [timer, setTimer] = useState(0);
     const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    
+    const [isCaptchaVerified, setIsCaptchaVerified] = useState(false);
+    const recaptchaContainerRef = useRef<HTMLDivElement>(null);
+
+    // Effect to setup Recaptcha on mount
+    useEffect(() => {
+        if (!auth || confirmationResultState) return;
+
+        // Ensure the container is empty before rendering a new verifier
+        if (recaptchaContainerRef.current) {
+            recaptchaContainerRef.current.innerHTML = '';
+        }
+        
+        // Cleanup previous instance if it exists
+        if (window.recaptchaVerifier) {
+            window.recaptchaVerifier.clear();
+        }
+
+        const verifier = new RecaptchaVerifier(auth, recaptchaContainerRef.current!, {
+            'size': 'normal',
+            'callback': (response: any) => {
+                setIsCaptchaVerified(true);
+                setErrors(prev => ({...prev, form: undefined}));
+            },
+            'expired-callback': () => {
+                setIsCaptchaVerified(false);
+                setErrors({form: "reCAPTCHA expired. Please try again."})
+            }
+        });
+
+        window.recaptchaVerifier = verifier;
+        verifier.render();
+
+         return () => {
+             if (window.recaptchaVerifier) {
+                window.recaptchaVerifier.clear();
+            }
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [auth, confirmationResultState]);
 
 
     useEffect(() => {
@@ -135,9 +175,11 @@ export default function ShopkeeperAuthPage() {
         setErrors({});
 
         try {
-            const verifier = new RecaptchaVerifier(auth, 'recaptcha-container-shopkeeper', {
-                'size': 'invisible'
-            });
+            if (!window.recaptchaVerifier) {
+                 throw new Error("RecaptchaVerifier not initialized.");
+            }
+            const verifier = window.recaptchaVerifier;
+
             const fullPhoneNumber = `${selectedCountry.code}${phone}`;
             const confirmation = await signInWithPhoneNumber(auth, fullPhoneNumber, verifier);
             setConfirmationResultState(confirmation);
@@ -149,12 +191,11 @@ export default function ShopkeeperAuthPage() {
                 errorMessage = "Too many requests. Please try again later.";
             } else if (error.code === 'auth/invalid-phone-number') {
                 errorMessage = "The phone number is not valid.";
-            } else if (error.code === 'auth/captcha-check-failed' || error.code === 'auth/hostname-mismatch') {
-                 errorMessage = "Verification failed. Please ensure your app's domain is authorized in the Firebase Console."
-            } else if (error.code === 'auth/internal-error') {
-                 errorMessage = "Internal error with authentication service. Please try again in a few moments.";
             }
             setErrors({ form: errorMessage });
+            // Reset captcha if sending fails
+            window.recaptchaVerifier?.render();
+            setIsCaptchaVerified(false);
         } finally {
             setLoading(false);
         }
@@ -194,7 +235,6 @@ export default function ShopkeeperAuthPage() {
     return (
         <div className="login-container-wrapper">
             <div className="login-container">
-                 <div id="recaptcha-container-shopkeeper" style={{ position: 'fixed', bottom: 0, right: 0 }}></div>
                 <div className="login-card">
                     {!showSuccess ? (
                         <>
@@ -225,11 +265,11 @@ export default function ShopkeeperAuthPage() {
                                         {timer > 0 ? (
                                              <p style={{color: '#9499b7', fontSize: '14px'}}>Resend OTP in {timer}s</p>
                                         ) : (
-                                            <button type="button" onClick={handleSendOtp} disabled={loading} className="forgot-link">
-                                                Resend OTP
+                                            <button type="button" onClick={() => { setConfirmationResultState(null); setOtp(''); setErrors({}); setTimer(0); setIsCaptchaVerified(false); }} disabled={loading} className="forgot-link">
+                                                Request new OTP
                                             </button>
                                         )}
-                                        <button type="button" className="neu-button" style={{margin: '10px 0 0 0', background: 'transparent', boxShadow: 'none'}} onClick={() => { setConfirmationResultState(null); setOtp(''); setErrors({}); setTimer(0); }}>
+                                        <button type="button" className="neu-button" style={{margin: '10px 0 0 0', background: 'transparent', boxShadow: 'none'}} onClick={() => { setConfirmationResultState(null); setOtp(''); setErrors({}); setTimer(0); setIsCaptchaVerified(false); }}>
                                             <span style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'}}><ArrowLeft size={16}/> Back</span>
                                         </button>
                                      </div>
@@ -261,7 +301,8 @@ export default function ShopkeeperAuthPage() {
                                         </div>
                                         {errors.phone && <span className="error-message show">{errors.phone}</span>}
                                     </div>
-                                    <button id="send-code-btn-shopkeeper" type="submit" className={`neu-button ${loading ? 'loading' : ''}`} disabled={loading}>
+                                    <div ref={recaptchaContainerRef} style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}></div>
+                                    <button id="send-code-btn-shopkeeper" type="submit" className={`neu-button ${loading ? 'loading' : ''}`} disabled={loading || !isCaptchaVerified}>
                                         <span className="btn-text">Send OTP</span>
                                         <div className="btn-loader"><div className="neu-spinner"></div></div>
                                     </button>
