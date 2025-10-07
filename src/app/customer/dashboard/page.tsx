@@ -433,21 +433,19 @@ export default function CustomerDashboardPage() {
             </div>
         )}
 
-        <div style={{ position: 'sticky', top: 0, zIndex: 10, background: 'transparent', padding: '20px 20px 10px 20px' }}>
-             <div style={{maxWidth: '600px', margin: 'auto', display: 'flex', alignItems: 'center', gap: '16px'}}>
-               <button onClick={handleRoleSwitchClick} className="neu-button" style={{width: '45px', height: '45px', margin: 0, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0}}>
-                  <Repeat size={20}/>
-               </button>
-              <div className="login-card" style={{padding: '10px 20px', flexGrow: 1, margin: 0, textAlign: 'center'}}>
+        <div className="dashboard-header" style={{ position: 'sticky', top: 0, zIndex: 10 }}>
+            <button onClick={handleRoleSwitchClick} className="neu-button" style={{width: '45px', height: '45px', margin: 0, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0}}>
+                <Repeat size={20}/>
+            </button>
+            <div className="login-card" style={{padding: '10px 20px', flexGrow: 1, margin: 0, textAlign: 'center'}}>
                 <h1 style={{color: '#3d4468', fontSize: '1.2rem', fontWeight: '600'}}>
                     {userProfile.displayName}
                 </h1>
-              </div>
-               <button onClick={handleOpenNotification} className="neu-button" style={{width: '45px', height: '45px', margin: 0, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, position: 'relative', overflow: 'visible' }}>
-                  <Bell size={20}/>
-                  {hasUnreadMessage && <span style={{position: 'absolute', top: 5, right: 5, width: '20px', height: '20px', background: '#ff3b5c', borderRadius: '50%', border: '2px solid #e0e5ec', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '12px', fontWeight: 'bold'}}>1</span>}
-               </button>
             </div>
+            <button onClick={handleOpenNotification} className="neu-button" style={{width: '45px', height: '45px', margin: 0, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, position: 'relative', overflow: 'visible' }}>
+                <Bell size={20}/>
+                {hasUnreadMessage && <span style={{position: 'absolute', top: 5, right: 5, width: '20px', height: '20px', background: '#ff3b5c', borderRadius: '50%', border: '2px solid #e0e5ec', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '12px', fontWeight: 'bold'}}>1</span>}
+            </button>
         </div>
         
         <main className="dashboard-main-content">
@@ -512,5 +510,7 @@ export default function CustomerDashboardPage() {
     </>
   );
 }
+
+    
 
     
