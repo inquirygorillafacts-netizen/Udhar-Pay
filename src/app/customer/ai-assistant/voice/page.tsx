@@ -74,11 +74,13 @@ export default function VoiceAssistantPage() {
                 
                 audioRef.current.onended = () => {
                     isProcessingQuery.current = false;
+                    setStatus('idle');
                 };
                 await audioRef.current.play();
                 
             } else {
                  isProcessingQuery.current = false;
+                 setStatus('idle');
             }
         } catch (error) {
             console.error('Error with AI Assistant:', error);
@@ -86,6 +88,7 @@ export default function VoiceAssistantPage() {
             addMessage({sender: 'ai', text: errorMessage});
             setMessages(getHistory());
             isProcessingQuery.current = false;
+            setStatus('idle');
         }
     }, [currentVoiceId, stopAudio]);
 
