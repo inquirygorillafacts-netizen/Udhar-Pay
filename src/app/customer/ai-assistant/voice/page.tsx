@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -25,7 +26,16 @@ export default function VoiceAssistantPage() {
     
     const recognitionRef = useRef<any>(null);
     const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+    const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
     const isProcessingQuery = useRef(false);
+
+    useEffect(() => {
+        const loadVoices = () => {
+            voicesRef.current = window.speechSynthesis.getVoices();
+        };
+        loadVoices();
+        window.speechSynthesis.onvoiceschanged = loadVoices;
+    }, []);
     
     const stopAudio = useCallback(() => {
         if (typeof window !== 'undefined') {
@@ -60,7 +70,14 @@ export default function VoiceAssistantPage() {
         stopAudio();
         
         const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'hi-IN'; // Set language to Hindi
+        
+        const hindiVoice = voicesRef.current.find(voice => voice.lang === 'hi-IN');
+        if (hindiVoice) {
+            utterance.voice = hindiVoice;
+        } else {
+            console.warn("Hindi (hi-IN) voice not found. Using default.");
+        }
+        utterance.lang = 'hi-IN';
         utterance.rate = 1;
         utterance.pitch = 1;
 
