@@ -291,7 +291,7 @@ export default function CustomerProfilePage() {
         />
     )}
     <div className="login-container" style={{paddingTop: '40px', paddingBottom: '80px', minHeight: 'auto'}}>
-      <div style={{width: '100%', maxWidth: '500px', position: 'relative'}}>
+      <div style={{width: '100%', position: 'relative'}}>
           <button className="neu-button" onClick={() => setShowSettingsModal(true)} style={{ position: 'absolute', top: '25px', right: '25px', width: '45px', height: '45px', padding: 0, margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Settings size={20} />
           </button>
