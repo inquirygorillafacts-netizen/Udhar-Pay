@@ -275,7 +275,7 @@ export default function VoiceAssistantPage() {
                     </div>
                  )}
                  <div className="flex items-center gap-4">
-                    <button onClick={() => setIsVoiceModalOpen(true)} className="glass-button" style={{padding: '10px 15px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px'}}>
+                     <button onClick={() => setIsVoiceModalOpen(true)} className="neu-button" style={{margin: 0, padding: '10px 15px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', height: 'auto'}}>
                         <ListMusic size={16}/> Voice Mode
                     </button>
                     <div className={`neu-toggle-switch big-toggle ${isAssistantOn ? 'active' : ''}`} onClick={handlePowerToggle}>
