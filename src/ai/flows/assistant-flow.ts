@@ -62,7 +62,7 @@ const generateAudioFlow = ai.defineFlow(
             }, {
                 headers: {
                     'Content-Type': 'application/json',
-                    'api-key': process.env.NEXT_PUBLIC_MURFAI_API_KEY,
+                    'api-key': process.env.MURFAI_API_KEY, // Use server-side env var
                 },
                 responseType: 'arraybuffer' // Get response as a buffer
             });
