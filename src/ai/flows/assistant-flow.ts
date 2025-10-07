@@ -1,7 +1,8 @@
 'use server';
 /**
  * @fileOverview A conversational AI assistant flow that processes text input,
- * generates a spoken response using Google's Text-to-Speech, and returns it as an audio data.
+ * generates a spoken response using a third-party Text-to-Speech service (Murf.ai),
+ * and returns it as an audio data.
  *
  * - `askAiAssistant` - A function that orchestrates the text-to-text and text-to-speech process.
  * - `AssistantInput` - The input type for the `askAiAssistant` function.
@@ -10,12 +11,11 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import wav from 'wav';
 import type { ChatMessage } from '@/lib/ai-memory';
+import axios from 'axios';
 
 
-const DEFAULT_VOICE_ID = 'Algenib';
-
+const DEFAULT_VOICE_ID = 'it-IT-lorenzo';
 
 // Define the input schema for the assistant
 const AssistantInputSchema = z.object({
@@ -37,38 +37,15 @@ const AssistantOutputSchema = z.object({
 export type AssistantOutput = z.infer<typeof AssistantOutputSchema>;
 
 
+// Define the input for the audio generation part
 const GenerateAudioInputSchema = z.object({
     text: z.string(),
     voiceId: z.string().optional().default(DEFAULT_VOICE_ID),
 });
 
-async function toWav(
-  pcmData: Buffer,
-  channels = 1,
-  rate = 24000,
-  sampleWidth = 2
-): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const writer = new wav.Writer({
-      channels,
-      sampleRate: rate,
-      bitDepth: sampleWidth * 8,
-    });
-
-    let bufs: any[] = [];
-    writer.on('error', reject);
-    writer.on('data', function (d) {
-      bufs.push(d);
-    });
-    writer.on('end', function () {
-      resolve(Buffer.concat(bufs).toString('base64'));
-    });
-
-    writer.write(pcmData);
-    writer.end();
-  });
-}
-
+/**
+ * Generates audio from text using the Murf.ai API.
+ */
 const generateAudioFlow = ai.defineFlow(
     {
         name: 'generateAudioFlow',
@@ -77,38 +54,30 @@ const generateAudioFlow = ai.defineFlow(
     },
     async ({ text, voiceId }) => {
         try {
-            const { media } = await ai.generate({
-                model: ai.model('googleai/gemini-2.5-flash-preview-tts'),
-                config: {
-                    responseModalities: ['AUDIO'],
-                    speechConfig: {
-                        voiceConfig: {
-                            prebuiltVoiceConfig: { voiceName: voiceId || DEFAULT_VOICE_ID },
-                        },
-                    },
+            const response = await axios.post('https://api.murf.ai/v1/speech:synthesize', {
+                text: text,
+                voice: voiceId || DEFAULT_VOICE_ID,
+                format: 'wav', // Requesting WAV format
+                sampleRate: 24000,
+            }, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'api-key': process.env.NEXT_PUBLIC_MURFAI_API_KEY,
                 },
-                prompt: text,
+                responseType: 'arraybuffer' // Get response as a buffer
             });
 
-            if (!media || !media.url) {
-                console.error("Google TTS API did not return a valid audio file.", {media});
-                throw new Error("Google TTS API did not return a valid audio file.");
-            }
+            // Convert the binary audio data to a base64 data URI
+            const audioBuffer = Buffer.from(response.data, 'binary');
+            const audioBase64 = audioBuffer.toString('base64');
             
-            const audioBuffer = Buffer.from(
-                media.url.substring(media.url.indexOf(',') + 1),
-                'base64'
-            );
-
-            const audioBase64 = await toWav(audioBuffer);
-
             return {
                 audio: `data:audio/wav;base64,${audioBase64}`,
             };
 
         } catch (error) {
-            console.error("Error calling Google TTS API:", error);
-            throw new Error("Failed to generate audio from Google TTS");
+            console.error("Error calling Murf.ai API:", error);
+            throw new Error("Failed to generate audio from Murf.ai");
         }
     }
 );
