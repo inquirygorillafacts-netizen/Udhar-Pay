@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Bot, MessageSquare, Shuffle, User, ArrowLeft, Mic, Ear, BrainCircuit } from 'lucide-react';
+import { Bot, MessageSquare, ListMusic, User, ArrowLeft, Mic, Ear, BrainCircuit, X } from 'lucide-react';
 import { askAiAssistant } from '@/ai/flows/assistant-flow';
 import TextAssistantModal from '@/components/assistant/TextAssistantModal';
 import { getHistory, addMessage, ChatMessage } from '@/lib/ai-memory';
@@ -12,10 +12,10 @@ import './ai.css';
 type Status = 'idle' | 'listening' | 'thinking' | 'speaking';
 
 const availableVoices = [
-    { voiceId: 'it-IT-lorenzo', style: 'Conversational', multiNativeLocale: 'hi-IN' },
-    { voiceId: 'hi-IN-kabir', style: 'General' },
-    { voiceId: 'en-UK-hazel', style: 'Conversational', multiNativeLocale: 'hi_IN' },
-    { voiceId: 'de-DE-josephine', style: 'Conversational', multiNativeLocale: 'hi-IN' },
+    { voiceId: 'it-IT-lorenzo', name: 'Lorenzo', description: 'Italian Accent', style: 'Conversational', multiNativeLocale: 'hi-IN' },
+    { voiceId: 'hi-IN-kabir', name: 'Kabir', description: 'Indian Hindi', style: 'General' },
+    { voiceId: 'en-UK-hazel', name: 'Hazel', description: 'UK English Accent', style: 'Conversational', multiNativeLocale: 'hi_IN' },
+    { voiceId: 'de-DE-josephine', name: 'Josephine', description: 'German Accent', style: 'Conversational', multiNativeLocale: 'hi-IN' },
 ];
 
 const SpeechRecognition =
@@ -30,6 +30,7 @@ export default function VoiceAssistantPage() {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [isTextModalOpen, setIsTextModalOpen] = useState(false);
     const [currentVoiceIndex, setCurrentVoiceIndex] = useState(0);
+    const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
 
     const recognitionRef = useRef<any>(null);
     const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -39,6 +40,9 @@ export default function VoiceAssistantPage() {
 
     useEffect(() => {
         setMessages(getHistory());
+        if (!audioRef.current) {
+            audioRef.current = new Audio();
+        }
     }, []);
     
     useEffect(() => {
@@ -127,7 +131,6 @@ export default function VoiceAssistantPage() {
         };
 
         recognition.onresult = (event: any) => {
-            // If the AI is speaking, interrupt it
             if (status === 'speaking') {
                 stopAudio();
                 setStatus('listening');
@@ -185,32 +188,7 @@ export default function VoiceAssistantPage() {
         recognitionRef.current = recognition;
     }, [isAssistantOn, processQuery, status]); 
 
-
-    // Initialize and play greeting audio, then auto-start the assistant
     useEffect(() => {
-        if (!audioRef.current) {
-            audioRef.current = new Audio("/jarvis.mp3");
-        }
-
-        const playGreetingAndListen = () => {
-             if (audioRef.current) {
-                audioRef.current.play().then(() => {
-                    // When greeting ends, turn on the assistant and start listening
-                    audioRef.current!.onended = () => {
-                        setIsAssistantOn(true); 
-                    };
-                }).catch(e => {
-                    if (e.name === 'NotAllowedError') {
-                         setIsAssistantOn(true); // If blocked, just start listening
-                        console.log("Greeting audio blocked by browser. User needs to toggle AI on manually.");
-                    }
-                });
-            }
-        };
-
-        // playGreetingAndListen(); // Auto-start disabled, user will use the toggle
-
-        // Cleanup function to stop everything when the component unmounts
         return () => {
             if (audioRef.current) {
                 audioRef.current.pause();
@@ -224,10 +202,8 @@ export default function VoiceAssistantPage() {
                 clearTimeout(silenceTimeoutRef.current);
             }
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Effect to start/stop listening when the assistant is toggled on/off
     useEffect(() => {
         if (isAssistantOn) {
             startListening();
@@ -247,10 +223,40 @@ export default function VoiceAssistantPage() {
         thinking: { text: "Thinking...", icon: <BrainCircuit size={16}/> },
         speaking: { text: "Speaking...", icon: <Bot size={16}/> },
     };
+    
+    const selectVoice = (index: number) => {
+        setCurrentVoiceIndex(index);
+        setIsVoiceModalOpen(false);
+    }
 
     return (
       <>
-        <main className="ai-container" style={{paddingBottom: '120px'}}>
+        {isVoiceModalOpen && (
+            <div className="modal-overlay" onClick={() => setIsVoiceModalOpen(false)}>
+                <div className="login-card modal-content" style={{maxWidth: '450px'}} onClick={(e) => e.stopPropagation()}>
+                    <div className="modal-header">
+                        <h2>Select a Voice</h2>
+                        <button className="close-button" onClick={() => setIsVoiceModalOpen(false)}><X size={24}/></button>
+                    </div>
+                    <div style={{display: 'flex', flexDirection: 'column', gap: '15px'}}>
+                        {availableVoices.map((voice, index) => (
+                            <button
+                                key={voice.voiceId}
+                                className={`neu-button role-btn ${index === currentVoiceIndex ? 'active' : ''}`}
+                                style={{margin: 0, justifyContent: 'flex-start', textAlign: 'left', padding: '15px 20px', height: 'auto'}}
+                                onClick={() => selectVoice(index)}
+                            >
+                                <div>
+                                    <h4 style={{margin:0, fontSize: '1rem', color: index === currentVoiceIndex ? 'white' : '#3d4468'}}>{voice.name}</h4>
+                                    <p style={{margin:0, fontSize: '0.8rem', color: index === currentVoiceIndex ? 'rgba(255,255,255,0.8)' : '#9499b7'}}>{voice.description}</p>
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        )}
+        <main className="ai-container">
              <header className="dashboard-header" style={{ position: 'sticky', top: '20px', zIndex: 10, background: '#e0e5ec', margin: '0 20px', width: 'auto' }}>
                 <button onClick={() => router.back()} className="neu-button" style={{width: '45px', height: '45px', padding: 0, margin: 0, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
                     <ArrowLeft size={20}/>
@@ -261,9 +267,6 @@ export default function VoiceAssistantPage() {
                 <div style={{display: 'flex', gap: '10px'}}>
                      <button onClick={() => setIsTextModalOpen(true)} className="neu-button" style={{width: '45px', height: '45px', padding: 0, margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
                         <MessageSquare size={18}/>
-                    </button>
-                    <button onClick={() => setCurrentVoiceIndex((prev) => (prev + 1) % availableVoices.length)} className="neu-button" style={{width: '45px', height: '45px', padding: 0, margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-                        <Shuffle size={18}/>
                     </button>
                 </div>
             </header>
@@ -299,11 +302,13 @@ export default function VoiceAssistantPage() {
                 </div>
             </div>
              <div className="ai-control-panel">
-                <p>{isAssistantOn ? "AI is Active" : "AI is Off"}</p>
+                <button onClick={() => setIsVoiceModalOpen(true)} className="neu-button" style={{margin: 0, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px', padding: '12px'}}>
+                    <ListMusic size={16}/> Voice Mode
+                </button>
                 <div className={`neu-toggle-switch big-toggle ${isAssistantOn ? 'active' : ''}`} onClick={() => setIsAssistantOn(!isAssistantOn)}>
                     <div className="neu-toggle-handle"></div>
                 </div>
-            </div>
+             </div>
         </main>
         {isTextModalOpen && <TextAssistantModal onClose={() => setIsTextModalOpen(false)} />}
       </>

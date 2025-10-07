@@ -12,10 +12,10 @@ import './ai.css';
 type Status = 'idle' | 'listening' | 'thinking' | 'speaking';
 
 const availableVoices = [
-    { voiceId: 'it-IT-lorenzo', name: 'Lorenzo (Male)', lang: 'Italian Accent', style: 'Conversational', multiNativeLocale: 'hi-IN' },
-    { voiceId: 'hi-IN-kabir', name: 'Kabir (Male)', lang: 'Indian Hindi', style: 'General' },
-    { voiceId: 'en-UK-hazel', name: 'Hazel (Female)', lang: 'UK English Accent', style: 'Conversational', multiNativeLocale: 'hi_IN' },
-    { voiceId: 'de-DE-josephine', name: 'Josephine (Female)', lang: 'German Accent', style: 'Conversational', multiNativeLocale: 'hi-IN' },
+    { voiceId: 'it-IT-lorenzo', name: 'Lorenzo', description: 'Italian Accent', style: 'Conversational', multiNativeLocale: 'hi-IN' },
+    { voiceId: 'hi-IN-kabir', name: 'Kabir', description: 'Indian Hindi', style: 'General' },
+    { voiceId: 'en-UK-hazel', name: 'Hazel', description: 'UK English Accent', style: 'Conversational', multiNativeLocale: 'hi_IN' },
+    { voiceId: 'de-DE-josephine', name: 'Josephine', description: 'German Accent', style: 'Conversational', multiNativeLocale: 'hi-IN' },
 ];
 
 
@@ -218,7 +218,7 @@ export default function VoiceAssistantPage() {
                             >
                                 <div>
                                     <h4 style={{margin:0, fontSize: '1rem', color: index === currentVoiceIndex ? 'white' : '#3d4468'}}>{voice.name}</h4>
-                                    <p style={{margin:0, fontSize: '0.8rem', color: index === currentVoiceIndex ? 'rgba(255,255,255,0.8)' : '#9499b7'}}>{voice.lang}</p>
+                                    <p style={{margin:0, fontSize: '0.8rem', color: index === currentVoiceIndex ? 'rgba(255,255,255,0.8)' : '#9499b7'}}>{voice.description}</p>
                                 </div>
                             </button>
                         ))}
@@ -227,7 +227,7 @@ export default function VoiceAssistantPage() {
             </div>
         )}
 
-        <main className="ai-container" style={{paddingBottom: '120px'}}>
+        <main className="ai-container">
              <header className="dashboard-header" style={{ position: 'sticky', top: '20px', zIndex: 10, background: '#e0e5ec', margin: '0 20px', width: 'auto' }}>
                 <button onClick={() => router.back()} className="neu-button" style={{width: '45px', height: '45px', padding: 0, margin: 0, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
                     <ArrowLeft size={20}/>
@@ -238,9 +238,6 @@ export default function VoiceAssistantPage() {
                 <div style={{display: 'flex', gap: '10px'}}>
                      <button onClick={() => setIsTextModalOpen(true)} className="neu-button" style={{width: '45px', height: '45px', padding: 0, margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
                         <MessageSquare size={18}/>
-                    </button>
-                    <button onClick={() => setIsVoiceModalOpen(true)} className="neu-button" style={{width: '45px', height: '45px', padding: 0, margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-                        <ListMusic size={18}/>
                     </button>
                 </div>
             </header>
@@ -287,7 +284,9 @@ export default function VoiceAssistantPage() {
             </div>
 
             <div className="ai-control-panel">
-                <p>{isAssistantOn ? "AI is Active" : "AI is Off"}</p>
+                <button onClick={() => setIsVoiceModalOpen(true)} className="neu-button" style={{margin: 0, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px', padding: '12px'}}>
+                    <ListMusic size={16}/> Voice Mode
+                </button>
                 <div className={`neu-toggle-switch big-toggle ${isAssistantOn ? 'active' : ''}`} onClick={handlePowerToggle}>
                     <div className="neu-toggle-handle"></div>
                 </div>
