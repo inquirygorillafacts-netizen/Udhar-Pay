@@ -36,12 +36,15 @@ export default function VoiceAssistantPage() {
         const loadVoices = () => {
             voicesRef.current = window.speechSynthesis.getVoices();
         };
-        loadVoices();
-        window.speechSynthesis.onvoiceschanged = loadVoices;
+        // Load voices initially and on change
+        if (typeof window !== 'undefined' && window.speechSynthesis) {
+            loadVoices();
+            window.speechSynthesis.onvoiceschanged = loadVoices;
+        }
     }, []);
     
     const stopAudio = useCallback(() => {
-        if (typeof window !== 'undefined') {
+        if (typeof window !== 'undefined' && window.speechSynthesis) {
             window.speechSynthesis.cancel();
         }
     }, []);
@@ -54,10 +57,9 @@ export default function VoiceAssistantPage() {
         if (recognitionRef.current) {
             try {
                 recognitionRef.current.start();
-                setStatus('listening');
+                // Status is set in onstart
             } catch (e) {
-                console.error("Could not start recognition (might be running already): ", e);
-                setStatus('idle');
+                // This can happen if recognition is already starting, which is fine.
             }
         }
     }, [hasPermission, isMuted, status]);
@@ -67,7 +69,6 @@ export default function VoiceAssistantPage() {
             console.error("Browser does not support speech synthesis.");
             setStatus('idle');
             isProcessingQuery.current = false;
-            // No automatic restart here, user must re-engage
             return;
         }
         
@@ -146,6 +147,7 @@ export default function VoiceAssistantPage() {
             return;
         }
         
+        // This is a workaround for some browsers that require a user gesture to start speech synthesis.
         if (window.speechSynthesis.speaking) window.speechSynthesis.cancel();
         const silentUtterance = new SpeechSynthesisUtterance('');
         window.speechSynthesis.speak(silentUtterance);
@@ -156,8 +158,8 @@ export default function VoiceAssistantPage() {
             setHasPermission(true);
 
             const recognition = new SpeechRecognition();
-            recognition.continuous = true; // Keep listening
-            recognition.interimResults = true; // Get results as user speaks
+            recognition.continuous = true;
+            recognition.interimResults = true;
             recognition.lang = 'hi-IN';
             
             let finalTranscript = '';
@@ -174,13 +176,14 @@ export default function VoiceAssistantPage() {
                         interimTranscript += event.results[i][0].transcript;
                     }
                 }
-
+                
+                // If we have a final transcript, process it.
                 if (finalTranscript.trim()) {
                     processQuery(finalTranscript.trim());
                     finalTranscript = '';
                 }
 
-                // If user pauses for 1.5s, consider it the end of input
+                // If the user pauses for 1.5s, consider it the end of input
                 speechTimeoutRef.current = setTimeout(() => {
                     if (interimTranscript.trim() && !isProcessingQuery.current) {
                        processQuery(interimTranscript.trim());
@@ -197,6 +200,7 @@ export default function VoiceAssistantPage() {
                  if (speechTimeoutRef.current) {
                     clearTimeout(speechTimeoutRef.current);
                 }
+                // Only go to idle if not in the middle of processing a query.
                 if (!isProcessingQuery.current) {
                     setStatus('idle');
                 }
@@ -214,7 +218,7 @@ export default function VoiceAssistantPage() {
             };
             recognitionRef.current = recognition;
             
-            setStatus('idle');
+            setStatus('idle'); // Move to idle to trigger the listening useEffect
 
         } catch (err) {
             console.error('Microphone permission denied.', err);
@@ -243,6 +247,12 @@ export default function VoiceAssistantPage() {
     
     
     const handleMuteToggle = () => {
+        if (status === 'speaking') {
+            stopAudio(); // This also triggers onend which sets status to 'idle'
+            // The useEffect for 'idle' will then call startListening()
+            return;
+        }
+
         const nextMuteState = !isMuted;
         setIsMuted(nextMuteState);
         
@@ -326,7 +336,7 @@ export default function VoiceAssistantPage() {
                  <button className="glass-button" disabled>
                     <Settings size={18}/>
                 </button>
-                 <button onClick={handleMuteToggle} className={`glass-button ${isMuted ? 'active' : ''}`} disabled={status === 'uninitialized'}>
+                 <button onClick={handleMuteToggle} className={`glass-button ${isMuted || status === 'speaking' ? 'active' : ''}`} disabled={status === 'uninitialized'}>
                     {isMuted ? <MicOff size={18}/> : <Mic size={18}/>}
                 </button>
                 <button onClick={() => setIsTextModalOpen(true)} className="glass-button" disabled={status === 'uninitialized'}>
