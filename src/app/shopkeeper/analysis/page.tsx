@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useFirebase } from '@/firebase';
 import { doc, onSnapshot, collection, query, where, Timestamp } from 'firebase/firestore';
-import { Users, BookUser, UserCheck, IndianRupee, PieChart } from 'lucide-react';
+import { Users, BookUser, UserCheck, IndianRupee, PieChart, ArrowDownCircle } from 'lucide-react';
 
 interface ShopkeeperProfile {
   uid: string;
@@ -13,10 +13,11 @@ interface ShopkeeperProfile {
 interface Transaction {
     id: string;
     amount: number;
-    type: 'credit' | 'payment';
+    type: 'credit' | 'payment' | 'commission';
     customerId: string;
     shopkeeperId: string;
     timestamp: Timestamp;
+    commissionRate?: number;
 }
 
 interface Analytics {
@@ -24,11 +25,12 @@ interface Analytics {
     customersOnCredit: number;
     customersWithZeroBalance: number;
     totalOutstanding: number;
+    totalPaymentReceived: number;
 }
 
 export default function ShopkeeperAnalysisPage() {
   const { auth, firestore } = useFirebase();
-  const [analytics, setAnalytics] = useState<Analytics>({ totalCustomers: 0, customersOnCredit: 0, customersWithZeroBalance: 0, totalOutstanding: 0 });
+  const [analytics, setAnalytics] = useState<Analytics>({ totalCustomers: 0, customersOnCredit: 0, customersWithZeroBalance: 0, totalOutstanding: 0, totalPaymentReceived: 0 });
   const [loadingAnalytics, setLoadingAnalytics] = useState(true);
 
   useEffect(() => {
@@ -38,7 +40,7 @@ export default function ShopkeeperAnalysisPage() {
     
     const shopkeeperRef = doc(firestore, 'shopkeepers', auth.currentUser.uid);
     const unsubscribeShopkeeper = onSnapshot(shopkeeperRef, (shopkeeperSnap) => {
-      unsubscribeTransactions(); // Unsubscribe from previous transaction listener
+      unsubscribeTransactions(); 
       setLoadingAnalytics(true);
 
       if (!shopkeeperSnap.exists()) {
@@ -50,7 +52,7 @@ export default function ShopkeeperAnalysisPage() {
       const customerIds = shopkeeperProfile.connections || [];
       
       if (customerIds.length === 0) {
-        setAnalytics({ totalCustomers: 0, customersOnCredit: 0, customersWithZeroBalance: 0, totalOutstanding: 0 });
+        setAnalytics({ totalCustomers: 0, customersOnCredit: 0, customersWithZeroBalance: 0, totalOutstanding: 0, totalPaymentReceived: 0 });
         setLoadingAnalytics(false);
         return;
       }
@@ -61,14 +63,20 @@ export default function ShopkeeperAnalysisPage() {
       unsubscribeTransactions = onSnapshot(q, (transactionsSnapshot) => {
         const customerBalances: { [key: string]: number } = {};
         customerIds.forEach(id => customerBalances[id] = 0);
+        let totalPaymentReceivedPrincipal = 0;
 
-        transactionsSnapshot.forEach((transactionDoc) => {
-            const transaction = transactionDoc.data() as Transaction;
+        const allTransactions = transactionsSnapshot.docs.map(doc => doc.data() as Transaction);
+
+        allTransactions.forEach((transaction) => {
             if (customerBalances[transaction.customerId] !== undefined) {
                 if (transaction.type === 'credit') {
                     customerBalances[transaction.customerId] += transaction.amount;
                 } else if (transaction.type === 'payment') {
-                    customerBalances[transaction.customerId] -= transaction.amount;
+                    // Use the commission rate from the transaction if available, otherwise fallback
+                    const commissionRate = transaction.commissionRate || 2.5; 
+                    const principalAmount = transaction.amount / (1 + (commissionRate / 100));
+                    customerBalances[transaction.customerId] -= principalAmount;
+                    totalPaymentReceivedPrincipal += principalAmount;
                 }
             }
         });
@@ -90,6 +98,7 @@ export default function ShopkeeperAnalysisPage() {
             customersOnCredit,
             customersWithZeroBalance: totalCustomers - customersOnCredit,
             totalOutstanding,
+            totalPaymentReceived: totalPaymentReceivedPrincipal
         });
         setLoadingAnalytics(false);
 
@@ -115,17 +124,18 @@ export default function ShopkeeperAnalysisPage() {
             <div className="login-header" style={{marginBottom: '40px'}}>
                  <div className="neu-icon"><div className="icon-inner"><PieChart size={40}/></div></div>
                 <h1 style={{ color: '#3d4468', fontSize: '2rem', fontWeight: '600' }}>Udhaar Analysis</h1>
+                 <p style={{ color: '#9499b7' }}>Monitor your business performance.</p>
             </div>
         
             {loadingAnalytics ? (
                 <div className="loading-container" style={{minHeight: '400px'}}>
                     <div className="neu-spinner"></div>
-                    <p style={{marginTop: '20px', color: '#6c7293'}}>Analyzing data...</p>
+                    <p style={{marginTop: '20px', color: '#6c7293'}}>Analyzing your business data...</p>
                 </div>
             ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
                     
-                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '25px' }}>
+                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '25px' }}>
                         <div className="neu-input" style={{ padding: '25px', textAlign: 'center' }}>
                             <Users size={32} className="mx-auto mb-4 text-primary"/>
                             <p style={{color: '#6c7293', fontSize: '14px', fontWeight: 500, margin: 0}}>Total Customers</p>
@@ -142,11 +152,18 @@ export default function ShopkeeperAnalysisPage() {
                             <p style={{color: '#3d4468', fontSize: '2rem', fontWeight: 700, margin: '5px 0'}}>{analytics.customersWithZeroBalance}</p>
                         </div>
                     </div>
-
-                    <div className="login-card" style={{ margin: 0, padding: '25px', textAlign: 'center', background: 'linear-gradient(145deg, #d1d9e6, #f9f9f9)' }}>
-                        <IndianRupee size={36} className="mx-auto mb-4 text-red-500"/>
-                        <p style={{color: '#6c7293', fontSize: '1rem', fontWeight: 500, margin: 0}}>Total Outstanding Credit</p>
-                        <p style={{color: '#3d4468', fontSize: '2.5rem', fontWeight: 700, margin: '5px 0'}}>₹{analytics.totalOutstanding.toLocaleString('en-IN')}</p>
+                    
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '25px' }}>
+                        <div className="login-card" style={{ margin: 0, padding: '25px', textAlign: 'center', background: '#ffebee', border: '2px solid #ffcdd2' }}>
+                            <IndianRupee size={36} className="mx-auto mb-4 text-red-500"/>
+                            <p style={{color: '#b71c1c', fontSize: '1rem', fontWeight: 500, margin: 0}}>Total Outstanding</p>
+                            <p style={{color: '#c62828', fontSize: '2.5rem', fontWeight: 'bold', margin: '5px 0'}}>₹{analytics.totalOutstanding.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                        </div>
+                         <div className="login-card" style={{ margin: 0, padding: '25px', textAlign: 'center', background: '#e8f5e9', border: '2px solid #c8e6c9' }}>
+                            <ArrowDownCircle size={36} className="mx-auto mb-4 text-green-600"/>
+                            <p style={{color: '#1b5e20', fontSize: '1rem', fontWeight: 500, margin: 0}}>Total Payment Received</p>
+                            <p style={{color: '#2e7d32', fontSize: '2.5rem', fontWeight: 'bold', margin: '5px 0'}}>₹{analytics.totalPaymentReceived.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                        </div>
                     </div>
 
                 </div>

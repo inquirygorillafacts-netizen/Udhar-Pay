@@ -7,8 +7,6 @@ import { useFirebase } from '@/firebase';
 import { doc, getDoc, collection, query, where, onSnapshot, Timestamp } from 'firebase/firestore';
 import { ArrowLeft, User, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
 
-const COMMISSION_RATE = 0.025;
-
 interface CustomerProfile {
   uid: string;
   displayName: string;
@@ -22,6 +20,7 @@ interface Transaction {
   amount: number;
   timestamp: Timestamp;
   notes?: string;
+  commissionRate?: number;
 }
 
 export default function CustomerTransactionHistoryPage() {
@@ -70,41 +69,37 @@ export default function CustomerTransactionHistoryPage() {
     );
 
     const unsubscribeTransactions = onSnapshot(q, (snapshot) => {
-      const trans: Transaction[] = [];
-      snapshot.forEach(doc => {
-        const transactionData = doc.data();
-        // The commission is not directly shown, but the payment amount needs to be adjusted for the shopkeeper's view.
-        if (transactionData.type !== 'commission') {
-            trans.push({ id: doc.id, ...transactionData } as Transaction);
-        }
-      });
+      const allTransactions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
       
-      trans.sort((a, b) => {
+      allTransactions.sort((a, b) => {
         const timeA = a.timestamp ? a.timestamp.toMillis() : 0;
         const timeB = b.timestamp ? b.timestamp.toMillis() : 0;
         return timeB - timeA;
       });
-      
 
       let totalCredit = 0;
       let totalPaymentPrincipal = 0;
       
-      trans.forEach(tx => {
+      allTransactions.forEach(tx => {
           if (tx.type === 'credit') {
               totalCredit += tx.amount;
           } else if (tx.type === 'payment') {
-              const principalAmount = tx.amount / (1 + COMMISSION_RATE);
+              const commissionRate = tx.commissionRate || 2.5; // Fallback to default if not present
+              const principalAmount = tx.amount / (1 + (commissionRate / 100));
               totalPaymentPrincipal += principalAmount;
           }
       });
       
-      const adjustedTransactions = trans.map(tx => {
-        if (tx.type === 'payment') {
-            const principalAmount = tx.amount / (1 + COMMISSION_RATE);
-            return {...tx, amount: Math.round(principalAmount * 100) / 100};
-        }
-        return tx;
-      });
+      const adjustedTransactions = allTransactions
+        .filter(tx => tx.type !== 'commission') // Filter out commission transactions from view
+        .map(tx => {
+          if (tx.type === 'payment') {
+              const commissionRate = tx.commissionRate || 2.5;
+              const principalAmount = tx.amount / (1 + (commissionRate / 100));
+              return {...tx, amount: Math.round(principalAmount * 100) / 100};
+          }
+          return tx;
+        });
 
       setTransactions(adjustedTransactions);
       setNetBalance(totalCredit - totalPaymentPrincipal);
