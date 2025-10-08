@@ -129,7 +129,7 @@ export default function CustomerDashboardPage() {
               snapshot.forEach((doc) => {
                   const tx = doc.data() as Transaction;
                   if (newBalances[tx.shopkeeperId] !== undefined) {
-                       // Correct balance calculation for customer view: commission is part of their debt
+                      // Correct balance for customer: debt is principal + commission
                       if (tx.type === 'credit' || tx.type === 'commission') {
                           newBalances[tx.shopkeeperId] += tx.amount;
                       } else if (tx.type === 'payment') {
@@ -458,7 +458,7 @@ export default function CustomerDashboardPage() {
                 </div>
                 <div className="token-balance" style={{ flex: 1.5, flexDirection: 'column', padding: '15px', height: 'auto', gap: '2px' }}>
                     <span style={{fontSize: '12px', color: '#6c7293', fontWeight: 500}}>Total Udhaar</span>
-                    <span style={{fontSize: '1.75rem'}}>₹{totalBalance}</span>
+                    <span style={{fontSize: '1.75rem'}}>₹{totalBalance.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                 </div>
             </div>
 
@@ -515,3 +515,4 @@ export default function CustomerDashboardPage() {
     
 
     
+

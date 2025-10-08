@@ -109,8 +109,8 @@ export default function OwnerDashboardPage() {
                 const tx = txDoc.data() as Transaction;
                 const txTimestamp = (tx.timestamp as Timestamp)?.toDate();
                 
-                // Correct calculation for total outstanding balance
-                if (tx.type === 'credit' || tx.type === 'commission') {
+                // Correct calculation for total outstanding balance (excluding commission for this view)
+                if (tx.type === 'credit') {
                     totalOutstanding += tx.amount;
                 } else if (tx.type === 'payment') {
                     totalOutstanding -= tx.amount;
