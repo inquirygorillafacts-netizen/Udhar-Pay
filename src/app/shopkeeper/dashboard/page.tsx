@@ -110,6 +110,8 @@ export default function ShopkeeperDashboardPage() {
   const [hasCustomerRole, setHasCustomerRole] = useState(false);
   const [showRoleModal, setShowRoleModal] = useState(false);
 
+  const customerProfilesCache = useRef<UserProfile[]>([]);
+
 
   useEffect(() => {
     if (!auth.currentUser || !firestore) {
@@ -120,8 +122,7 @@ export default function ShopkeeperDashboardPage() {
 
     setLoadingProfile(true);
     const currentUserUid = auth.currentUser.uid;
-    let customerProfilesCache: UserProfile[] = [];
-
+    
     // Listener for the shopkeeper's profile
     const shopkeeperRef = doc(firestore, 'shopkeepers', currentUserUid);
     const unsubscribeProfile = onSnapshot(shopkeeperRef, async (shopkeeperDoc) => {
@@ -138,9 +139,9 @@ export default function ShopkeeperDashboardPage() {
                 const customersRef = collection(firestore, 'customers');
                 const q = query(customersRef, where('__name__', 'in', customerIds));
                 const customersSnap = await getDocs(q);
-                customerProfilesCache = customersSnap.docs.map(cDoc => ({ uid: cDoc.id, ...cDoc.data() } as UserProfile));
+                customerProfilesCache.current = customersSnap.docs.map(cDoc => ({ uid: cDoc.id, ...cDoc.data() } as UserProfile));
             } else {
-                customerProfilesCache = [];
+                customerProfilesCache.current = [];
                 setCustomers([]);
                 setFilteredCustomers([]);
             }
@@ -156,7 +157,7 @@ export default function ShopkeeperDashboardPage() {
     const unsubscribeTransactions = onSnapshot(transQuery, (transSnap) => {
         setLoadingCustomers(true);
         const balances: { [key: string]: number } = {};
-        customerProfilesCache.forEach(p => balances[p.uid] = 0);
+        customerProfilesCache.current.forEach(p => balances[p.uid] = 0);
 
         transSnap.forEach(doc => {
             const t = doc.data() as any;
@@ -166,7 +167,7 @@ export default function ShopkeeperDashboardPage() {
             }
         });
 
-        const customersWithBalance = customerProfilesCache.map(p => ({
+        const customersWithBalance = customerProfilesCache.current.map(p => ({
             ...p,
             balance: balances[p.uid] || 0
         })) as CustomerForSelection[];
