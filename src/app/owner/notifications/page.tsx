@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useFirebase } from '@/firebase/client-provider';
+import { useFirebase } from '@/firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Bell, Send, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
