@@ -93,16 +93,16 @@ export default function OwnerNotificationPage() {
 
                 <div className="form-group">
                      <h3 className="setting-title" style={{textAlign: 'center', border: 'none', fontSize: '1rem', paddingBottom: 0}}>Send To:</h3>
-                     <RadioGroup onValueChange={(value: TargetAudience) => setTarget(value)} value={target ?? ''} className="role-buttons" style={{justifyContent: 'center', gap: '20px', marginBottom: '30px'}}>
-                        <Label htmlFor="customers" className={`neu-button role-btn ${target === 'customers' ? 'active' : ''}`}>
+                     <RadioGroup onValueChange={(value: TargetAudience) => setTarget(value)} value={target ?? ''} className="flex justify-center gap-4 mb-8">
+                        <Label htmlFor="customers" className={`neu-button ${target === 'customers' ? 'active' : ''}`} style={{flex: 1, margin: 0, padding: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'}}>
                             <RadioGroupItem value="customers" id="customers" className="sr-only" />
-                            <Users size={20} style={{marginRight: '8px'}} /> Customers
+                            <Users size={20} /> Customers
                         </Label>
-                         <Label htmlFor="shopkeepers" className={`neu-button role-btn ${target === 'shopkeepers' ? 'active' : ''}`}>
+                         <Label htmlFor="shopkeepers" className={`neu-button ${target === 'shopkeepers' ? 'active' : ''}`} style={{flex: 1, margin: 0, padding: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'}}>
                             <RadioGroupItem value="shopkeepers" id="shopkeepers" className="sr-only" />
-                            <Store size={20} style={{marginRight: '8px'}} /> Shopkeepers
+                            <Store size={20} /> Shopkeepers
                         </Label>
-                         <Label htmlFor="both" className={`neu-button role-btn ${target === 'both' ? 'active' : ''}`}>
+                         <Label htmlFor="both" className={`neu-button ${target === 'both' ? 'active' : ''}`} style={{flex: 1, margin: 0, padding: '15px'}}>
                             <RadioGroupItem value="both" id="both" className="sr-only" />
                             Both
                         </Label>
