@@ -29,6 +29,7 @@ export default function VoiceAssistantPage() {
     const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
     const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
     const isProcessingQuery = useRef(false);
+    const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
     const loadVoices = useCallback(() => {
         voicesRef.current = window.speechSynthesis.getVoices();
@@ -48,6 +49,19 @@ export default function VoiceAssistantPage() {
         }
     }, [loadVoices]);
     
+    const shutdownAssistant = useCallback(() => {
+        if (recognitionRef.current) {
+            recognitionRef.current.abort(); // Use abort to immediately stop
+            recognitionRef.current = null;
+        }
+        if (silenceTimerRef.current) {
+            clearTimeout(silenceTimerRef.current);
+        }
+        stopAudio();
+        setStatus('uninitialized');
+        isProcessingQuery.current = false;
+    }, []);
+
     const stopAudio = useCallback(() => {
         if (typeof window !== 'undefined' && window.speechSynthesis.speaking) {
             window.speechSynthesis.cancel();
@@ -60,17 +74,18 @@ export default function VoiceAssistantPage() {
         localStorage.setItem('aiLanguage', newLang);
         stopAudio();
         if (recognitionRef.current) {
-            recognitionRef.current.stop(); // This will trigger onend, which sets status to idle
+            recognitionRef.current.stop();
         } else {
             setStatus('idle');
         }
     };
     
-    const speak = useCallback((text: string) => {
+    const speak = useCallback((text: string, onEndCallback?: () => void) => {
         if (typeof window === 'undefined' || !window.speechSynthesis) {
             console.error("Browser does not support speech synthesis.");
             setStatus('idle');
             isProcessingQuery.current = false;
+            onEndCallback?.();
             return;
         }
         
@@ -91,24 +106,38 @@ export default function VoiceAssistantPage() {
         utterance.pitch = 1;
 
         utterance.onstart = () => {
-             if (recognitionRef.current) recognitionRef.current.stop(); // Stop listening when AI starts speaking
+             if (recognitionRef.current) recognitionRef.current.stop();
             setStatus('speaking');
         }
         utterance.onend = () => {
-            setStatus('idle');
-            isProcessingQuery.current = false;
+            if (onEndCallback) {
+                onEndCallback();
+            } else {
+                setStatus('idle');
+                isProcessingQuery.current = false;
+            }
         };
         utterance.onerror = (event) => {
             if (event.error !== 'interrupted') {
                console.error("Speech synthesis error:", event.error);
             }
-            setStatus('idle');
-            isProcessingQuery.current = false;
+            if (onEndCallback) {
+                onEndCallback();
+            } else {
+                setStatus('idle');
+                isProcessingQuery.current = false;
+            }
         };
         
         utteranceRef.current = utterance;
         window.speechSynthesis.speak(utterance);
     }, [stopAudio, language]);
+
+    const handleSilence = useCallback(() => {
+        speak("माफ़ करना, आप अगर बात-चीत नहीं करना चाहते हो तो मुझे जाना होगा।", () => {
+            shutdownAssistant();
+        });
+    }, [speak, shutdownAssistant]);
 
     const processQuery = useCallback(async (text: string) => {
         if (isProcessingQuery.current || !text) return;
@@ -140,13 +169,15 @@ export default function VoiceAssistantPage() {
     }, [speak, language]);
 
     const startListening = useCallback(() => {
-        if (!SpeechRecognition || !hasPermission || isMuted || status === 'listening' || status === 'speaking' || isProcessingQuery.current) {
+        if (!SpeechRecognition || !hasPermission || isMuted || status === 'speaking' || isProcessingQuery.current) {
             return;
         }
         if (recognitionRef.current) {
             try {
-                recognitionRef.current.lang = language === 'hindi' ? 'hi-IN' : 'en-US';
-                recognitionRef.current.start();
+                if (status !== 'listening') {
+                   recognitionRef.current.lang = language === 'hindi' ? 'hi-IN' : 'en-US';
+                   recognitionRef.current.start();
+                }
             } catch (e) {
                 console.error("Could not start recognition (might already be running):", e);
             }
@@ -161,7 +192,7 @@ export default function VoiceAssistantPage() {
             return;
         }
         
-        if (window.speechSynthesis.speaking) window.speechSynthesis.cancel();
+        stopAudio();
         
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -173,6 +204,8 @@ export default function VoiceAssistantPage() {
             recognition.interimResults = true;
 
             recognition.onresult = (event: any) => {
+                if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+                
                 let finalTranscript = '';
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
                     if (event.results[i].isFinal) {
@@ -189,12 +222,14 @@ export default function VoiceAssistantPage() {
             };
 
             recognition.onend = () => {
+                if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
                 if (!isProcessingQuery.current && status !== 'uninitialized' && status !== 'speaking') {
                     setStatus('idle');
                 }
             };
 
             recognition.onerror = (event: any) => {
+                if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
                 if (event.error === 'not-allowed') {
                     setHasPermission(false);
                     addMessage({ sender: 'ai', text: "Microphone permission denied. Please enable it to use the voice assistant." });
@@ -216,13 +251,23 @@ export default function VoiceAssistantPage() {
             addMessage({ sender: 'ai', text: "Microphone permission denied. Please enable it in your browser settings to use the voice assistant." });
             setMessages(getHistory());
         }
-    }, [processQuery]);
+    }, [processQuery, stopAudio]);
     
     useEffect(() => {
         if(status === 'idle' && !isMuted) {
             startListening();
         }
-    }, [status, isMuted, startListening]);
+         if (status === 'listening') {
+            silenceTimerRef.current = setTimeout(handleSilence, 15000);
+        } else {
+            if (silenceTimerRef.current) {
+                clearTimeout(silenceTimerRef.current);
+            }
+        }
+        return () => {
+            if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+        }
+    }, [status, isMuted, startListening, handleSilence]);
 
     useEffect(() => {
         setMessages(getHistory());
@@ -249,13 +294,9 @@ export default function VoiceAssistantPage() {
 
     useEffect(() => {
         return () => {
-            stopAudio();
-            if (recognitionRef.current) {
-                recognitionRef.current.abort();
-                recognitionRef.current = null;
-            }
+            shutdownAssistant();
         }
-    }, [stopAudio]);
+    }, [shutdownAssistant]);
     
     return (
       <>
