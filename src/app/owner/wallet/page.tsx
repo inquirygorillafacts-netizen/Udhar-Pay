@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useFirebase } from '@/firebase';
-import { collection, onSnapshot, query, doc, getDoc, where } from 'firebase/firestore';
+import { collection, onSnapshot, query, doc, getDoc, where, getDocs } from 'firebase/firestore';
 import { IndianRupee, Users, Store, CheckSquare } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
