@@ -259,7 +259,8 @@ export default function ShopkeeperDashboardPage() {
 
  const handleAcceptClick = (request: ConnectionRequest) => {
     setActiveConnectionRequest(request);
-    setShowSetLimitModal(true);
+    setIsMessageSidebarOpen(false); // Close sidebar immediately
+    setShowSetLimitModal(true); // Show modal immediately
   };
 
   const handleConfirmAcceptConnection = async (limitType: 'default' | 'manual', manualLimit?: number) => {
