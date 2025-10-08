@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useFirebase } from '@/firebase';
-import { collection, onSnapshot, query, orderBy, doc, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, doc, updateDoc, getDoc } from 'firebase/firestore';
 import { LandPlot, User, Store, IndianRupee, Calendar, Check, X, Phone, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -19,6 +19,7 @@ interface LoanApplication {
   createdAt: {
     toDate: () => Date;
   };
+  userPhone?: string; // Optional phone number field
 }
 
 export default function LoanApplicationsPage() {
@@ -35,8 +36,27 @@ export default function LoanApplicationsPage() {
     const applicationsRef = collection(firestore, 'loanApplications');
     const q = query(applicationsRef, orderBy('createdAt', 'desc'));
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const appList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as LoanApplication));
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      const appListPromises = snapshot.docs.map(async (appDoc) => {
+        const appData = appDoc.data() as Omit<LoanApplication, 'id' | 'userPhone'>;
+        let userPhone = '';
+
+        // Fetch user's phone number based on their role
+        try {
+          const collectionName = `${appData.userRole}s`;
+          const userRef = doc(firestore, collectionName, appData.userId);
+          const userSnap = await getDoc(userRef);
+          if (userSnap.exists()) {
+            userPhone = userSnap.data().mobileNumber || '';
+          }
+        } catch (error) {
+          console.error(`Failed to fetch phone for ${appData.userId}:`, error);
+        }
+
+        return { id: appDoc.id, ...appData, userPhone } as LoanApplication;
+      });
+
+      const appList = await Promise.all(appListPromises);
       setApplications(appList);
       setLoading(false);
     }, (error) => {
@@ -129,12 +149,17 @@ export default function LoanApplicationsPage() {
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <p style={{ fontSize: '12px', color: '#9499b7' }}>Applied on: {app.createdAt.toDate().toLocaleDateString('en-IN')}</p>
-                  {app.status === 'pending' && (
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                      <button onClick={() => handleStatusUpdate(app.id, 'rejected')} className="neu-button" style={{ margin: 0, padding: '10px', width: 'auto', height: 'auto', background: '#ff3b5c', color: 'white' }}><X size={18} /></button>
-                      <button onClick={() => handleStatusUpdate(app.id, 'approved')} className="neu-button" style={{ margin: 0, padding: '10px', width: 'auto', height: 'auto', background: '#00c896', color: 'white' }}><Check size={18} /></button>
-                    </div>
-                  )}
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                     {app.userPhone && (
+                        <a href={`tel:${app.userPhone}`} className="neu-button" style={{ margin: 0, padding: '10px', width: 'auto', height: 'auto', background: '#007bff', color: 'white' }}><Phone size={18} /></a>
+                     )}
+                     {app.status === 'pending' && (
+                        <>
+                            <button onClick={() => handleStatusUpdate(app.id, 'rejected')} className="neu-button" style={{ margin: 0, padding: '10px', width: 'auto', height: 'auto', background: '#ff3b5c', color: 'white' }}><X size={18} /></button>
+                            <button onClick={() => handleStatusUpdate(app.id, 'approved')} className="neu-button" style={{ margin: 0, padding: '10px', width: 'auto', height: 'auto', background: '#00c896', color: 'white' }}><Check size={18} /></button>
+                        </>
+                     )}
+                  </div>
                 </div>
 
               </div>
