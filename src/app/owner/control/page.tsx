@@ -174,9 +174,9 @@ export default function OwnerControlPage() {
                  <div style={{ padding: '15px 20px', background: '#eef2ff', borderRadius: '15px', border: '1px solid #c7d2fe', display: 'flex', gap: '15px', alignItems: 'center', marginTop: '30px' }}>
                     <AlertCircle className="text-indigo-500" size={32} />
                     <div>
-                        <h4 style={{ color: '#4338ca', fontWeight: 'bold' }}>Note on Analytics</h4>
+                        <h4 style={{ color: '#4338ca', fontWeight: 'bold' }}>एनालिटिक्स पर ध्यान दें</h4>
                         <p style={{ color: '#4f46e5', margin: 0, fontSize: '13px' }}>
-                            Analytics are calculated in real-time based on transaction data. "Pending on Credit" is an estimate based on the current commission rate applied to all outstanding udhaar.
+                            यह सभी आँकड़े रियल-टाइम में लेन-देन के आधार पर दिखते हैं। "बकाया उधार पर कमीशन" एक अनुमान है जो यह बताता है कि मौजूदा उधार पर वर्तमान कमीशन रेट के हिसाब से कितनी कमाई होगी।
                         </p>
                     </div>
                 </div>
