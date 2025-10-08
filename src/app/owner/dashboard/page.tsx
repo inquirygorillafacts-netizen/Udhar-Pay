@@ -5,7 +5,7 @@ import { useFirebase } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { collection, onSnapshot, query, where, Timestamp, getDocs, doc } from 'firebase/firestore';
-import { Users, Store, IndianRupee, TrendingUp, ArrowLeftRight, Wallet } from 'lucide-react';
+import { Users, Store, IndianRupee, TrendingUp, ArrowLeftRight, Wallet, Banknote } from 'lucide-react';
 
 interface Transaction {
     amount: number;
@@ -13,7 +13,7 @@ interface Transaction {
     timestamp: Timestamp;
     customerId: string;
     shopkeeperId: string;
-    isPaid?: boolean; // For commission transactions
+    isPaid?: boolean;
     commissionRate?: number;
     parentCreditId?: string;
 }
@@ -38,7 +38,6 @@ const StatCard = ({ title, value, icon, colorClass }: StatCardProps) => (
 const TransactionItem = ({ tx }: { tx: Transaction & { id: string, customerName?: string, shopkeeperName?: string } }) => {
     const isCredit = tx.type === 'credit';
     
-    // We don't want to show commission transactions in the main feed
     if (tx.type === 'commission') return null;
 
     return (
@@ -80,6 +79,7 @@ export default function OwnerDashboardPage() {
         profit24h: 0,
         profit30d: 0,
         totalProfit: 0,
+        totalUdhaarRecovery: 0,
     });
 
     const [recentTransactions, setRecentTransactions] = useState<(Transaction & { id: string, customerName?: string, shopkeeperName?: string })[]>([]);
@@ -99,37 +99,29 @@ export default function OwnerDashboardPage() {
             const twentyFourHoursAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
             const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
             
-            let totalOutstanding = 0;
+            let totalCreditPrincipal = 0;
+            let totalPaymentPrincipal = 0;
             let profit24h = 0;
             let profit30d = 0;
             let totalProfit = 0;
             let transactionsToday = 0;
 
             const allTransactions: (Transaction & {id: string})[] = [];
-
             snapshot.docs.forEach(doc => {
                 allTransactions.push({ id: doc.id, ...doc.data() } as (Transaction & {id: string}));
             });
             
-            // First, calculate total credit given out
-            totalOutstanding = allTransactions
-                .filter(tx => tx.type === 'credit')
-                .reduce((sum, tx) => sum + tx.amount, 0);
-
-            // Then, subtract the principal from each payment
-            const paymentTransactions = allTransactions.filter(tx => tx.type === 'payment');
             const commissionTransactions = allTransactions.filter(tx => tx.type === 'commission');
 
-            for (const payment of paymentTransactions) {
-                // Find the commission associated with the original credit of this payment
-                const originalCommission = commissionTransactions.find(c => c.parentCreditId === payment.parentCreditId);
-                const rate = originalCommission?.commissionRate ?? 2.5; // Fallback to 2.5 if rate not found
-                
-                // Calculate principal amount from the payment
-                const principalAmount = payment.amount / (1 + (rate / 100));
-                totalOutstanding -= principalAmount;
-            }
-
+            allTransactions.forEach(tx => {
+                if (tx.type === 'credit') {
+                    totalCreditPrincipal += tx.amount;
+                } else if (tx.type === 'payment') {
+                    const commissionRate = tx.commissionRate || 2.5;
+                    const principalAmount = tx.amount / (1 + (commissionRate / 100));
+                    totalPaymentPrincipal += principalAmount;
+                }
+            });
 
             for (const tx of commissionTransactions) {
                  if (tx.isPaid) {
@@ -183,7 +175,8 @@ export default function OwnerDashboardPage() {
                 newCustomers24h: newCustomersSnap.size,
                 newShopkeepers24h: newShopkeepersSnap.size,
                 totalTransactions24h: transactionsToday,
-                totalOutstanding,
+                totalOutstanding: totalCreditPrincipal - totalPaymentPrincipal,
+                totalUdhaarRecovery: totalPaymentPrincipal,
                 profit24h: Math.round(profit24h * 100) / 100,
                 profit30d: Math.round(profit30d * 100) / 100,
                 totalProfit: Math.round(totalProfit * 100) / 100,
@@ -216,11 +209,14 @@ export default function OwnerDashboardPage() {
                 </div>
 
                  <div className="login-card">
-                    <h2 style={{ textAlign: 'center', color: '#3d4468', fontWeight: 600, fontSize: '1.5rem', marginBottom: '25px' }}>Last 24 Hours</h2>
+                    <h2 style={{ textAlign: 'center', color: '#3d4468', fontWeight: 600, fontSize: '1.5rem', marginBottom: '25px' }}>Platform Performance</h2>
+                     <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px', marginBottom: '30px' }}>
+                         <StatCard title="कुल उधार वसूली (सभी दुकानें)" value={`₹${stats.totalUdhaarRecovery.toLocaleString('en-IN')}`} icon={<Banknote size={32} />} colorClass="#28a745" />
+                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '20px', marginBottom: '30px' }}>
-                        <StatCard title="New Customers" value={`+${stats.newCustomers24h}`} icon={<TrendingUp size={28} />} colorClass="#00c896" />
-                        <StatCard title="New Shops" value={`+${stats.newShopkeepers24h}`} icon={<TrendingUp size={28} />} colorClass="#00c896" />
-                        <StatCard title="Transactions" value={`${stats.totalTransactions24h}`} icon={<ArrowLeftRight size={28} />} colorClass="#6c757d" />
+                        <StatCard title="New Customers (24h)" value={`+${stats.newCustomers24h}`} icon={<TrendingUp size={28} />} colorClass="#00c896" />
+                        <StatCard title="New Shops (24h)" value={`+${stats.newShopkeepers24h}`} icon={<TrendingUp size={28} />} colorClass="#00c896" />
+                        <StatCard title="Transactions (24h)" value={`${stats.totalTransactions24h}`} icon={<ArrowLeftRight size={28} />} colorClass="#6c757d" />
                     </div>
                  </div>
 

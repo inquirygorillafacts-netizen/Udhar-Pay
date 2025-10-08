@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useFirebase } from '@/firebase';
 import { doc, onSnapshot, collection, query, where, Timestamp } from 'firebase/firestore';
-import { Users, BookUser, UserCheck, IndianRupee, PieChart, ArrowDownCircle } from 'lucide-react';
+import { Users, BookUser, UserCheck, IndianRupee, PieChart, ArrowDownCircle, Banknote } from 'lucide-react';
 
 interface ShopkeeperProfile {
   uid: string;
@@ -25,12 +25,12 @@ interface Analytics {
     customersOnCredit: number;
     customersWithZeroBalance: number;
     totalOutstanding: number;
-    totalPaymentReceived: number;
+    totalPaymentReceivedLifetime: number; // Lifetime total received
 }
 
 export default function ShopkeeperAnalysisPage() {
   const { auth, firestore } = useFirebase();
-  const [analytics, setAnalytics] = useState<Analytics>({ totalCustomers: 0, customersOnCredit: 0, customersWithZeroBalance: 0, totalOutstanding: 0, totalPaymentReceived: 0 });
+  const [analytics, setAnalytics] = useState<Analytics>({ totalCustomers: 0, customersOnCredit: 0, customersWithZeroBalance: 0, totalOutstanding: 0, totalPaymentReceivedLifetime: 0 });
   const [loadingAnalytics, setLoadingAnalytics] = useState(true);
 
   useEffect(() => {
@@ -52,7 +52,7 @@ export default function ShopkeeperAnalysisPage() {
       const customerIds = shopkeeperProfile.connections || [];
       
       if (customerIds.length === 0) {
-        setAnalytics({ totalCustomers: 0, customersOnCredit: 0, customersWithZeroBalance: 0, totalOutstanding: 0, totalPaymentReceived: 0 });
+        setAnalytics({ totalCustomers: 0, customersOnCredit: 0, customersWithZeroBalance: 0, totalOutstanding: 0, totalPaymentReceivedLifetime: 0 });
         setLoadingAnalytics(false);
         return;
       }
@@ -63,21 +63,19 @@ export default function ShopkeeperAnalysisPage() {
       unsubscribeTransactions = onSnapshot(q, (transactionsSnapshot) => {
         const customerBalances: { [key: string]: number } = {};
         customerIds.forEach(id => customerBalances[id] = 0);
-        let totalPaymentReceivedPrincipal = 0;
+        let totalPaymentReceivedLifetime = 0;
 
         const allTransactions = transactionsSnapshot.docs.map(doc => doc.data() as Transaction);
 
         allTransactions.forEach((transaction) => {
             if (customerBalances[transaction.customerId] !== undefined) {
-                // For shopkeeper analytics, we ONLY consider principal amounts. Commission is invisible.
                 if (transaction.type === 'credit') {
                     customerBalances[transaction.customerId] += transaction.amount;
                 } else if (transaction.type === 'payment') {
-                    // This logic correctly calculates the principal portion of a payment.
                     const commissionRate = transaction.commissionRate || 2.5; 
                     const principalAmount = transaction.amount / (1 + (commissionRate / 100));
                     customerBalances[transaction.customerId] -= principalAmount;
-                    totalPaymentReceivedPrincipal += principalAmount;
+                    totalPaymentReceivedLifetime += principalAmount; // This will always accumulate
                 }
             }
         });
@@ -99,7 +97,7 @@ export default function ShopkeeperAnalysisPage() {
             customersOnCredit,
             customersWithZeroBalance: totalCustomers - customersOnCredit,
             totalOutstanding,
-            totalPaymentReceived: totalPaymentReceivedPrincipal
+            totalPaymentReceivedLifetime
         });
         setLoadingAnalytics(false);
 
@@ -154,16 +152,19 @@ export default function ShopkeeperAnalysisPage() {
                         </div>
                     </div>
                     
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '25px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '25px' }}>
+                        <div className="login-card" style={{ margin: 0, padding: '25px', textAlign: 'center', background: '#e8f5e9', border: '2px solid #c8e6c9' }}>
+                            <Banknote size={36} className="mx-auto mb-4 text-green-600"/>
+                            <p style={{color: '#1b5e20', fontSize: '1rem', fontWeight: 500, margin: 0}}>कुल भुगतान प्राप्त (लाइफटाइम)</p>
+                            <p style={{color: '#2e7d32', fontSize: '2.5rem', fontWeight: 'bold', margin: '5px 0'}}>₹{analytics.totalPaymentReceivedLifetime.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '25px' }}>
                         <div className="login-card" style={{ margin: 0, padding: '25px', textAlign: 'center', background: '#ffebee', border: '2px solid #ffcdd2' }}>
                             <IndianRupee size={36} className="mx-auto mb-4 text-red-500"/>
-                            <p style={{color: '#b71c1c', fontSize: '1rem', fontWeight: 500, margin: 0}}>Total Outstanding</p>
+                            <p style={{color: '#b71c1c', fontSize: '1rem', fontWeight: 500, margin: 0}}>Total Outstanding Udhaar</p>
                             <p style={{color: '#c62828', fontSize: '2.5rem', fontWeight: 'bold', margin: '5px 0'}}>₹{analytics.totalOutstanding.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
-                        </div>
-                         <div className="login-card" style={{ margin: 0, padding: '25px', textAlign: 'center', background: '#e8f5e9', border: '2px solid #c8e6c9' }}>
-                            <ArrowDownCircle size={36} className="mx-auto mb-4 text-green-600"/>
-                            <p style={{color: '#1b5e20', fontSize: '1rem', fontWeight: 500, margin: 0}}>Total Payment Received</p>
-                            <p style={{color: '#2e7d32', fontSize: '2.5rem', fontWeight: 'bold', margin: '5px 0'}}>₹{analytics.totalPaymentReceived.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                         </div>
                     </div>
 
