@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useFirebase } from '@/firebase';
-import { doc, setDoc, serverTimestamp, writeBatch, collection, addDoc, onSnapshot, orderBy, query, deleteDoc } from 'firebase/firestore';
+import { doc, serverTimestamp, collection, addDoc, onSnapshot, orderBy, query, deleteDoc } from 'firebase/firestore';
 import { Bell, Send, AlertTriangle, Users, Store, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
