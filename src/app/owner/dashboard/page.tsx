@@ -13,7 +13,9 @@ interface Transaction {
     timestamp: Timestamp;
     customerId: string;
     shopkeeperId: string;
-    profit?: number;
+    isPaid?: boolean; // For commission transactions
+    commissionRate?: number;
+    parentCreditId?: string;
 }
 
 interface StatCardProps {
@@ -96,7 +98,7 @@ export default function OwnerDashboardPage() {
             const now = new Date();
             const twentyFourHoursAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
             const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
-
+            
             let totalOutstanding = 0;
             let profit24h = 0;
             let profit30d = 0;
@@ -105,34 +107,53 @@ export default function OwnerDashboardPage() {
 
             const allTransactions: (Transaction & {id: string})[] = [];
 
-            for (const txDoc of snapshot.docs) {
-                const tx = txDoc.data() as Transaction;
+            snapshot.docs.forEach(doc => {
+                allTransactions.push({ id: doc.id, ...doc.data() } as (Transaction & {id: string}));
+            });
+            
+            // First, calculate total credit given out
+            totalOutstanding = allTransactions
+                .filter(tx => tx.type === 'credit')
+                .reduce((sum, tx) => sum + tx.amount, 0);
+
+            // Then, subtract the principal from each payment
+            const paymentTransactions = allTransactions.filter(tx => tx.type === 'payment');
+            const commissionTransactions = allTransactions.filter(tx => tx.type === 'commission');
+
+            for (const payment of paymentTransactions) {
+                // Find the commission associated with the original credit of this payment
+                const originalCommission = commissionTransactions.find(c => c.parentCreditId === payment.parentCreditId);
+                const rate = originalCommission?.commissionRate ?? 2.5; // Fallback to 2.5 if rate not found
+                
+                // Calculate principal amount from the payment
+                const principalAmount = payment.amount / (1 + (rate / 100));
+                totalOutstanding -= principalAmount;
+            }
+
+
+            for (const tx of commissionTransactions) {
+                 if (tx.isPaid) {
+                    const txTimestamp = (tx.timestamp as Timestamp)?.toDate();
+                    totalProfit += tx.amount;
+                    if (txTimestamp && txTimestamp >= twentyFourHoursAgo) {
+                        profit24h += tx.amount;
+                    }
+                    if (txTimestamp && txTimestamp >= thirtyDaysAgo) {
+                        profit30d += tx.amount;
+                    }
+                }
+            }
+
+            for (const tx of allTransactions) {
                 const txTimestamp = (tx.timestamp as Timestamp)?.toDate();
-                
-                // Correct calculation for total outstanding balance (excluding commission for this view)
-                if (tx.type === 'credit') {
-                    totalOutstanding += tx.amount;
-                } else if (tx.type === 'payment') {
-                    totalOutstanding -= tx.amount;
-                }
-                
-                if (tx.type === 'commission' && tx.profit && txTimestamp) {
-                    totalProfit += tx.profit;
-                    if (txTimestamp >= twentyFourHoursAgo) profit24h += tx.profit;
-                    if (txTimestamp >= thirtyDaysAgo) profit30d += tx.profit;
-                }
-                
                 if (txTimestamp && txTimestamp >= twentyFourHoursAgo) {
                     transactionsToday++;
                 }
-
-                allTransactions.push({id: txDoc.id, ...tx});
             }
 
             const customerCache: {[key: string]: string} = {};
             const shopkeeperCache: {[key: string]: string} = {};
 
-            // Fetch all customers and shopkeepers at once to build a cache
             const customersSnap = await getDocs(collection(firestore, 'customers'));
             customersSnap.forEach(doc => customerCache[doc.id] = doc.data()?.displayName || 'Unknown');
             
@@ -162,7 +183,7 @@ export default function OwnerDashboardPage() {
                 newCustomers24h: newCustomersSnap.size,
                 newShopkeepers24h: newShopkeepersSnap.size,
                 totalTransactions24h: transactionsToday,
-                totalOutstanding, // This is now correctly calculated and will be set
+                totalOutstanding,
                 profit24h: Math.round(profit24h * 100) / 100,
                 profit30d: Math.round(profit30d * 100) / 100,
                 totalProfit: Math.round(totalProfit * 100) / 100,
