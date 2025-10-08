@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase';
-import { doc, onSnapshot, collection, query, where, getDocs, writeBatch, updateDoc, getDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { doc, onSnapshot, collection, query, where, getDocs, writeBatch, updateDoc, getDoc, serverTimestamp, Timestamp, arrayUnion } from 'firebase/firestore';
 import Link from 'next/link';
 import { Paperclip, X, User, Check, AlertCircle, Send, IndianRupee, ArrowRight, Repeat, Bell, MessageSquare } from 'lucide-react';
 import ShopkeeperCard from '@/app/customer/components/ShopkeeperCard';
@@ -18,6 +18,7 @@ interface UserProfile {
   photoURL?: string | null;
   connections?: string[];
   customerCode?: string;
+  readMessages?: string[];
 }
 
 interface ShopkeeperProfile {
@@ -53,7 +54,8 @@ interface Transaction {
 interface OwnerMessage {
   id: string;
   text: string;
-  updatedAt: Timestamp;
+  target: 'customers' | 'shopkeepers' | 'both';
+  createdAt: Timestamp;
 }
 
 const COMMISSION_RATE = 0.025; // 2.5%
@@ -80,9 +82,8 @@ export default function CustomerDashboardPage() {
   const [hasShopkeeperRole, setHasShopkeeperRole] = useState(false);
   const [showRoleModal, setShowRoleModal] = useState(false);
   
-  const [ownerMessage, setOwnerMessage] = useState<OwnerMessage | null>(null);
-  const [showNotificationSidebar, setShowNotificationSidebar] = useState(false);
-  const [notificationViewCount, setNotificationViewCount] = useState(0);
+  const [ownerMessages, setOwnerMessages] = useState<OwnerMessage[]>([]);
+  const [isMessageSidebarOpen, setIsMessageSidebarOpen] = useState(false);
 
   const totalBalance = Object.values(balances).reduce((sum, bal) => sum + (bal > 0 ? bal : 0), 0);
 
@@ -172,27 +173,18 @@ export default function CustomerDashboardPage() {
           setCreditRequests(requests);
       });
       
-      const ownerMessageRef = doc(firestore, 'notifications', 'customerMessage');
-      const unsubscribeOwnerMessage = onSnapshot(ownerMessageRef, (docSnap) => {
-        if(docSnap.exists()) {
-            const messageData = { id: docSnap.id, ...docSnap.data() } as OwnerMessage;
-            setOwnerMessage(messageData);
-
-            const viewCountStr = localStorage.getItem(`notification_view_count_${messageData.updatedAt.toMillis()}`);
-            const count = viewCountStr ? parseInt(viewCountStr, 10) : 0;
-            
-            setNotificationViewCount(count);
-
-        } else {
-            setOwnerMessage(null);
-        }
+      const messagesRef = collection(firestore, "owner_messages");
+      const qMessages = query(messagesRef, where('target', 'in', ['customers', 'both']), orderBy('createdAt', 'desc'));
+      const unsubscribeOwnerMessages = onSnapshot(qMessages, (snapshot) => {
+          setOwnerMessages(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as OwnerMessage)));
       });
+
 
       return () => {
           unsubscribeUser();
           unsubscribeRequests();
           unsubscribeTransactions();
-          unsubscribeOwnerMessage();
+          unsubscribeOwnerMessages();
       }
   }, [auth.currentUser, firestore]);
 
@@ -206,23 +198,24 @@ export default function CustomerDashboardPage() {
 
   const handleRoleSwitchClick = () => {
     if (hasShopkeeperRole) {
-        localStorage.setItem('activeRole', 'shopkeeper');
-        router.push('/shopkeeper/dashboard');
+        localStorage.setItem('activeRole', 'customer');
+        router.push('/customer/dashboard');
     } else {
         setShowRoleModal(true);
     }
   };
   
-  const handleOpenNotification = () => {
-    setShowNotificationSidebar(true);
-    
-    // Only increment view count if it's a new or partially seen message
-    if(ownerMessage && notificationViewCount < 2) {
-      const newCount = notificationViewCount + 1;
-      setNotificationViewCount(newCount);
-      localStorage.setItem(`notification_view_count_${ownerMessage.updatedAt.toMillis()}`, newCount.toString());
+  const handleDismissMessage = async (messageId: string) => {
+    if (!auth.currentUser || !firestore) return;
+    const userRef = doc(firestore, 'customers', auth.currentUser.uid);
+    try {
+      await updateDoc(userRef, {
+        readMessages: arrayUnion(messageId)
+      });
+    } catch (error) {
+      console.error("Error dismissing message:", error);
     }
-  }
+  };
 
 
   const handleCreditRequestResponse = async (request: CreditRequest, response: 'approved' | 'rejected') => {
@@ -343,7 +336,8 @@ export default function CustomerDashboardPage() {
     );
   }
   
-  const hasUnreadMessage = ownerMessage && notificationViewCount < 2;
+  const unreadMessages = ownerMessages.filter(msg => !userProfile.readMessages?.includes(msg.id));
+  const allNotificationsCount = creditRequests.length + unreadMessages.length;
 
   return (
     <>
@@ -419,20 +413,41 @@ export default function CustomerDashboardPage() {
             </div>
         )}
         
-        {showNotificationSidebar && (
-             <div className="message-sidebar-overlay" onClick={() => setShowNotificationSidebar(false)}>
+        {isMessageSidebarOpen && (
+             <div className="message-sidebar-overlay" onClick={() => setIsMessageSidebarOpen(false)}>
                 <div className="message-sidebar" onClick={(e) => e.stopPropagation()}>
                     <div className="modal-header">
-                        <h2 style={{fontSize: '1.5rem'}}>Message from Owner</h2>
-                        <button className="close-button" onClick={() => setShowNotificationSidebar(false)}>&times;</button>
+                        <h2 style={{fontSize: '1.5rem'}}>Notifications</h2>
+                        <button className="close-button" onClick={() => setIsMessageSidebarOpen(false)}>&times;</button>
                     </div>
                     <div className="sidebar-content" style={{overflowY: 'auto', padding: '10px'}}>
-                        {ownerMessage ? (
-                            <p style={{color: '#6c7293', whiteSpace: 'pre-wrap', lineHeight: 1.7}}>
-                                {ownerMessage.text}
-                            </p>
+                        {allNotificationsCount === 0 ? (
+                            <p style={{color: '#6c7293', textAlign: 'center'}}>You have no new notifications.</p>
                         ) : (
-                            <p style={{textAlign: 'center', color: '#9499b7'}}>You have no new messages.</p>
+                             <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                                {unreadMessages.map(msg => (
+                                    <li key={msg.id} style={{ background: '#e0e5ec', padding: '15px', borderRadius: '15px', boxShadow: '5px 5px 10px #bec3cf, -5px -5px 10px #ffffff', position: 'relative' }}>
+                                        <button onClick={() => handleDismissMessage(msg.id)} style={{position: 'absolute', top: '10px', right: '10px', background: 'none', border: 'none', cursor: 'pointer', color: '#9499b7'}}>&times;</button>
+                                        <h3 style={{color: '#3d4468', fontSize: '1rem', fontWeight: 600, marginBottom: '10px'}}>Message from Owner</h3>
+                                        <p style={{color: '#6c7293', whiteSpace: 'pre-wrap', lineHeight: 1.7}}>{msg.text}</p>
+                                    </li>
+                                ))}
+                                {creditRequests.map(req => (
+                                    <li key={req.id} style={{ background: '#e0e5ec', padding: '15px', borderRadius: '15px', boxShadow: '5px 5px 10px #bec3cf, -5px -5px 10px #ffffff' }}>
+                                        <p style={{ color: '#3d4468', fontWeight: '600', marginBottom: '10px' }}>
+                                            <strong style={{color: '#007bff'}}>{req.shopkeeperName}</strong> sent a credit request for <strong style={{color: '#00c896'}}>₹{req.amount}</strong>.
+                                        </p>
+                                        <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                                             <button className="neu-button" onClick={() => handleCreditRequestResponse(req, 'rejected')} style={{ margin: 0, width: 'auto', padding: '8px 16px', background: '#e0e5ec', color: '#ff3b5c' }}>
+                                                Reject
+                                            </button>
+                                            <button className="neu-button" onClick={() => handleCreditRequestResponse(req, 'approved')} style={{ margin: 0, width: 'auto', padding: '8px 16px', background: '#00c896', color: 'white' }}>
+                                                Approve
+                                            </button>
+                                        </div>
+                                    </li>
+                                ))}
+                             </ul>
                         )}
                     </div>
                 </div>
@@ -448,9 +463,9 @@ export default function CustomerDashboardPage() {
                     {userProfile.displayName}
                 </h1>
             </div>
-            <button onClick={handleOpenNotification} className="neu-button" style={{width: '45px', height: '45px', margin: 0, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, position: 'relative', overflow: 'visible' }}>
+            <button onClick={() => setIsMessageSidebarOpen(true)} className="neu-button" style={{width: '45px', height: '45px', margin: 0, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, position: 'relative', overflow: 'visible' }}>
                 <Bell size={20}/>
-                {hasUnreadMessage && <span style={{position: 'absolute', top: 5, right: 5, width: '20px', height: '20px', background: '#ff3b5c', borderRadius: '50%', border: '2px solid #e0e5ec', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '12px', fontWeight: 'bold'}}>1</span>}
+                {allNotificationsCount > 0 && <span style={{position: 'absolute', top: 5, right: 5, width: '20px', height: '20px', background: '#ff3b5c', borderRadius: '50%', border: '2px solid #e0e5ec', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontSize: '12px', fontWeight: 'bold'}}>{allNotificationsCount}</span>}
             </button>
         </div>
         
@@ -520,3 +535,4 @@ export default function CustomerDashboardPage() {
     
 
     
+
