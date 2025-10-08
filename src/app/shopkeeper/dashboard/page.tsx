@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase';
-import { doc, onSnapshot, collection, query, where, getDocs, addDoc, serverTimestamp, DocumentData, writeBatch, updateDoc, getDoc } from 'firebase/firestore';
+import { doc, onSnapshot, collection, query, where, getDocs, addDoc, serverTimestamp, DocumentData, writeBatch, updateDoc, getDoc, Timestamp } from 'firebase/firestore';
 import Link from 'next/link';
 import { MessageSquare, X, Check, ArrowLeft, ArrowRight, QrCode, Share2, RefreshCw, Repeat, CheckCircle, XCircle, AlertTriangle, IndianRupee, StickyNote, User, Phone, BookOpen } from 'lucide-react';
 import { acceptConnectionRequest, rejectConnectionRequest } from '@/lib/connections';
@@ -32,6 +32,7 @@ interface ConnectionRequest {
   customerName: string;
   shopkeeperId: string;
   status: string;
+  customerPhone?: string;
 }
 
 interface CustomerCreditRequest {
@@ -119,7 +120,9 @@ export default function ShopkeeperDashboardPage() {
 
     setLoadingProfile(true);
     const currentUserUid = auth.currentUser.uid;
+    let customerProfilesCache: UserProfile[] = [];
 
+    // Listener for the shopkeeper's profile
     const shopkeeperRef = doc(firestore, 'shopkeepers', currentUserUid);
     const unsubscribeProfile = onSnapshot(shopkeeperRef, async (shopkeeperDoc) => {
         if (shopkeeperDoc.exists()) {
@@ -129,40 +132,18 @@ export default function ShopkeeperDashboardPage() {
             const customerDoc = await getDoc(doc(firestore, 'customers', currentUserUid));
             setHasCustomerRole(customerDoc.exists());
 
-            // Load connected customers and their balances
-            setLoadingCustomers(true);
+            // Fetch base customer profiles once when connections change
             const customerIds = profileData.connections || [];
             if (customerIds.length > 0) {
                 const customersRef = collection(firestore, 'customers');
                 const q = query(customersRef, where('__name__', 'in', customerIds));
                 const customersSnap = await getDocs(q);
-                const customerProfiles = customersSnap.docs.map(cDoc => ({ uid: cDoc.id, ...cDoc.data() } as UserProfile));
-
-                const transQuery = query(collection(firestore, 'transactions'), where('shopkeeperId', '==', currentUserUid));
-                const transSnap = await getDocs(transQuery);
-                const balances: { [key: string]: number } = {};
-                customerIds.forEach(id => balances[id] = 0);
-
-                transSnap.forEach(tDoc => {
-                    const t = tDoc.data() as any;
-                    if(balances[t.customerId] !== undefined) {
-                        if (t.type === 'credit' || t.type === 'commission') balances[t.customerId] += t.amount;
-                        else if (t.type === 'payment') balances[t.customerId] -= t.amount;
-                    }
-                });
-
-                const customersWithBalance = customerProfiles.map(p => ({
-                    ...p,
-                    balance: balances[p.uid] || 0
-                })) as CustomerForSelection[];
-                
-                setCustomers(customersWithBalance);
-                setFilteredCustomers(customersWithBalance);
+                customerProfilesCache = customersSnap.docs.map(cDoc => ({ uid: cDoc.id, ...cDoc.data() } as UserProfile));
             } else {
+                customerProfilesCache = [];
                 setCustomers([]);
                 setFilteredCustomers([]);
             }
-            setLoadingCustomers(false);
         }
         setLoadingProfile(false);
     }, (error) => {
@@ -170,6 +151,32 @@ export default function ShopkeeperDashboardPage() {
         setLoadingProfile(false);
     });
 
+    // Centralized transaction listener to update balances in real-time
+    const transQuery = query(collection(firestore, 'transactions'), where('shopkeeperId', '==', currentUserUid));
+    const unsubscribeTransactions = onSnapshot(transQuery, (transSnap) => {
+        setLoadingCustomers(true);
+        const balances: { [key: string]: number } = {};
+        customerProfilesCache.forEach(p => balances[p.uid] = 0);
+
+        transSnap.forEach(doc => {
+            const t = doc.data() as any;
+            if(balances[t.customerId] !== undefined) {
+                if (t.type === 'credit' || t.type === 'commission') balances[t.customerId] += t.amount;
+                else if (t.type === 'payment') balances[t.customerId] -= t.amount;
+            }
+        });
+
+        const customersWithBalance = customerProfilesCache.map(p => ({
+            ...p,
+            balance: balances[p.uid] || 0
+        })) as CustomerForSelection[];
+        
+        setCustomers(customersWithBalance);
+        setFilteredCustomers(customersWithBalance);
+        setLoadingCustomers(false);
+    });
+
+    // Listeners for requests
     const connectionsRef = collection(firestore, 'connectionRequests');
     const qConnections = query(connectionsRef, where('shopkeeperId', '==', currentUserUid), where('status', '==', 'pending'));
     const unsubscribeConnections = onSnapshot(qConnections, (querySnapshot) => {
@@ -196,6 +203,7 @@ export default function ShopkeeperDashboardPage() {
       unsubscribeProfile();
       unsubscribeConnections();
       unsubscribeCreditRequests();
+      unsubscribeTransactions();
     };
   }, [auth.currentUser, firestore]);
 
@@ -454,37 +462,17 @@ export default function ShopkeeperDashboardPage() {
         return;
     }
 
-    // Fetch the LATEST balance before proceeding
-    setIsRequestingCredit(true);
-    setError('');
-    try {
-        const transQuery = query(
-            collection(firestore, 'transactions'),
-            where('shopkeeperId', '==', auth.currentUser.uid),
-            where('customerId', '==', customer.uid)
-        );
-        const transSnap = await getDocs(transQuery);
-        let currentBalance = 0;
-        transSnap.forEach(doc => {
-            const tx = doc.data() as any;
-            if (tx.type === 'credit' || tx.type === 'commission') {
-                currentBalance += tx.amount;
-            } else if (tx.type === 'payment') {
-                currentBalance -= tx.amount;
-            }
-        });
-        
-        await proceedWithCreditRequest(customer, amount, currentBalance);
-
-    } catch (e) {
-        setError("Could not verify customer's current balance. Please try again.");
-        setIsRequestingCredit(false);
-    }
+    // Use the real-time balance from the `customers` state
+    const currentBalance = customer.balance;
+    
+    await proceedWithCreditRequest(customer, amount, currentBalance);
 };
 
 const proceedWithCreditRequest = async (customer: CustomerForSelection, amount: number, currentBalance: number) => {
       if (!auth.currentUser || !firestore || !shopkeeperProfile) return;
     
+      setIsRequestingCredit(true);
+      setError('');
       const creditLimit = getCreditLimitForCustomer(customer.uid);
   
       if (currentBalance + amount > creditLimit) {
