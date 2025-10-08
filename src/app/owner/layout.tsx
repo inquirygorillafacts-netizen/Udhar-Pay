@@ -5,6 +5,8 @@ import { LayoutDashboard, Settings, CreditCard, Wallet, Network, LandPlot, Bell,
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+
 
 export default function OwnerLayout({
   children,
@@ -12,23 +14,46 @@ export default function OwnerLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const { auth } = useFirebase();
+  const { auth, firestore } = useFirebase();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const [isAuthorized, setIsAuthorized] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
+    if (!auth) return;
+
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
-        setLoading(false);
+        try {
+          // Verify owner role on every auth state change. This is the definitive check.
+          const userDocRef = doc(firestore, 'owner_o2Vco2LqnvWsZijYtb4EDMNdOOC2', user.uid);
+          const userDoc = await getDoc(userDocRef);
+          
+          if (userDoc.exists() && userDoc.data().role === '**##owner_XwJfOW27AvfN5ELUzbUPpXPcbG73_locked##**') {
+            setIsAuthorized(true);
+          } else {
+            // User is logged in but is not an owner. Redirect immediately.
+            setIsAuthorized(false);
+            router.replace('/auth');
+          }
+        } catch (error) {
+          console.error("Error verifying owner role:", error);
+          setIsAuthorized(false);
+          router.replace('/auth');
+        }
       } else {
+        // No user logged in.
+        setIsAuthorized(false);
         router.replace('/login/owner');
       }
+      setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [auth, router]);
+  }, [auth, firestore, router]);
 
-  if (loading) {
+  // While checking authorization, show a full-screen loader to prevent UI flash.
+  if (loading || !isAuthorized) {
     return (
       <div className="loading-container">
         <div className="neu-spinner"></div>
@@ -36,6 +61,7 @@ export default function OwnerLayout({
     );
   }
 
+  // Only render the layout and children if authorization is successful.
   return (
     <div style={{ paddingBottom: '80px' }}>
       <main>{children}</main>
@@ -45,7 +71,7 @@ export default function OwnerLayout({
           <LayoutDashboard size={24} />
           <span>Dashboard</span>
         </Link>
-         <Link href="/owner/ecosystem" className={`admin-nav-item ${pathname.startsWith('/owner/ecosystem') ? 'active' : ''}`}>
+         <Link href="/owner/ecosystem" className={`admin-nav-item ${pathname.startsWith('/owner/ecosystem') || pathname.startsWith('/owner/shopkeeper') ? 'active' : ''}`}>
           <Network size={24} />
           <span>Ecosystem</span>
         </Link>
