@@ -71,7 +71,7 @@ export default function HelplinePage() {
                            <strong>चेतावनी:</strong> केवल आपात स्थिति में या यदि अन्य हेल्पलाइन जवाब नहीं दे रही हैं, तभी कॉल करें। अनावश्यक कॉल करने पर आपका नंबर बैन कर दिया जाएगा।
                         </p>
                     </div>
-                    <a href="tel:7073077195" className="neu-button" style={{margin: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '10px', flex: 1, background: '#ff3b5c', color: 'white' }}>
+                    <a href="tel:8302806913" className="neu-button" style={{margin: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '10px', flex: 1, background: '#ff3b5c', color: 'white' }}>
                         <Phone size={20} />
                         <span>Call बिजनस ऑनर</span>
                     </a>
