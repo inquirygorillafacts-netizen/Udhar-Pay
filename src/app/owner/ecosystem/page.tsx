@@ -28,7 +28,7 @@ interface Transaction {
     type: 'payment' | 'credit' | 'commission';
     amount: number;
     shopkeeperId: string;
-    parentCreditId?: string;
+    isPaid?: boolean;
     commissionRate?: number;
 }
 
@@ -48,38 +48,32 @@ export default function EcosystemPage() {
   const [newAmount, setNewAmount] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
 
-   useEffect(() => {
+  useEffect(() => {
     if (!firestore) return;
 
-    const shopkeepersRef = collection(firestore, 'shopkeepers');
-    const unsubShopkeepers = onSnapshot(shopkeepersRef, (shopkeeperSnapshot) => {
-        const shopkeepersData = shopkeeperSnapshot.docs.map(doc => ({
+    let unsubscribe: () => void = () => {};
+
+    const fetchData = async () => {
+        setLoading(true);
+        const shopkeepersRef = collection(firestore, 'shopkeepers');
+        const transactionsRef = collection(firestore, 'transactions');
+        const qTransactions = query(transactionsRef, where('type', '==', 'payment'));
+
+        const shopkeeperSnap = await getDocs(shopkeepersRef);
+        const shopkeepersData = shopkeeperSnap.docs.map(doc => ({
             uid: doc.id,
             ...doc.data()
-        })) as (Omit<Shopkeeper, 'pendingSettlement'> & { pendingSettlement?: number })[];
-        
-        const transactionsRef = collection(firestore, 'transactions');
-        const qTransactions = query(transactionsRef, where('type', 'in', ['payment', 'commission']));
-        
-        const unsubTransactions = onSnapshot(qTransactions, (transSnapshot) => {
+        })) as Omit<Shopkeeper, 'pendingSettlement'>[];
+
+        unsubscribe = onSnapshot(qTransactions, (transSnapshot) => {
             const settlementData: { [shopkeeperId: string]: number } = {};
-            const commissionRatesByCreditId: { [creditId: string]: number } = {};
 
-            // First pass: find all commission transactions to get their rates
             transSnapshot.docs.forEach(doc => {
                 const tx = doc.data() as Transaction;
-                if (tx.type === 'commission' && tx.parentCreditId && tx.commissionRate !== undefined) {
-                    commissionRatesByCreditId[tx.parentCreditId] = tx.commissionRate;
-                }
-            });
-
-            // Second pass: process payments and calculate principal
-            transSnapshot.docs.forEach(doc => {
-                const tx = doc.data() as Transaction;
-                if (tx.type === 'payment' && tx.parentCreditId) {
-                    const rate = commissionRatesByCreditId[tx.parentCreditId] ?? 2.5; // Fallback to 2.5 if not found
-                    const principalAmount = tx.amount / (1 + (rate / 100));
-
+                if(tx.isPaid === false) { // Only count unsettled payments
+                    const commissionRate = tx.commissionRate || 2.5;
+                    const principalAmount = tx.amount / (1 + (commissionRate / 100));
+    
                     if (settlementData[tx.shopkeeperId]) {
                         settlementData[tx.shopkeeperId] += principalAmount;
                     } else {
@@ -90,23 +84,23 @@ export default function EcosystemPage() {
 
             const combinedData = shopkeepersData.map(shopkeeper => ({
                 ...shopkeeper,
-                pendingSettlement: settlementData[shopkeeper.uid] || shopkeeper.pendingSettlement || 0
+                pendingSettlement: settlementData[shopkeeper.uid] || 0
             }));
             
             setAllShopkeepers(combinedData);
             setFilteredShopkeepers(combinedData);
             setLoading(false);
+        }, (error) => {
+            console.error("Error fetching transactions:", error);
+            setLoading(false);
         });
+    };
 
-        return () => unsubTransactions();
+    fetchData();
 
-    }, (error) => {
-        console.error("Error fetching shopkeepers:", error);
-        setLoading(false);
-    });
-
-    return () => unsubShopkeepers();
+    return () => unsubscribe();
   }, [firestore]);
+
 
   useEffect(() => {
     if (searchTerm === '') {

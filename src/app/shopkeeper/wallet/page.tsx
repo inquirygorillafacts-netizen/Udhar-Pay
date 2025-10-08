@@ -16,10 +16,12 @@ interface ShopkeeperProfile {
 interface Transaction {
     id: string;
     amount: number;
-    type: 'credit' | 'payment';
+    type: 'credit' | 'payment' | 'commission';
     customerId: string;
     shopkeeperId: string;
     timestamp: Timestamp;
+    isPaid?: boolean;
+    commissionRate?: number;
 }
 
 interface Notification {
@@ -34,6 +36,8 @@ export default function ShopkeeperWalletPage() {
     const [profile, setProfile] = useState<ShopkeeperProfile | null>(null);
     const [loading, setLoading] = useState(true);
     const [outstandingCredit, setOutstandingCredit] = useState(0);
+    const [pendingSettlement, setPendingSettlement] = useState(0);
+
     const [isSetupActive, setIsSetupActive] = useState(false);
     const [showQrModal, setShowQrModal] = useState(false);
     const [showPinModal, setShowPinModal] = useState(false);
@@ -65,44 +69,42 @@ export default function ShopkeeperWalletPage() {
 
         const setupListeners = async () => {
             setLoading(true);
-            unsubscribeShopkeeper = onSnapshot(shopkeeperRef, async (shopkeeperSnap) => {
+            unsubscribeShopkeeper = onSnapshot(shopkeeperRef, (shopkeeperSnap) => {
                 if (shopkeeperSnap.exists()) {
                     const data = shopkeeperSnap.data() as ShopkeeperProfile;
                     setProfile(data);
                     setIsSetupActive(!!data.qrCodeUrl && !!data.qrUpdatePin);
 
-                    const customerIds = data.connections || [];
-                    if (customerIds.length > 0) {
-                        const transactionsRef = collection(firestore, 'transactions');
-                        const q = query(transactionsRef, where('shopkeeperId', '==', auth.currentUser!.uid));
-                        
-                        unsubscribeTransactions(); // Unsubscribe from old listener
-                        unsubscribeTransactions = onSnapshot(q, (transactionsSnapshot) => {
-                            const customerBalances: { [key: string]: number } = {};
-                            customerIds.forEach((id: string) => customerBalances[id] = 0);
-        
-                            transactionsSnapshot.forEach((transactionDoc) => {
-                                const transaction = transactionDoc.data() as Transaction;
-                                if (customerBalances[transaction.customerId] !== undefined) {
-                                    if (transaction.type === 'credit') {
-                                        customerBalances[transaction.customerId] += transaction.amount;
-                                    } else if (transaction.type === 'payment') {
-                                        customerBalances[transaction.customerId] -= transaction.amount;
-                                    }
+                    const transactionsRef = collection(firestore, 'transactions');
+                    const q = query(transactionsRef, where('shopkeeperId', '==', auth.currentUser!.uid));
+                    
+                    unsubscribeTransactions(); // Unsubscribe from old listener
+                    unsubscribeTransactions = onSnapshot(q, (transactionsSnapshot) => {
+                        let totalCredit = 0;
+                        let totalPaymentPrincipal = 0;
+                        let totalUnsettledPaymentPrincipal = 0;
+
+                        transactionsSnapshot.forEach((transactionDoc) => {
+                            const tx = transactionDoc.data() as Transaction;
+                            if (tx.type === 'credit') {
+                                totalCredit += tx.amount;
+                            } else if (tx.type === 'payment') {
+                                const commissionRate = tx.commissionRate || 2.5;
+                                const principalAmount = tx.amount / (1 + (commissionRate / 100));
+                                totalPaymentPrincipal += principalAmount;
+                                if(tx.isPaid === false) {
+                                    totalUnsettledPaymentPrincipal += principalAmount;
                                 }
-                            });
-        
-                            const totalOutstanding = Object.values(customerBalances).reduce((sum, bal) => sum + (bal > 0 ? bal : 0), 0);
-                            setOutstandingCredit(totalOutstanding);
-                            setLoading(false);
-                        }, (err) => {
-                            console.error("Error fetching transactions:", err);
-                            setLoading(false);
+                            }
                         });
-                    } else {
-                        setOutstandingCredit(0);
+                        
+                        setOutstandingCredit(totalCredit - totalPaymentPrincipal);
+                        setPendingSettlement(totalUnsettledPaymentPrincipal);
                         setLoading(false);
-                    }
+                    }, (err) => {
+                        console.error("Error fetching transactions:", err);
+                        setLoading(false);
+                    });
                 } else {
                     setLoading(false);
                 }
@@ -266,6 +268,21 @@ export default function ShopkeeperWalletPage() {
             <main className="dashboard-main-content" style={{padding: '20px'}}>
                 <div style={{ maxWidth: '600px', margin: 'auto' }}>
                     
+                    <div className="login-card" style={{ textAlign: 'center', marginBottom: '30px' }}>
+                        <h2 style={{color: '#3d4468', fontSize: '1.5rem', fontWeight: 600, marginBottom: '20px'}}>Your Balances</h2>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                             <div className="neu-input" style={{padding: '20px', textAlign: 'center'}}>
+                                <p style={{color: '#007BFF', fontSize: '14px', fontWeight: 500, margin: 0}}>Outstanding Credit</p>
+                                <p style={{color: '#3d4468', fontSize: '1.75rem', fontWeight: 700}}>₹{outstandingCredit.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                            </div>
+                            <div className="neu-input" style={{padding: '20px', textAlign: 'center'}}>
+                                <p style={{color: '#ff3b5c', fontSize: '14px', fontWeight: 500, margin: 0}}>Pending Settlement</p>
+                                <p style={{color: '#3d4468', fontSize: '1.75rem', fontWeight: 700}}>₹{pendingSettlement.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                            </div>
+                        </div>
+                    </div>
+
+
                     <div className="login-card" style={{marginBottom: '30px'}}>
                          <h3 className="setting-title" style={{textAlign: 'center', border: 'none', padding: 0, margin: '0 0 20px 0'}}>सेटिंग्स और सेवाएँ</h3>
                          <div style={{display: 'flex', flexDirection: 'column', gap: '15px'}}>

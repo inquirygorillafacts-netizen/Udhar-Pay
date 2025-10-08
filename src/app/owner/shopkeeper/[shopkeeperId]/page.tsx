@@ -39,7 +39,7 @@ interface Analytics {
     totalCustomers: number;
     customersOnCredit: number;
     customersWithZeroBalance: number;
-    totalOutstanding: number; // Total amount customers owe to this shopkeeper (Principal + Commission)
+    totalOutstanding: number; 
 }
 
 interface Transaction {
@@ -49,9 +49,9 @@ interface Transaction {
     customerId: string;
     shopkeeperId: string;
     timestamp: Timestamp;
+    isPaid?: boolean;
+    commissionRate?: number;
 }
-
-const COMMISSION_RATE = 0.025;
 
 export default function ShopkeeperJeevanKundliPage() {
     const router = useRouter();
@@ -103,17 +103,19 @@ export default function ShopkeeperJeevanKundliPage() {
                     const customerBalances: { [customerId: string]: number } = {};
                     let totalPendingSettlement = 0;
 
-                    shopkeeperData.connections?.forEach(id => customerBalances[id] = 0);
+                    (shopkeeperData.connections || []).forEach(id => customerBalances[id] = 0);
 
                     snapshot.docs.forEach(doc => {
                         const tx = doc.data() as Transaction;
                         
-                        if (customerBalances[tx.customerId] !== undefined) {
-                            if (tx.type === 'credit' || tx.type === 'commission') {
-                                customerBalances[tx.customerId] += tx.amount;
-                            } else if (tx.type === 'payment') {
-                                customerBalances[tx.customerId] -= tx.amount;
-                                const principalAmount = tx.amount / (1 + COMMISSION_RATE);
+                        if (tx.type === 'credit') {
+                           customerBalances[tx.customerId] += tx.amount;
+                        } else if (tx.type === 'payment') {
+                            const commissionRate = tx.commissionRate || 2.5;
+                            const principalAmount = tx.amount / (1 + (commissionRate / 100));
+                            customerBalances[tx.customerId] -= principalAmount;
+
+                            if (tx.isPaid === false) { // Only add if not marked as settled
                                 totalPendingSettlement += principalAmount;
                             }
                         }
@@ -288,7 +290,7 @@ export default function ShopkeeperJeevanKundliPage() {
                                 </div>
                                 <div className="neu-input" style={{padding: '20px', textAlign: 'center'}}>
                                     <p style={{color: '#007BFF', fontSize: '14px', fontWeight: 500, margin: 0}}>Outstanding Credit</p>
-                                    <p style={{color: '#3d4468', fontSize: '1.75rem', fontWeight: 700}}>₹{analytics?.totalOutstanding.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}) || 0}</p>
+                                    <p style={{color: '#3d4468', fontSize: '1.75rem', fontWeight: 700}}>₹{analytics?.totalOutstanding.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2}) || '0.00'}</p>
                                 </div>
                              </div>
                              <div style={{borderTop: '1px solid #d1d9e6', marginTop: '20px', paddingTop: '20px', display: 'flex', justifyContent: 'space-around', gap: '10px'}}>
@@ -352,5 +354,3 @@ export default function ShopkeeperJeevanKundliPage() {
         </>
     );
 }
-
-    
