@@ -6,6 +6,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase';
 import { doc, getDoc, collection, query, where, onSnapshot, Timestamp } from 'firebase/firestore';
 import { ArrowLeft, User, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+
 
 interface CustomerProfile {
   uid: string;
@@ -27,6 +29,7 @@ export default function CustomerTransactionHistoryPage() {
   const router = useRouter();
   const params = useParams();
   const { auth, firestore } = useFirebase();
+  const { toast } = useToast();
   const customerId = params.customerId as string;
 
   const [customer, setCustomer] = useState<CustomerProfile | null>(null);
@@ -50,9 +53,12 @@ export default function CustomerTransactionHistoryPage() {
         if (customerSnap.exists()) {
           setCustomer({ uid: customerId, ...customerSnap.data() } as CustomerProfile);
         } else {
+          toast({ variant: 'destructive', title: 'Error', description: 'Customer not found.' });
           router.push('/shopkeeper/customers');
+          return;
         }
       } catch (e) {
+         toast({ variant: 'destructive', title: 'Error', description: 'Could not load customer data.' });
          router.push('/shopkeeper/customers');
       } finally {
         setLoading(false);
@@ -107,18 +113,20 @@ export default function CustomerTransactionHistoryPage() {
 
     }, (error) => {
         console.error("Error fetching transactions: ", error);
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not load transactions.' });
     });
 
     return () => {
       unsubscribeTransactions();
     };
-  }, [customerId, firestore, auth.currentUser, router]);
+  }, [customerId, firestore, auth.currentUser, router, toast]);
 
   if (loading) {
     return <div className="loading-container"><div className="neu-spinner"></div></div>;
   }
 
   if (!customer) {
+    // This case is handled in useEffect, but as a fallback
     return <div className="loading-container">Customer not found.</div>;
   }
   

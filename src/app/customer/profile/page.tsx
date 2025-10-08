@@ -291,7 +291,7 @@ export default function CustomerProfilePage() {
         />
     )}
     <div className="login-container" style={{paddingTop: '40px', paddingBottom: '80px', minHeight: 'auto'}}>
-      <div style={{width: '100%', position: 'relative'}}>
+      <div style={{width: '100%', maxWidth: '500px', position: 'relative'}}>
           <button className="neu-button" onClick={() => setShowSettingsModal(true)} style={{ position: 'absolute', top: '25px', right: '25px', width: '45px', height: '45px', padding: 0, margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Settings size={20} />
           </button>
@@ -367,7 +367,7 @@ export default function CustomerProfilePage() {
     
     {showSettingsModal && (
         <div className="modal-overlay" onClick={() => setShowSettingsModal(false)}>
-            <div className="login-card modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="login-card modal-content" style={{maxWidth: '480px'}} onClick={(e) => e.stopPropagation()}>
                 <div className="modal-header">
                   <h2>Settings</h2>
                   <button className="close-button" onClick={() => setShowSettingsModal(false)}>&times;</button>

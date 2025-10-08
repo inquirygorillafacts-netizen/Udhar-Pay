@@ -65,7 +65,9 @@ export default function PaymentPage() {
       if (shopkeeperSnap.exists()) {
         setShopkeeper({ uid: shopkeeperId, ...shopkeeperSnap.data() } as ShopkeeperProfile);
       } else {
+        toast({ variant: 'destructive', title: 'Error', description: 'Shopkeeper not found.' });
         router.push('/customer/dashboard');
+        return;
       }
       setLoading(false);
     };
@@ -105,7 +107,7 @@ export default function PaymentPage() {
       unsubscribeTransactions();
     };
 
-  }, [shopkeeperId, firestore, auth.currentUser, router]);
+  }, [shopkeeperId, firestore, auth.currentUser, router, toast]);
 
   const handlePayment = async () => {
     const paymentAmount = parseFloat(amount);
@@ -190,9 +192,13 @@ export default function PaymentPage() {
       if (!auth.currentUser || !shopkeeper) return;
       
       const batch = writeBatch(firestore);
-      const transactionRef = doc(collection(firestore, 'transactions'));
       
+      // Fetch live commission rate
+      const settingsDoc = await getDoc(doc(firestore, 'settings', 'platform'));
+      const commissionRate = settingsDoc.data()?.commissionRate || 2.5;
+
       // Record the full payment transaction.
+      const transactionRef = doc(collection(firestore, 'transactions'));
       batch.set(transactionRef, {
           amount: paidAmount,
           type: 'payment' as const,
@@ -201,43 +207,10 @@ export default function PaymentPage() {
           customerId: auth.currentUser.uid,
           timestamp: serverTimestamp(),
           paymentGatewayId: paymentId,
+          isPaid: false, // This payment now needs to be settled to the shopkeeper
+          commissionRate: commissionRate // Store the rate at which this was processed
       });
-
-      // Find unpaid commission transactions for this customer-shopkeeper pair.
-      const commissionQuery = query(
-          collection(firestore, 'transactions'),
-          where('customerId', '==', auth.currentUser.uid),
-          where('shopkeeperId', '==', shopkeeperId),
-          where('type', '==', 'commission'),
-          where('isPaid', '==', false),
-          orderBy('timestamp', 'asc')
-      );
       
-      const commissionDocs = await getDocs(commissionQuery);
-      
-      let remainingPayment = paidAmount;
-
-      // First, clear any outstanding commissions with the payment.
-      for (const commissionDoc of commissionDocs.docs) {
-          if (remainingPayment <= 0) break;
-          
-          const commissionData = commissionDoc.data() as Transaction;
-          const commissionAmount = commissionData.amount;
-
-          if (remainingPayment >= commissionAmount) {
-              batch.update(commissionDoc.ref, { isPaid: true });
-              remainingPayment -= commissionAmount;
-          }
-      }
-
-      // Any remaining amount after clearing commissions is considered a settlement towards the shopkeeper's principal.
-      if (remainingPayment > 0) {
-          const shopkeeperRef = doc(firestore, 'shopkeepers', shopkeeperId);
-          const shopkeeperDoc = await getDoc(shopkeeperRef);
-          const currentPending = shopkeeperDoc.data()?.pendingSettlement || 0;
-          batch.update(shopkeeperRef, { pendingSettlement: currentPending + remainingPayment });
-      }
-
       await batch.commit();
   }
 
@@ -250,6 +223,7 @@ export default function PaymentPage() {
   }
 
   if (!shopkeeper) {
+    // This case is handled in useEffect, but as a fallback
     return <div className="loading-container">Shopkeeper not found.</div>;
   }
   
