@@ -59,18 +59,16 @@ export default function EcosystemPage() {
         })) as (Omit<Shopkeeper, 'pendingSettlement'> & { pendingSettlement?: number })[];
         
         const transactionsRef = collection(firestore, 'transactions');
-        const qPayments = query(transactionsRef, where('type', 'in', ['payment', 'commission']));
-
-        const unsubTransactions = onSnapshot(qPayments, (transSnapshot) => {
+        const qTransactions = query(transactionsRef, where('type', 'in', ['payment', 'commission']));
+        
+        const unsubTransactions = onSnapshot(qTransactions, (transSnapshot) => {
             const settlementData: { [shopkeeperId: string]: number } = {};
-            
-            // This map will store the commission rate for each credit transaction
             const commissionRatesByCreditId: { [creditId: string]: number } = {};
 
             // First pass: find all commission transactions to get their rates
             transSnapshot.docs.forEach(doc => {
-                const tx = doc.data();
-                if (tx.type === 'commission' && tx.parentCreditId && tx.commissionRate) {
+                const tx = doc.data() as Transaction;
+                if (tx.type === 'commission' && tx.parentCreditId && tx.commissionRate !== undefined) {
                     commissionRatesByCreditId[tx.parentCreditId] = tx.commissionRate;
                 }
             });
@@ -78,11 +76,8 @@ export default function EcosystemPage() {
             // Second pass: process payments and calculate principal
             transSnapshot.docs.forEach(doc => {
                 const tx = doc.data() as Transaction;
-                if (tx.type === 'payment') {
-                    // Find the commission rate associated with the original credit of this payment
-                    const rate = tx.parentCreditId ? (commissionRatesByCreditId[tx.parentCreditId] || 0) : 0;
-                    
-                    // Correctly calculate principal based on the historical commission rate
+                if (tx.type === 'payment' && tx.parentCreditId) {
+                    const rate = commissionRatesByCreditId[tx.parentCreditId] ?? 2.5; // Fallback to 2.5 if not found
                     const principalAmount = tx.amount / (1 + (rate / 100));
 
                     if (settlementData[tx.shopkeeperId]) {

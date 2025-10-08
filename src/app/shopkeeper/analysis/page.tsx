@@ -69,10 +69,11 @@ export default function ShopkeeperAnalysisPage() {
 
         allTransactions.forEach((transaction) => {
             if (customerBalances[transaction.customerId] !== undefined) {
+                // For shopkeeper analytics, we ONLY consider principal amounts. Commission is invisible.
                 if (transaction.type === 'credit') {
                     customerBalances[transaction.customerId] += transaction.amount;
                 } else if (transaction.type === 'payment') {
-                    // Use the commission rate from the transaction if available, otherwise fallback
+                    // This logic correctly calculates the principal portion of a payment.
                     const commissionRate = transaction.commissionRate || 2.5; 
                     const principalAmount = transaction.amount / (1 + (commissionRate / 100));
                     customerBalances[transaction.customerId] -= principalAmount;
