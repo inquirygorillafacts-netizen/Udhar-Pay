@@ -174,9 +174,11 @@ export default function CustomerDashboardPage() {
       });
       
       const messagesRef = collection(firestore, "owner_messages");
-      const qMessages = query(messagesRef, where('target', 'in', ['customers', 'both']), orderBy('createdAt', 'desc'));
+      const qMessages = query(messagesRef, where('target', 'in', ['customers', 'both']));
       const unsubscribeOwnerMessages = onSnapshot(qMessages, (snapshot) => {
-          setOwnerMessages(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as OwnerMessage)));
+          const fetchedMessages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as OwnerMessage));
+          fetchedMessages.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+          setOwnerMessages(fetchedMessages);
       });
 
 
@@ -197,9 +199,9 @@ export default function CustomerDashboardPage() {
   }, [creditRequests, activeRequest]);
 
   const handleRoleSwitchClick = () => {
-    if (hasShopkeeperRole) {
-        localStorage.setItem('activeRole', 'customer');
-        router.push('/customer/dashboard');
+    if (hasCustomerRole) {
+        localStorage.setItem('activeRole', 'shopkeeper');
+        router.push('/shopkeeper/dashboard');
     } else {
         setShowRoleModal(true);
     }
@@ -535,4 +537,3 @@ export default function CustomerDashboardPage() {
     
 
     
-
