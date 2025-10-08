@@ -861,8 +861,8 @@ const proceedWithCreditRequest = async (customer: CustomerForSelection, amount: 
       }
   }
   
-  const allNotificationsCount = connectionRequests.length + customerCreditRequests.length;
   const hasUnreadShopkeeperMessage = shopkeeperMessage && notificationViewCount < 2;
+  const allNotificationsCount = connectionRequests.length + customerCreditRequests.length + (hasUnreadShopkeeperMessage ? 1 : 0);
 
   if (loadingProfile) {
     return (
@@ -999,12 +999,22 @@ const proceedWithCreditRequest = async (customer: CustomerForSelection, amount: 
               <button className="close-button" onClick={() => setIsMessageSidebarOpen(false)}>&times;</button>
           </div>
           <div className="sidebar-content" style={{overflowY: 'auto', padding: '10px'}}>
-            {allNotificationsCount === 0 && !hasUnreadShopkeeperMessage ? (
+            {(allNotificationsCount === 0) ? (
                 <p style={{color: '#6c7293', textAlign: 'center'}}>
                     You have no new notifications.
                 </p>
             ) : (
                 <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                     {shopkeeperMessage && hasUnreadShopkeeperMessage && (
+                        <li style={{borderBottom: '2px solid #d1d9e6', paddingBottom: '15px'}}>
+                           <h3 style={{color: '#3d4468', fontSize: '1rem', fontWeight: 600, marginBottom: '10px'}}>Message from Owner</h3>
+                           <div style={{ background: '#e0e5ec', padding: '15px', borderRadius: '15px', boxShadow: '5px 5px 10px #bec3cf, -5px -5px 10px #ffffff' }}>
+                               <p style={{color: '#6c7293', whiteSpace: 'pre-wrap', lineHeight: 1.7}}>
+                                   {shopkeeperMessage.text}
+                               </p>
+                           </div>
+                        </li>
+                    )}
                     {connectionRequests.map(req => (
                         <li key={req.id} style={{ background: '#e0e5ec', padding: '15px', borderRadius: '15px', boxShadow: '5px 5px 10px #bec3cf, -5px -5px 10px #ffffff' }}>
                             <p style={{ color: '#3d4468', fontWeight: '600', marginBottom: '10px' }}>
@@ -1043,16 +1053,6 @@ const proceedWithCreditRequest = async (customer: CustomerForSelection, amount: 
                         </li>
                     ))}
                 </ul>
-            )}
-             {shopkeeperMessage && (
-                <div style={{marginTop: '20px', borderTop: '2px solid #d1d9e6', paddingTop: '20px'}}>
-                   <h3 style={{color: '#3d4468', fontSize: '1rem', fontWeight: 600, marginBottom: '10px'}}>Message from Owner</h3>
-                   <div style={{ background: '#e0e5ec', padding: '15px', borderRadius: '15px', boxShadow: '5px 5px 10px #bec3cf, -5px -5px 10px #ffffff' }}>
-                       <p style={{color: '#6c7293', whiteSpace: 'pre-wrap', lineHeight: 1.7}}>
-                           {shopkeeperMessage.text}
-                       </p>
-                   </div>
-                </div>
             )}
           </div>
         </div>
