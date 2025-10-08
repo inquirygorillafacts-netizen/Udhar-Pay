@@ -67,7 +67,7 @@ export default function OwnerNotificationPage() {
                 text: message,
                 target: target,
                 createdAt: serverTimestamp(),
-                readBy: [] // Initialize empty readBy array
+                readBy: []
             });
 
             toast({
@@ -89,6 +89,10 @@ export default function OwnerNotificationPage() {
     };
     
     const handleDeleteMessage = async (messageId: string) => {
+        if (!firestore) {
+            toast({ variant: 'destructive', title: "Error", description: "Database not ready. Please wait." });
+            return;
+        }
         if (!confirm("Are you sure you want to permanently delete this message for everyone?")) {
             return;
         }
@@ -106,7 +110,7 @@ export default function OwnerNotificationPage() {
                 description: "Could not delete the message. Please try again.",
             });
         }
-    }
+    };
 
     return (
         <main className="dashboard-main-content" style={{ padding: '20px' }}>
