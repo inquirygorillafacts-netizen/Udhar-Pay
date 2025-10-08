@@ -55,7 +55,14 @@ interface ActiveCreditRequest extends DocumentData {
     status: CreditRequestStatus;
 }
 
-const COMMISSION_RATE = 0.025; // 2.5%
+interface Transaction {
+    id: string;
+    amount: number;
+    type: 'credit' | 'payment' | 'commission';
+    customerId: string;
+    shopkeeperId: string;
+    timestamp: Timestamp;
+}
 
 
 export default function ShopkeeperDashboardPage() {
@@ -109,6 +116,8 @@ export default function ShopkeeperDashboardPage() {
   // Role switching state
   const [hasCustomerRole, setHasCustomerRole] = useState(false);
   const [showRoleModal, setShowRoleModal] = useState(false);
+  
+  const customerProfilesCache = useRef<UserProfile[]>([]);
 
   useEffect(() => {
     if (!auth.currentUser || !firestore) {
@@ -119,8 +128,10 @@ export default function ShopkeeperDashboardPage() {
 
     setLoadingProfile(true);
     const currentUserUid = auth.currentUser.uid;
+    
+    let unsubscribeTransactions: () => void = () => {};
 
-    // Combined listener for profile and transactions
+    // First, listen to the shopkeeper's profile to get connections
     const shopkeeperRef = doc(firestore, 'shopkeepers', currentUserUid);
     const unsubscribeProfile = onSnapshot(shopkeeperRef, async (shopkeeperDoc) => {
         if (!shopkeeperDoc.exists()) {
@@ -139,47 +150,46 @@ export default function ShopkeeperDashboardPage() {
         const customerIds = profileData.connections || [];
         if (customerIds.length === 0) {
             setCustomers([]);
+            customerProfilesCache.current = [];
             setLoadingCustomers(false);
             return;
         }
 
-        // Fetch base profiles once
+        // Fetch base profiles once when connections change
         const customersRef = collection(firestore, 'customers');
         const qProfiles = query(customersRef, where('__name__', 'in', customerIds));
         const profilesSnap = await getDocs(qProfiles);
-        const customerProfiles = profilesSnap.docs.map(cDoc => ({ uid: cDoc.id, ...cDoc.data() } as UserProfile));
+        customerProfilesCache.current = profilesSnap.docs.map(cDoc => ({ uid: cDoc.id, ...cDoc.data() } as UserProfile));
+
+        // Now, set up the transaction listener
+        // Unsubscribe from any previous listener before creating a new one
+        unsubscribeTransactions();
         
-        // Now, listen for transactions and update balances
         const transQuery = query(collection(firestore, 'transactions'), where('shopkeeperId', '==', currentUserUid));
-        const unsubscribeTransactions = onSnapshot(transQuery, (transSnap) => {
+        unsubscribeTransactions = onSnapshot(transQuery, (transSnap) => {
             setLoadingCustomers(true);
             const balances: { [key: string]: number } = {};
             customerIds.forEach(id => balances[id] = 0);
 
             transSnap.forEach(tDoc => {
-                const t = tDoc.data() as any;
-                if (balances[t.customerId] !== undefined) {
-                    // For the shopkeeper's view, we only care about principal credit and payments.
-                    // Commission is invisible to the shopkeeper's balance calculation.
+                const t = tDoc.data() as Transaction;
+                if(balances[t.customerId] !== undefined) {
                     if (t.type === 'credit') {
                         balances[t.customerId] += t.amount;
                     } else if (t.type === 'payment') {
-                         const principalAmount = t.amount / (1 + COMMISSION_RATE);
-                         balances[t.customerId] -= principalAmount;
+                         balances[t.customerId] -= t.amount;
                     }
                 }
             });
 
-            const customersWithBalance = customerProfiles.map(p => ({
+            const customersWithBalance = customerProfilesCache.current.map(p => ({
                 ...p,
                 balance: balances[p.uid] || 0
             })) as CustomerForSelection[];
-
+            
             setCustomers(customersWithBalance);
             setLoadingCustomers(false);
         });
-
-        return () => unsubscribeTransactions(); // This will be called when the shopkeeper doc changes
     });
     
     // Listeners for requests
@@ -198,7 +208,19 @@ export default function ShopkeeperDashboardPage() {
         where('requestedBy', '==', 'customer')
     );
     const unsubscribeCreditRequests = onSnapshot(qCredit, (snapshot) => {
-      const requests: CustomerCreditRequest[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CustomerCreditRequest));
+      const requests: CustomerCreditRequest[] = [];
+      snapshot.forEach(async (doc) => {
+        const requestData = doc.data();
+        if(!requestData.customerPhone) {
+            try {
+              const customerDoc = await getDoc(doc(firestore, 'customers', requestData.customerId));
+              requestData.customerPhone = customerDoc.data()?.mobileNumber || '';
+            } catch (e) {
+               requestData.customerPhone = '';
+            }
+        }
+        requests.push({ id: doc.id, ...requestData } as CustomerCreditRequest);
+      });
       setCustomerCreditRequests(requests);
     });
 
@@ -209,6 +231,7 @@ export default function ShopkeeperDashboardPage() {
       unsubscribeProfile();
       unsubscribeConnections();
       unsubscribeCreditRequests();
+      unsubscribeTransactions();
     };
 }, [auth.currentUser, firestore]);
 
@@ -317,31 +340,36 @@ export default function ShopkeeperDashboardPage() {
                 const batch = writeBatch(firestore);
                 batch.update(requestRef, { status: 'approved' });
                 
-                const commissionAmount = request.amount * COMMISSION_RATE;
-                const profitAmount = Math.round(commissionAmount * 100) / 100;
+                const settingsDoc = await getDoc(doc(firestore, 'settings', 'platform'));
+                const commissionRate = settingsDoc.data()?.commissionRate || 2.5;
+
+                const commissionAmount = request.amount * (commissionRate / 100);
 
                 // Main credit transaction
                 const transactionRef = doc(collection(firestore, 'transactions'));
-                batch.set(transactionRef, {
+                const creditData = {
                     amount: request.amount,
-                    type: 'credit',
+                    type: 'credit' as const,
                     notes: request.notes || `Credit approved by shopkeeper`,
                     shopkeeperId: auth.currentUser.uid,
                     customerId: request.customerId,
                     timestamp: serverTimestamp(),
-                });
+                };
+                batch.set(transactionRef, creditData);
 
                 // Commission transaction for platform profit
                 const commissionRef = doc(collection(firestore, 'transactions'));
                 batch.set(commissionRef, {
-                  amount: profitAmount,
-                  type: 'commission',
-                  notes: `2.5% commission on ₹${request.amount} credit`,
-                  shopkeeperId: auth.currentUser.uid,
-                  customerId: request.customerId,
-                  timestamp: serverTimestamp(),
-                  profit: profitAmount
-              });
+                    amount: commissionAmount,
+                    type: 'commission' as const,
+                    notes: `${commissionRate}% commission on ₹${request.amount} credit`,
+                    shopkeeperId: auth.currentUser.uid,
+                    customerId: request.customerId,
+                    timestamp: serverTimestamp(),
+                    isPaid: false, // Commission is not paid yet
+                    commissionRate: commissionRate, // Store the rate at time of transaction
+                    parentCreditId: transactionRef.id // Link to the original credit transaction
+                });
 
                 await batch.commit();
             } else {
@@ -467,7 +495,7 @@ export default function ShopkeeperDashboardPage() {
         return;
     }
 
-    // Use the real-time balance from the `customers` state
+    // Use the real-time balance from the `customers` state, which is already principal-only
     const currentBalance = customer.balance;
     
     await proceedWithCreditRequest(customer, amount, currentBalance);

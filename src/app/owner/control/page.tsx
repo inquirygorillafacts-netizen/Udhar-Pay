@@ -44,12 +44,14 @@ export default function OwnerControlPage() {
 
         // Listener for analytics
         const transRef = collection(firestore, 'transactions');
-        const unsubTransactions = onSnapshot(transRef, (snapshot) => {
+        const qCommission = query(transRef, where('type', '==', 'commission'));
+        const unsubTransactions = onSnapshot(qCommission, (snapshot) => {
             setLoadingAnalytics(true);
             let totalEarned = 0;
+            let pendingOnCredit = 0;
             let earned24h = 0;
             let earned30d = 0;
-            let totalCreditPrincipal = 0;
+            
             const now = new Date();
             const twentyFourHoursAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
             const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
@@ -58,26 +60,18 @@ export default function OwnerControlPage() {
                 const tx = doc.data();
                 const txTimestamp = tx.timestamp?.toDate();
 
-                if (tx.type === 'commission' && tx.profit) {
-                    totalEarned += tx.profit;
+                if (tx.isPaid) {
+                    totalEarned += tx.amount;
                     if (txTimestamp >= twentyFourHoursAgo) {
-                        earned24h += tx.profit;
+                        earned24h += tx.amount;
                     }
                     if (txTimestamp >= thirtyDaysAgo) {
-                        earned30d += tx.profit;
+                        earned30d += tx.amount;
                     }
-                }
-                
-                if (tx.type === 'credit') {
-                    totalCreditPrincipal += tx.amount;
-                } else if (tx.type === 'payment') {
-                    // Reduce principal from credit when payment is made
-                    totalCreditPrincipal -= tx.amount; 
+                } else {
+                    pendingOnCredit += tx.amount;
                 }
             });
-            
-            // Pending commission is on the net outstanding credit
-            const pendingOnCredit = (totalCreditPrincipal > 0 ? totalCreditPrincipal : 0) * (commissionRate / 100);
 
             setAnalytics({
                 totalEarned,
@@ -92,7 +86,7 @@ export default function OwnerControlPage() {
             unsubSettings();
             unsubTransactions();
         };
-    }, [firestore, commissionRate]);
+    }, [firestore]);
 
     const handleSaveRate = async () => {
         const rateValue = parseFloat(newRate);
@@ -105,7 +99,7 @@ export default function OwnerControlPage() {
         try {
             const settingsRef = doc(firestore, 'settings', 'platform');
             await updateDoc(settingsRef, { commissionRate: rateValue });
-            toast({ title: 'Success', description: `Commission rate updated to ${rateValue}%.` });
+            toast({ title: 'Success', description: `Commission rate updated to ${rateValue}%. New rate will apply to future transactions.` });
         } catch (error) {
             console.error("Error updating commission rate:", error);
             toast({ variant: 'destructive', title: 'Error', description: 'Failed to update commission rate.' });

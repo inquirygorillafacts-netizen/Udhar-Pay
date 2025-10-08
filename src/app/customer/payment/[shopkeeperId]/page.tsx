@@ -12,8 +12,6 @@ import { useToast } from '@/hooks/use-toast';
 
 declare const window: any;
 
-const COMMISSION_RATE = 0.025;
-
 interface ShopkeeperProfile {
   uid: string;
   displayName: string;
@@ -28,6 +26,9 @@ interface Transaction {
   amount: number;
   timestamp: Timestamp;
   notes?: string;
+  isPaid?: boolean; // For commission transactions
+  parentCreditId?: string; // For commission transactions
+  commissionRate?: number; // For commission transactions
 }
 
 interface PaymentNotification {
@@ -79,16 +80,15 @@ export default function PaymentPage() {
     );
 
     const unsubscribeTransactions = onSnapshot(q, (snapshot) => {
-      const trans: Transaction[] = [];
       let balance = 0;
-      snapshot.forEach(doc => {
-        const tx = { id: doc.id, ...doc.data() } as Transaction;
-        trans.push(tx);
-        if (tx.type === 'credit' || tx.type === 'commission') {
-            balance += tx.amount;
-        } else if (tx.type === 'payment') {
-            balance -= tx.amount;
-        }
+      const trans: Transaction[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Transaction));
+
+      trans.forEach(tx => {
+          if (tx.type === 'credit' || tx.type === 'commission') {
+              balance += tx.amount;
+          } else if (tx.type === 'payment') {
+              balance -= tx.amount;
+          }
       });
       
       trans.sort((a, b) => {
@@ -96,6 +96,7 @@ export default function PaymentPage() {
         const timeB = b.timestamp ? b.timestamp.toMillis() : 0;
         return timeB - timeA;
       });
+
       setTransactions(trans);
       setCustomerBalance(balance);
     });
@@ -187,14 +188,14 @@ export default function PaymentPage() {
 
   const recordPaymentTransaction = async (paidAmount: number, paymentId: string) => {
       if (!auth.currentUser || !shopkeeper) return;
-      const batch = writeBatch(firestore);
       
+      const batch = writeBatch(firestore);
       const transactionRef = doc(collection(firestore, 'transactions'));
       
-      // The amount recorded for the 'payment' transaction should be the full amount paid by the customer.
+      // Record the full payment transaction.
       batch.set(transactionRef, {
           amount: paidAmount,
-          type: 'payment',
+          type: 'payment' as const,
           notes: `Payment via Razorpay`,
           shopkeeperId: shopkeeperId,
           customerId: auth.currentUser.uid,
@@ -202,17 +203,41 @@ export default function PaymentPage() {
           paymentGatewayId: paymentId,
       });
 
-      // The amount to be settled to the shopkeeper is the principal, which is the paid amount minus the commission.
-      // We calculate it by dividing by (1 + COMMISSION_RATE) to reverse the commission addition.
-      const principalAmount = paidAmount / (1 + COMMISSION_RATE);
-      const settlementAmount = Math.round(principalAmount * 100) / 100;
-
-      // Atomically update pending settlement for the shopkeeper with only the principal amount.
-      const shopkeeperRef = doc(firestore, 'shopkeepers', shopkeeperId);
-      const shopkeeperDoc = await getDoc(shopkeeperRef);
-      const currentPending = shopkeeperDoc.data()?.pendingSettlement || 0;
-      batch.update(shopkeeperRef, { pendingSettlement: currentPending + settlementAmount });
+      // Find unpaid commission transactions for this customer-shopkeeper pair.
+      const commissionQuery = query(
+          collection(firestore, 'transactions'),
+          where('customerId', '==', auth.currentUser.uid),
+          where('shopkeeperId', '==', shopkeeperId),
+          where('type', '==', 'commission'),
+          where('isPaid', '==', false),
+          orderBy('timestamp', 'asc')
+      );
       
+      const commissionDocs = await getDocs(commissionQuery);
+      
+      let remainingPayment = paidAmount;
+
+      // First, clear any outstanding commissions with the payment.
+      for (const commissionDoc of commissionDocs.docs) {
+          if (remainingPayment <= 0) break;
+          
+          const commissionData = commissionDoc.data() as Transaction;
+          const commissionAmount = commissionData.amount;
+
+          if (remainingPayment >= commissionAmount) {
+              batch.update(commissionDoc.ref, { isPaid: true });
+              remainingPayment -= commissionAmount;
+          }
+      }
+
+      // Any remaining amount after clearing commissions is considered a settlement towards the shopkeeper's principal.
+      if (remainingPayment > 0) {
+          const shopkeeperRef = doc(firestore, 'shopkeepers', shopkeeperId);
+          const shopkeeperDoc = await getDoc(shopkeeperRef);
+          const currentPending = shopkeeperDoc.data()?.pendingSettlement || 0;
+          batch.update(shopkeeperRef, { pendingSettlement: currentPending + remainingPayment });
+      }
+
       await batch.commit();
   }
 
