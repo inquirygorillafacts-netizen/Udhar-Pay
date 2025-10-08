@@ -30,6 +30,9 @@ export default function OwnerNotificationPage() {
     const [sentMessages, setSentMessages] = useState<OwnerMessage[]>([]);
     const [loadingMessages, setLoadingMessages] = useState(true);
 
+    const [messageToDelete, setMessageToDelete] = useState<string | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+
     useEffect(() => {
         if (!firestore) return;
         
@@ -88,20 +91,20 @@ export default function OwnerNotificationPage() {
         }
     };
     
-    const handleDeleteMessage = async (messageId: string) => {
-        if (!firestore) {
-            toast({ variant: 'destructive', title: "Error", description: "Database not ready. Please wait." });
-            return;
-        }
-        if (!confirm("Are you sure you want to permanently delete this message for everyone?")) {
-            return;
-        }
+    const handleDeleteMessage = (messageId: string) => {
+        setMessageToDelete(messageId);
+    };
+
+    const confirmDelete = async () => {
+        if (!messageToDelete || !firestore) return;
+        setIsDeleting(true);
         try {
-            await deleteDoc(doc(firestore, 'owner_messages', messageId));
+            await deleteDoc(doc(firestore, 'owner_messages', messageToDelete));
             toast({
                 title: 'Message Deleted',
                 description: 'The broadcast message has been removed.'
             });
+            setMessageToDelete(null);
         } catch (error) {
             console.error("Error deleting message:", error);
             toast({
@@ -109,10 +112,35 @@ export default function OwnerNotificationPage() {
                 title: "Error",
                 description: "Could not delete the message. Please try again.",
             });
+        } finally {
+            setIsDeleting(false);
         }
     };
 
     return (
+        <>
+        {messageToDelete && (
+            <div className="modal-overlay">
+                <div className="login-card modal-content" style={{maxWidth: '450px'}} onClick={(e) => e.stopPropagation()}>
+                    <div className="modal-header" style={{flexDirection: 'column', textAlign: 'center', marginBottom: '25px'}}>
+                        <div className="neu-icon" style={{background: '#ffdfe4', margin: '0 auto 20px'}}>
+                            <AlertTriangle size={30} className="text-red-500"/>
+                        </div>
+                        <h2 style={{color: '#3d4468', fontSize: '1.5rem'}}>Confirm Deletion</h2>
+                    </div>
+                     <p style={{color: '#6c7293', textAlign: 'center', marginBottom: '30px', fontSize: '1rem', lineHeight: 1.7}}>
+                        Are you sure you want to permanently delete this message for everyone? This action cannot be undone.
+                    </p>
+                    <div style={{display: 'flex', gap: '20px'}}>
+                        <button className="neu-button" onClick={() => setMessageToDelete(null)} style={{margin:0, flex: 1}}>Cancel</button>
+                        <button className={`neu-button ${isDeleting ? 'loading' : ''}`} onClick={confirmDelete} disabled={isDeleting} style={{margin:0, flex: 1, background: '#ff3b5c', color: 'white'}}>
+                            <span className="btn-text">Yes, Delete</span>
+                            <div className="btn-loader"><div className="neu-spinner"></div></div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
         <main className="dashboard-main-content" style={{ padding: '20px' }}>
             <div className="login-card" style={{ maxWidth: '700px', margin: 'auto' }}>
                 <div className="login-header" style={{ marginBottom: '30px' }}>
@@ -121,7 +149,6 @@ export default function OwnerNotificationPage() {
                     <p style={{ color: '#6c7293' }}>Send notifications to your users.</p>
                 </div>
                 
-                {/* --- Form Section --- */}
                 <div className="setting-section" style={{marginBottom: '40px'}}>
                     <div className="form-group">
                          <h3 className="setting-title" style={{textAlign: 'center', border: 'none', fontSize: '1rem', paddingBottom: 0}}>Send To:</h3>
@@ -170,7 +197,6 @@ export default function OwnerNotificationPage() {
                     </button>
                 </div>
 
-                {/* --- Sent Messages Section --- */}
                 <div className="setting-section">
                     <h3 className="setting-title" style={{textAlign: 'center'}}>Sent Messages</h3>
                     {loadingMessages ? <div className="neu-spinner mx-auto"></div> :
@@ -197,5 +223,6 @@ export default function OwnerNotificationPage() {
                 </div>
             </div>
         </main>
+        </>
     );
 }
