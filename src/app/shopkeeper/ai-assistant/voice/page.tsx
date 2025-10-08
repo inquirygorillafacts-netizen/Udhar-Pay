@@ -29,7 +29,6 @@ export default function VoiceAssistantPage() {
     const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
     const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
     const isProcessingQuery = useRef(false);
-    const speechTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const loadVoices = useCallback(() => {
         voicesRef.current = window.speechSynthesis.getVoices();
@@ -50,7 +49,7 @@ export default function VoiceAssistantPage() {
     }, [loadVoices]);
     
     const stopAudio = useCallback(() => {
-        if (typeof window !== 'undefined' && window.speechSynthesis) {
+        if (typeof window !== 'undefined' && window.speechSynthesis.speaking) {
             window.speechSynthesis.cancel();
         }
     }, []);
@@ -61,26 +60,11 @@ export default function VoiceAssistantPage() {
         localStorage.setItem('aiLanguage', newLang);
         stopAudio();
         if (recognitionRef.current) {
-            recognitionRef.current.stop();
+            recognitionRef.current.stop(); // This will trigger onend, which sets status to idle
+        } else {
+            setStatus('idle');
         }
-        setStatus('idle');
     };
-
-    const startListening = useCallback(() => {
-        if (!SpeechRecognition || !hasPermission || isMuted || status === 'listening' || status === 'uninitialized' || isProcessingQuery.current) {
-            return;
-        }
-
-        if (recognitionRef.current) {
-            try {
-                recognitionRef.current.lang = language === 'hindi' ? 'hi-IN' : 'en-US';
-                recognitionRef.current.start();
-                setStatus('listening');
-            } catch (e) {
-                // Ignore if already starting
-            }
-        }
-    }, [hasPermission, isMuted, status, language]);
 
     const speak = useCallback((text: string) => {
         if (typeof window === 'undefined' || !window.speechSynthesis) {
@@ -106,7 +90,10 @@ export default function VoiceAssistantPage() {
         utterance.rate = 1;
         utterance.pitch = 1;
 
-        utterance.onstart = () => setStatus('speaking');
+        utterance.onstart = () => {
+             if (recognitionRef.current) recognitionRef.current.stop(); // Stop listening when AI starts speaking
+            setStatus('speaking');
+        }
         utterance.onend = () => {
             setStatus('idle');
             isProcessingQuery.current = false;
@@ -129,11 +116,6 @@ export default function VoiceAssistantPage() {
         isProcessingQuery.current = true;
         setStatus('thinking');
         
-        if (recognitionRef.current) {
-            recognitionRef.current.stop();
-        }
-        stopAudio();
-
         addMessage({ sender: 'user', text });
         setMessages(getHistory());
         
@@ -155,10 +137,23 @@ export default function VoiceAssistantPage() {
             setMessages(getHistory());
             speak(errorMessage);
         }
-    }, [stopAudio, speak, language]);
+    }, [speak, language]);
 
+    const startListening = useCallback(() => {
+        if (!SpeechRecognition || !hasPermission || isMuted || status === 'listening' || status === 'speaking' || isProcessingQuery.current) {
+            return;
+        }
+        if (recognitionRef.current) {
+            try {
+                recognitionRef.current.lang = language === 'hindi' ? 'hi-IN' : 'en-US';
+                recognitionRef.current.start();
+            } catch (e) {
+                console.error("Could not start recognition (might already be running):", e);
+            }
+        }
+    }, [hasPermission, isMuted, status, language]);
 
-    const initializeAssistant = async () => {
+    const initializeAssistant = useCallback(async () => {
         if (!SpeechRecognition || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
             alert('Your browser does not support audio recording.');
             setHasPermission(false);
@@ -174,30 +169,14 @@ export default function VoiceAssistantPage() {
             setHasPermission(true);
 
             const recognition = new SpeechRecognition();
-            recognition.continuous = true;
-            recognition.interimResults = true;
-            
-            let finalTranscript = '';
+            recognition.continuous = false; // Process after a single utterance
+            recognition.interimResults = false;
 
             recognition.onresult = (event: any) => {
-                if (speechTimeoutRef.current) clearTimeout(speechTimeoutRef.current);
-                
-                let interimTranscript = '';
-                for (let i = event.resultIndex; i < event.results.length; ++i) {
-                    if (event.results[i].isFinal) {
-                        finalTranscript += event.results[i][0].transcript;
-                    } else {
-                        interimTranscript += event.results[i][0].transcript;
-                    }
+                const transcript = event.results[0][0].transcript.trim();
+                if (transcript && !isProcessingQuery.current) {
+                    processQuery(transcript);
                 }
-                
-                speechTimeoutRef.current = setTimeout(() => {
-                    const query = (finalTranscript || interimTranscript).trim();
-                    if (query && !isProcessingQuery.current) {
-                       processQuery(query);
-                       finalTranscript = '';
-                    }
-                }, 1500);
             };
             
             recognition.onstart = () => {
@@ -205,11 +184,7 @@ export default function VoiceAssistantPage() {
             };
 
             recognition.onend = () => {
-                if (speechTimeoutRef.current) {
-                    clearTimeout(speechTimeoutRef.current);
-                }
-                // Do not automatically restart listening here. Let the state transitions handle it.
-                if (status === 'listening') {
+                if (!isProcessingQuery.current && status !== 'uninitialized' && status !== 'speaking') {
                     setStatus('idle');
                 }
             };
@@ -217,13 +192,13 @@ export default function VoiceAssistantPage() {
             recognition.onerror = (event: any) => {
                 if (event.error === 'not-allowed') {
                     setHasPermission(false);
-                    const msg = "Microphone permission denied. Please enable it in your browser settings to use the voice assistant.";
-                    addMessage({ sender: 'ai', text: msg });
-                    setMessages(getHistory());
+                    addMessage({ sender: 'ai', text: "Microphone permission denied. Please enable it to use the voice assistant." });
                 } else if (event.error !== 'no-speech' && event.error !== 'aborted') {
                     console.error('Speech recognition error:', event.error);
                 }
-                setStatus('idle');
+                 if (!isProcessingQuery.current) {
+                    setStatus('idle');
+                }
             };
             recognitionRef.current = recognition;
             
@@ -236,7 +211,7 @@ export default function VoiceAssistantPage() {
             addMessage({ sender: 'ai', text: "Microphone permission denied. Please enable it in your browser settings to use the voice assistant." });
             setMessages(getHistory());
         }
-    };
+    }, [processQuery]);
     
     useEffect(() => {
         if(status === 'idle' && !isMuted) {
@@ -262,11 +237,8 @@ export default function VoiceAssistantPage() {
         }
         const nextMuteState = !isMuted;
         setIsMuted(nextMuteState);
-        if (nextMuteState) {
-            if (recognitionRef.current) recognitionRef.current.stop();
-            stopAudio();
-            setStatus('idle');
-            isProcessingQuery.current = false;
+        if (nextMuteState && recognitionRef.current) {
+            recognitionRef.current.stop();
         }
     };
 
@@ -276,9 +248,6 @@ export default function VoiceAssistantPage() {
             if (recognitionRef.current) {
                 recognitionRef.current.abort();
                 recognitionRef.current = null;
-            }
-             if (speechTimeoutRef.current) {
-                clearTimeout(speechTimeoutRef.current);
             }
         }
     }, [stopAudio]);
