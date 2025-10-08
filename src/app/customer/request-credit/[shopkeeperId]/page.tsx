@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase';
-import { doc, getDoc, collection, addDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
-import { ArrowLeft, User, IndianRupee, Send } from 'lucide-react';
+import { doc, getDoc, collection, addDoc, serverTimestamp, query, where, getDocs, onSnapshot, DocumentData } from 'firebase/firestore';
+import { ArrowLeft, User, IndianRupee, Send, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface ShopkeeperProfile {
@@ -22,6 +22,13 @@ interface CustomerProfile {
     connections?: string[];
 }
 
+type CreditRequestStatus = 'pending' | 'approved' | 'rejected';
+
+interface ActiveCreditRequest extends DocumentData {
+    id: string;
+    status: CreditRequestStatus;
+}
+
 export default function RequestCreditPage() {
   const router = useRouter();
   const params = useParams();
@@ -34,9 +41,11 @@ export default function RequestCreditPage() {
   const [loading, setLoading] = useState(true);
   
   const [amount, setAmount] = useState('');
+  const [notes, setNotes] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
+  
+  const [activeRequest, setActiveRequest] = useState<ActiveCreditRequest | null>(null);
 
   useEffect(() => {
     if (!shopkeeperId || !auth.currentUser || !firestore) {
@@ -83,6 +92,23 @@ export default function RequestCreditPage() {
     fetchProfiles();
 
   }, [shopkeeperId, firestore, auth.currentUser, router, toast]);
+  
+  // Effect for tracking the active credit request's status
+  useEffect(() => {
+    if (!activeRequest?.id || !firestore) return;
+
+    const requestRef = doc(firestore, 'creditRequests', activeRequest.id);
+    const unsubscribe = onSnapshot(requestRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setActiveRequest({ id: docSnap.id, ...docSnap.data() });
+      } else {
+        // The request document may have been deleted
+        setActiveRequest(null);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [activeRequest?.id, firestore]);
 
   const handleRequestCredit = async () => {
     const creditAmount = parseFloat(amount);
@@ -91,7 +117,7 @@ export default function RequestCreditPage() {
       return;
     }
     
-    if (!auth.currentUser || !firestore || !shopkeeper) {
+    if (!auth.currentUser || !firestore || !shopkeeper || !customerProfile) {
         setError("Authentication error. Please refresh and try again.");
         return;
     }
@@ -112,7 +138,6 @@ export default function RequestCreditPage() {
             ? customerSettings.manualLimit
             : shopkeeper.defaultCreditLimit ?? 1000;
 
-        // Fetch live transactions to calculate current balance
         const transQuery = query(
             collection(firestore, 'transactions'), 
             where('customerId', '==', auth.currentUser.uid), 
@@ -122,7 +147,7 @@ export default function RequestCreditPage() {
         let currentBalance = 0;
         transSnap.forEach(doc => {
             const tx = doc.data();
-            if (tx.type === 'credit') currentBalance += tx.amount;
+            if (tx.type === 'credit' || tx.type === 'commission') currentBalance += tx.amount;
             else if (tx.type === 'payment') currentBalance -= tx.amount;
         });
         
@@ -134,21 +159,23 @@ export default function RequestCreditPage() {
         }
 
         const creditRequestsRef = collection(firestore, 'creditRequests');
-        await addDoc(creditRequestsRef, {
+        const newRequestRef = await addDoc(creditRequestsRef, {
             amount: creditAmount,
-            customerId: auth.currentUser!.uid,
-            customerName: customerProfile?.displayName,
+            notes: notes,
+            customerId: auth.currentUser.uid,
+            customerName: customerProfile.displayName,
             shopkeeperId: shopkeeperId,
-            shopkeeperName: shopkeeper?.displayName,
+            shopkeeperName: shopkeeper.displayName,
             status: 'pending',
             createdAt: serverTimestamp(),
             requestedBy: 'customer'
         });
-        setSuccess(true);
+        setActiveRequest({ id: newRequestRef.id, status: 'pending' });
 
     } catch (err) {
         console.error("Error creating credit request:", err);
         setError("Failed to send request. Please try again.");
+    } finally {
         setIsProcessing(false);
     }
   };
@@ -161,22 +188,56 @@ export default function RequestCreditPage() {
     return <div className="loading-container">Shopkeeper not found.</div>;
   }
   
-  if (success) {
+  const resetFlow = () => {
+    setActiveRequest(null);
+    setAmount('');
+    setNotes('');
+    setError('');
+  };
+  
+  if (activeRequest) {
+      const status = activeRequest.status;
+      const isPending = status === 'pending';
+      const isApproved = status === 'approved';
+      const isRejected = status === 'rejected';
+
       return (
-          <div className="login-container">
-              <div className="login-card" style={{maxWidth: '450px', textAlign: 'center'}}>
-                <div className="neu-icon" style={{background: '#00c896', color: 'white', width: '100px', height: '100px', marginBottom: '30px'}}>
-                  <Send size={40}/>
+         <div className="modal-overlay">
+            <div className="login-card modal-content" style={{maxWidth: '480px'}} onClick={(e) => e.stopPropagation()}>
+                <div className="modal-header" style={{flexDirection: 'column', textAlign: 'center'}}>
+                    <h2 style={{fontSize: '1.5rem', marginBottom: '15px'}}>Request Status</h2>
+                    <div style={{width: '100%', textAlign: 'left', background: '#e0e5ec', padding: '15px 20px', borderRadius: '20px', boxShadow: 'inset 5px 5px 10px #bec3cf, inset -5px -5px 10px #ffffff'}}>
+                        <p style={{color: '#9499b7', fontSize: '13px', margin: 0}}>To: <strong style={{color: '#3d4468'}}>{shopkeeper.displayName}</strong></p>
+                        <p style={{color: '#9499b7', fontSize: '13px', margin: 0}}>Amount: <strong style={{color: '#3d4468'}}>₹{amount}</strong></p>
+                        {notes && <p style={{color: '#9499b7', fontSize: '13px', fontStyle: 'italic', margin: '2px 0 0 0'}}>Note: "{notes}"</p>}
+                    </div>
                 </div>
-                <h2 style={{color: '#3d4468', fontSize: '1.75rem', marginBottom: '15px'}}>Request Sent!</h2>
-                <p style={{color: '#6c7293', marginBottom: '30px', fontSize: '1rem'}}>
-                    Your request for <strong>₹{amount}</strong> has been sent to <strong>{shopkeeper.displayName}</strong>. You will be notified upon approval.
-                </p>
-                <button className="neu-button" onClick={() => router.push('/customer/dashboard')}>
+
+                 <div style={{ padding: '30px 0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{textAlign: 'center'}}>
+                         <div className="neu-icon" style={{width: '40px', height: '40px', margin: '0 auto 5px', background: '#00c896', color: 'white'}}><CheckCircle size={20}/></div>
+                         <p style={{fontSize: '12px', color: '#3d4468', fontWeight: 600}}>Sent</p>
+                    </div>
+                    <div style={{flex: 1, height: '3px', background: isApproved ? '#00c896' : isRejected ? '#ff3b5c' : '#d1d9e6', margin: '0 10px -15px 10px', transition: 'background 0.3s ease'}}></div>
+                    <div style={{textAlign: 'center'}}>
+                         <div className="neu-icon" style={{width: '40px', height: '40px', margin: '0 auto 5px', background: isPending ? '#e0e5ec' : (isApproved ? '#00c896' : '#ff3b5c'), color: isPending ? '#6c7293' : 'white', transition: 'background 0.3s ease'}}>
+                           {isPending ? <div className="neu-spinner" style={{width: '16px', height: '16px'}}></div> : isApproved ? <CheckCircle size={20}/> : <XCircle size={20}/>}
+                         </div>
+                         <p style={{fontSize: '12px', color: '#3d4468', fontWeight: 600}}>Responded</p>
+                    </div>
+                </div>
+
+                <div style={{textAlign: 'center', minHeight: '40px'}}>
+                    {isPending && <p style={{color: '#6c7293'}}>Waiting for shopkeeper to respond...</p>}
+                    {isApproved && <p style={{color: '#00c896', fontWeight: 600}}>Shopkeeper has approved your request.</p>}
+                    {isRejected && <p style={{color: '#ff3b5c', fontWeight: 600}}>Shopkeeper has rejected your request.</p>}
+                </div>
+
+                <button className="neu-button" onClick={() => router.push('/customer/dashboard')} style={{marginTop: '20px', width: '100%', margin: 0}}>
                     Back to Dashboard
                 </button>
-              </div>
-          </div>
+            </div>
+        </div>
       )
   }
 
@@ -202,17 +263,32 @@ export default function RequestCreditPage() {
       <main className="dashboard-main-content" style={{padding: '20px'}}>
         <div className="login-card" style={{ margin: 'auto' }}>
             <h2 style={{textAlign: 'center', color: '#3d4468', fontWeight: 600, fontSize: '1.5rem', marginBottom: '25px'}}>Enter Udhaar Details</h2>
-            <div className="form-group" style={{marginBottom: '30px'}}>
+            <div className="form-group">
                 <div className="neu-input">
                     <div className="input-icon"><IndianRupee /></div>
                     <input
                         type="number"
+                        id="amount"
                         placeholder=" "
                         value={amount}
                         onChange={(e) => setAmount(e.target.value)}
                         style={{paddingLeft: '55px', fontSize: '1.2rem'}}
                     />
                     <label htmlFor="amount">Enter Amount</label>
+                </div>
+            </div>
+             <div className="form-group" style={{marginBottom: '30px'}}>
+                <div className="neu-input">
+                    <div className="input-icon"><Send /></div>
+                    <input
+                        type="text"
+                        id="notes"
+                        placeholder=" "
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        style={{paddingLeft: '55px'}}
+                    />
+                    <label htmlFor="notes">Notes (Optional, e.g., "for groceries")</label>
                 </div>
             </div>
             
