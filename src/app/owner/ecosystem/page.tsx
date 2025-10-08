@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useFirebase } from '@/firebase';
-import { collection, onSnapshot, doc, updateDoc, query, where, Timestamp } from 'firebase/firestore';
+import { collection, onSnapshot, doc, updateDoc, query, where, Timestamp, getDocs } from 'firebase/firestore';
 import { Network, ChevronRight, User, Search, Users, QrCode, IndianRupee, Edit, Save, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -25,12 +25,12 @@ interface Shopkeeper {
 }
 
 interface Transaction {
-    type: 'payment';
+    type: 'payment' | 'credit' | 'commission';
     amount: number;
     shopkeeperId: string;
+    parentCreditId?: string;
+    commissionRate?: number;
 }
-
-const COMMISSION_RATE = 0.025;
 
 export default function EcosystemPage() {
   const { firestore } = useFirebase();
@@ -51,78 +51,66 @@ export default function EcosystemPage() {
    useEffect(() => {
     if (!firestore) return;
 
-    let unsubShopkeepers: () => void;
-    let unsubTransactions: () => void;
+    const shopkeepersRef = collection(firestore, 'shopkeepers');
+    const unsubShopkeepers = onSnapshot(shopkeepersRef, (shopkeeperSnapshot) => {
+        const shopkeepersData = shopkeeperSnapshot.docs.map(doc => ({
+            uid: doc.id,
+            ...doc.data()
+        })) as (Omit<Shopkeeper, 'pendingSettlement'> & { pendingSettlement?: number })[];
+        
+        const transactionsRef = collection(firestore, 'transactions');
+        const qPayments = query(transactionsRef, where('type', 'in', ['payment', 'commission']));
 
-    const fetchAndCalculate = () => {
-      setLoading(true);
-      const shopkeepersRef = collection(firestore, 'shopkeepers');
-      const transactionsRef = collection(firestore, 'transactions');
-      const qPayments = query(transactionsRef, where('type', '==', 'payment'));
+        const unsubTransactions = onSnapshot(qPayments, (transSnapshot) => {
+            const settlementData: { [shopkeeperId: string]: number } = {};
+            
+            // This map will store the commission rate for each credit transaction
+            const commissionRatesByCreditId: { [creditId: string]: number } = {};
 
-      let shopkeepersData: Omit<Shopkeeper, 'pendingSettlement'>[] = [];
-      let settlementData: { [shopkeeperId: string]: number } = {};
+            // First pass: find all commission transactions to get their rates
+            transSnapshot.docs.forEach(doc => {
+                const tx = doc.data();
+                if (tx.type === 'commission' && tx.parentCreditId && tx.commissionRate) {
+                    commissionRatesByCreditId[tx.parentCreditId] = tx.commissionRate;
+                }
+            });
 
-      const processData = () => {
-          if (!shopkeepersData.length) {
-              setAllShopkeepers([]);
-              setFilteredShopkeepers([]);
-              setLoading(false);
-              return;
-          }
-          
-          const combinedData = shopkeepersData.map(shopkeeper => ({
-              ...shopkeeper,
-              pendingSettlement: settlementData[shopkeeper.uid] || 0
-          }));
+            // Second pass: process payments and calculate principal
+            transSnapshot.docs.forEach(doc => {
+                const tx = doc.data() as Transaction;
+                if (tx.type === 'payment') {
+                    // Find the commission rate associated with the original credit of this payment
+                    const rate = tx.parentCreditId ? (commissionRatesByCreditId[tx.parentCreditId] || 0) : 0;
+                    
+                    // Correctly calculate principal based on the historical commission rate
+                    const principalAmount = tx.amount / (1 + (rate / 100));
 
-          setAllShopkeepers(combinedData);
-          setFilteredShopkeepers(combinedData);
-          setLoading(false);
-      }
+                    if (settlementData[tx.shopkeeperId]) {
+                        settlementData[tx.shopkeeperId] += principalAmount;
+                    } else {
+                        settlementData[tx.shopkeeperId] = principalAmount;
+                    }
+                }
+            });
 
-      unsubShopkeepers = onSnapshot(shopkeepersRef, (snapshot) => {
-        shopkeepersData = snapshot.docs.map(doc => {
-            const data = doc.data();
-            return {
-                uid: doc.id,
-                displayName: data.displayName || 'Unnamed Shopkeeper',
-                photoURL: data.photoURL,
-                shopkeeperCode: data.shopkeeperCode,
-                qrCodeUrl: data.qrCodeUrl,
-                mobileNumber: data.mobileNumber
-            }
+            const combinedData = shopkeepersData.map(shopkeeper => ({
+                ...shopkeeper,
+                pendingSettlement: settlementData[shopkeeper.uid] || shopkeeper.pendingSettlement || 0
+            }));
+            
+            setAllShopkeepers(combinedData);
+            setFilteredShopkeepers(combinedData);
+            setLoading(false);
         });
-        processData();
-      }, (error) => {
+
+        return () => unsubTransactions();
+
+    }, (error) => {
         console.error("Error fetching shopkeepers:", error);
         setLoading(false);
-      });
-      
-      unsubTransactions = onSnapshot(qPayments, (snapshot) => {
-          settlementData = {}; // Reset on new data
-          snapshot.forEach(doc => {
-              const tx = doc.data() as Transaction;
-              const principalAmount = tx.amount / (1 + COMMISSION_RATE);
-              if (settlementData[tx.shopkeeperId]) {
-                  settlementData[tx.shopkeeperId] += principalAmount;
-              } else {
-                  settlementData[tx.shopkeeperId] = principalAmount;
-              }
-          });
-          processData();
-      }, (error) => {
-          console.error("Error fetching transactions:", error);
-          setLoading(false);
-      });
-    }
+    });
 
-    fetchAndCalculate();
-
-    return () => {
-      if(unsubShopkeepers) unsubShopkeepers();
-      if(unsubTransactions) unsubTransactions();
-    };
+    return () => unsubShopkeepers();
   }, [firestore]);
 
   useEffect(() => {
