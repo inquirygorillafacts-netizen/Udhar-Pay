@@ -1,15 +1,16 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useFirebase } from '@/firebase';
-import { collection, onSnapshot, query, doc, getDoc, where, getDocs } from 'firebase/firestore';
-import { IndianRupee, Users, Store, CheckSquare } from 'lucide-react';
+import { collection, onSnapshot, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { IndianRupee, Users, Store, CheckSquare, Clock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface WalletStats {
     totalSettled: number;
     pendingSettlements: number;
     totalPayingCustomers: number;
+    payingCustomers24h: number; // New stat
 }
 
 interface PendingSettlement {
@@ -23,10 +24,11 @@ interface Transaction {
     amount: number;
     type: 'credit' | 'payment' | 'commission';
     customerId: string;
-    isPaid?: boolean; // For commission
-    parentCreditId?: string; // For commission
+    isPaid?: boolean;
+    parentCreditId?: string;
     shopkeeperId: string;
-    commissionRate?: number; // For payment
+    commissionRate?: number;
+    timestamp: Timestamp; // Added for 24h calculation
 }
 
 
@@ -38,6 +40,7 @@ export default function OwnerWalletPage() {
         totalSettled: 0,
         pendingSettlements: 0,
         totalPayingCustomers: 0,
+        payingCustomers24h: 0,
     });
     const [pendingTransactions, setPendingTransactions] = useState<PendingSettlement[]>([]);
     const [loading, setLoading] = useState(true);
@@ -50,14 +53,22 @@ export default function OwnerWalletPage() {
         
         const unsubscribe = onSnapshot(transQuery, async (snapshot) => {
             const shopkeeperSettlements: { [key: string]: number } = {};
-            const payingCustomers = new Set<string>();
+            const totalPayingCustomers = new Set<string>();
+            const payingCustomersIn24h = new Set<string>();
 
             const transactions = snapshot.docs.map(d => d.data() as Transaction);
+            const now = new Date();
+            const twentyFourHoursAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
 
             for (const tx of transactions) {
                 if (tx.type === 'payment') {
-                    payingCustomers.add(tx.customerId);
-                    // This logic mirrors the one in the ecosystem page to ensure consistency
+                    totalPayingCustomers.add(tx.customerId);
+                    
+                    const txTimestamp = tx.timestamp?.toDate();
+                    if (txTimestamp && txTimestamp >= twentyFourHoursAgo) {
+                        payingCustomersIn24h.add(tx.customerId);
+                    }
+
                     const commissionRate = tx.commissionRate || 2.5;
                     const principalAmount = tx.amount / (1 + (commissionRate / 100));
 
@@ -71,13 +82,15 @@ export default function OwnerWalletPage() {
 
             const totalPending = Object.values(shopkeeperSettlements).reduce((sum, amount) => sum + amount, 0);
             
-            setStats(prev => ({
-                ...prev,
+            // Note: totalSettled logic would require tracking which settlements are paid.
+            // For now, it will remain 0 as the "Mark as Settled" feature is removed.
+            setStats({
                 pendingSettlements: totalPending,
-                totalPayingCustomers: payingCustomers.size,
-            }));
+                totalSettled: 0, 
+                totalPayingCustomers: totalPayingCustomers.size,
+                payingCustomers24h: payingCustomersIn24h.size,
+            });
 
-            // Fetch shopkeeper details for pending settlements
             const shopkeeperIds = Object.keys(shopkeeperSettlements);
             if (shopkeeperIds.length > 0) {
                 const shopkeepersRef = collection(firestore, 'shopkeepers');
@@ -88,17 +101,18 @@ export default function OwnerWalletPage() {
                 shopkeepersSnap.forEach(shopDoc => {
                     const shopData = shopDoc.data();
                     const amount = shopkeeperSettlements[shopDoc.id];
-                    // Subtract any amount already settled from the shopkeeper's document if that logic exists
-                    const pendingAmount = amount - (shopData.settledAmount || 0);
-                    if (pendingAmount > 0) {
+                    
+                    // The full calculated amount is the pending amount.
+                    if (amount > 0) {
                         pendingList.push({
                             shopkeeperId: shopDoc.id,
                             shopkeeperName: shopData.displayName || 'Unknown Shopkeeper',
                             photoURL: shopData.photoURL,
-                            amount: pendingAmount,
+                            amount: amount,
                         });
                     }
                 });
+                 pendingList.sort((a, b) => b.amount - a.amount); // Sort by highest amount
                 setPendingTransactions(pendingList);
             } else {
                 setPendingTransactions([]);
@@ -114,12 +128,6 @@ export default function OwnerWalletPage() {
         return () => unsubscribe();
     }, [firestore, toast]);
     
-    const handleMarkAsSettled = (shopkeeperId: string) => {
-        toast({
-            title: 'Feature In Progress',
-            description: `Settlement for this shopkeeper will be implemented soon.`
-        })
-    }
 
   return (
     <main className="dashboard-main-content" style={{ padding: '20px' }}>
@@ -151,8 +159,18 @@ export default function OwnerWalletPage() {
                             <p style={{ color: '#00c896', margin: 0, fontSize: '1.75rem', fontWeight: '700' }}>₹{stats.totalSettled.toLocaleString('en-IN')}</p>
                         </div>
                         <div className="neu-input" style={{ padding: '20px' }}>
-                            <p style={{ color: '#6c7293', margin: 0, fontSize: '14px', fontWeight: '500' }}>Paying Customers</p>
+                             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'baseline'}}>
+                                 <p style={{ color: '#6c7293', margin: 0, fontSize: '14px', fontWeight: '500' }}>Paying Customers</p>
+                                 <span style={{fontSize: '12px', color: '#9499b7'}}>Total</span>
+                             </div>
                             <p style={{ color: '#3d4468', margin: 0, fontSize: '1.75rem', fontWeight: '700' }}>{stats.totalPayingCustomers}</p>
+                        </div>
+                         <div className="neu-input" style={{ padding: '20px' }}>
+                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'baseline'}}>
+                                 <p style={{ color: '#6c7293', margin: 0, fontSize: '14px', fontWeight: '500' }}>Paying Customers</p>
+                                 <span style={{fontSize: '12px', color: '#9499b7'}}>24h</span>
+                             </div>
+                            <p style={{ color: '#3d4468', margin: 0, fontSize: '1.75rem', fontWeight: '700' }}>{stats.payingCustomers24h}</p>
                         </div>
                     </div>
 
@@ -174,9 +192,6 @@ export default function OwnerWalletPage() {
                                     </div>
                                     <div style={{textAlign: 'right'}}>
                                         <p style={{fontWeight: 'bold', fontSize: '1.5rem', color: '#3d4468'}}>₹{tx.amount.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
-                                        <button onClick={() => handleMarkAsSettled(tx.shopkeeperId)} className="neu-button" style={{padding: '8px 16px', fontSize: '13px', margin: 0, marginTop: '8px', background: '#00c896', color: 'white', display: 'flex', alignItems: 'center', gap: '8px'}}>
-                                            <CheckSquare size={16}/> Mark as Settled
-                                        </button>
                                     </div>
                                 </div>
                             )) : (
