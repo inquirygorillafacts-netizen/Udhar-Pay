@@ -104,13 +104,13 @@ export default function OwnerSettingsPage() {
               setPinError("Old PIN is incorrect.");
               return;
           }
-          if (confirmPin.length !== 4 || !/^\d{4}$/.test(confirmPin)) {
-              setPinError("New PIN must be 4 digits.");
+          if (confirmPin.length !== 8 || !/^\d{8}$/.test(confirmPin)) {
+              setPinError("New PIN must be 8 digits.");
               return;
           }
       } else {
-          if (pin.length !== 4 || !/^\d{4}$/.test(pin)) {
-              setPinError("PIN must be 4 digits.");
+          if (pin.length !== 8 || !/^\d{8}$/.test(pin)) {
+              setPinError("PIN must be 8 digits.");
               return;
           }
           if (pin !== confirmPin) {
@@ -200,7 +200,7 @@ setShowPinModal(false);
         <div className="modal-overlay">
           <div className="login-card modal-content" style={{maxWidth: '420px'}} onClick={(e) => e.stopPropagation()}>
               <div className="modal-header">
-                  <h2>{isChangingPin ? 'Change Your PIN' : 'Set Your 4-Digit PIN'}</h2>
+                  <h2>{isChangingPin ? 'Change Your PIN' : 'Set Your 8-Digit PIN'}</h2>
                   <button className="close-button" onClick={() => setShowPinModal(false)}>&times;</button>
               </div>
               <p style={{color: '#9499b7', textAlign: 'center', marginBottom: '20px'}}>
@@ -209,16 +209,16 @@ setShowPinModal(false);
               
               <div className="form-group">
                 <div className="neu-input">
-                    <input type="password" id="pin" maxLength={4} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} placeholder=" " />
-                    <label htmlFor="pin">{isChangingPin ? 'Old 4-digit PIN' : 'Enter 4-digit PIN'}</label>
+                    <input type="password" id="pin" maxLength={8} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} placeholder=" " />
+                    <label htmlFor="pin">{isChangingPin ? 'Old 8-digit PIN' : 'Enter 8-digit PIN'}</label>
                     <div className="input-icon"><Lock/></div>
                 </div>
               </div>
               
               <div className="form-group">
                 <div className="neu-input">
-                    <input type="password" id="confirmPin" maxLength={4} value={confirmPin} onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ''))} placeholder=" " />
-                    <label htmlFor="confirmPin">{isChangingPin ? 'New 4-digit PIN' : 'Confirm PIN'}</label>
+                    <input type="password" id="confirmPin" maxLength={8} value={confirmPin} onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ''))} placeholder=" " />
+                    <label htmlFor="confirmPin">{isChangingPin ? 'New 8-digit PIN' : 'Confirm PIN'}</label>
                     <div className="input-icon"><KeyRound/></div>
                 </div>
               </div>

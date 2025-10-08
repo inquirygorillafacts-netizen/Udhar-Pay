@@ -38,8 +38,8 @@ export default function PinLockPage() {
         e.preventDefault();
         setError('');
 
-        if (!pin || pin.length < 4) {
-            setError('Please enter your 4-digit PIN.');
+        if (!pin || pin.length < 8) {
+            setError('Please enter your 8-digit PIN.');
             return;
         }
         if (!pinCheckData) {
@@ -73,7 +73,7 @@ export default function PinLockPage() {
                         <div className="icon-inner"><Lock /></div>
                     </div>
                     <h2 style={{ fontSize: '1.75rem' }}>PIN Required</h2>
-                    <p>For your security, please enter your 4-digit PIN to continue.</p>
+                    <p>For your security, please enter your 8-digit PIN to continue.</p>
                 </div>
 
                 <form onSubmit={handleSubmit}>
@@ -88,7 +88,7 @@ export default function PinLockPage() {
                                 required
                                 placeholder=" "
                                 autoComplete="off"
-                                maxLength={4}
+                                maxLength={8}
                                 className="pin-input"
                                 style={{ fontSize: '1.5rem', letterSpacing: '0.8em', textAlign: 'center', paddingLeft: '24px' }}
                             />
