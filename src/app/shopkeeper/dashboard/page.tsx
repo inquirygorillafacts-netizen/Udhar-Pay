@@ -437,43 +437,64 @@ export default function ShopkeeperDashboardPage() {
   }
 
   const handleSendRequest = async (customer: CustomerForSelection) => {
-      setSelectedCustomer(customer);
-      const amount = parseFloat(creditAmount);
-    
-      if (isNaN(amount) || amount <= 0 || !auth.currentUser || !firestore || !shopkeeperProfile) {
+    setSelectedCustomer(customer);
+    const amount = parseFloat(creditAmount);
+
+    if (isNaN(amount) || amount <= 0 || !auth.currentUser || !firestore || !shopkeeperProfile) {
         setError("An unexpected error occurred. Please start over.");
         return;
-      }
-    
-      const customerSettings = shopkeeperProfile.creditSettings?.[customer.uid];
-      const isCreditEnabled = customerSettings?.isCreditEnabled ?? true;
-  
-      if (!isCreditEnabled) {
+    }
+
+    const customerSettings = shopkeeperProfile.creditSettings?.[customer.uid];
+    const isCreditEnabled = customerSettings?.isCreditEnabled ?? true;
+
+    if (!isCreditEnabled) {
         setCreditDisabledModalData(customer);
         setShowCreditDisabledModal(true);
-        return; // Stop the process here
-      }
-      
-      await proceedWithCreditRequest(customer, amount);
-  };
-  
-  const proceedWithCreditRequest = async (customer: CustomerForSelection, amount: number) => {
-      if (!auth.currentUser || !firestore || !shopkeeperProfile) return;
+        return;
+    }
 
-      setIsRequestingCredit(true);
-      setError('');
+    // Fetch the LATEST balance before proceeding
+    setIsRequestingCredit(true);
+    setError('');
+    try {
+        const transQuery = query(
+            collection(firestore, 'transactions'),
+            where('shopkeeperId', '==', auth.currentUser.uid),
+            where('customerId', '==', customer.uid)
+        );
+        const transSnap = await getDocs(transQuery);
+        let currentBalance = 0;
+        transSnap.forEach(doc => {
+            const tx = doc.data() as any;
+            if (tx.type === 'credit' || tx.type === 'commission') {
+                currentBalance += tx.amount;
+            } else if (tx.type === 'payment') {
+                currentBalance -= tx.amount;
+            }
+        });
+        
+        await proceedWithCreditRequest(customer, amount, currentBalance);
+
+    } catch (e) {
+        setError("Could not verify customer's current balance. Please try again.");
+        setIsRequestingCredit(false);
+    }
+};
+
+const proceedWithCreditRequest = async (customer: CustomerForSelection, amount: number, currentBalance: number) => {
+      if (!auth.currentUser || !firestore || !shopkeeperProfile) return;
     
+      const creditLimit = getCreditLimitForCustomer(customer.uid);
+  
+      if (currentBalance + amount > creditLimit) {
+          setLimitModalData({ customer, currentLimit: creditLimit });
+          setShowCreditLimitExceededModal(true);
+          setIsRequestingCredit(false);
+          return;
+      }
+  
       try {
-        const creditLimit = getCreditLimitForCustomer(customer.uid);
-        const currentBalance = customer.balance;
-    
-        if (currentBalance + amount > creditLimit) {
-            setLimitModalData({ customer, currentLimit: creditLimit });
-            setShowCreditLimitExceededModal(true);
-            setIsRequestingCredit(false);
-            return;
-        }
-    
         const creditRequestsRef = collection(firestore, 'creditRequests');
         const expireAt = new Date(Date.now() + 1 * 60 * 1000); // 1 minute from now
         
@@ -519,7 +540,7 @@ export default function ShopkeeperDashboardPage() {
           });
           
           setShowCreditDisabledModal(false);
-          await proceedWithCreditRequest(creditDisabledModalData, parseFloat(creditAmount));
+          await handleSendRequest(creditDisabledModalData); // Re-run the main handler which will now succeed
 
       } catch (err) {
           console.error("Failed to re-enable credit:", err);
