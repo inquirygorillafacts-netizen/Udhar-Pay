@@ -2,9 +2,14 @@
 
 import { useState } from 'react';
 import { useFirebase } from '@/firebase';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { Bell, Send, AlertTriangle } from 'lucide-react';
+import { doc, setDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
+import { Bell, Send, AlertTriangle, Users, Store } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
+
+
+type TargetAudience = 'customers' | 'shopkeepers' | 'both';
 
 export default function OwnerNotificationPage() {
     const { firestore } = useFirebase();
@@ -12,8 +17,13 @@ export default function OwnerNotificationPage() {
     const [message, setMessage] = useState('');
     const [isSending, setIsSending] = useState(false);
     const [error, setError] = useState('');
+    const [target, setTarget] = useState<TargetAudience | null>(null);
 
     const handleSendMessage = async () => {
+        if (!target) {
+            setError("Please select who to send the message to.");
+            return;
+        }
         if (message.trim().length === 0) {
             setError("Message cannot be empty.");
             return;
@@ -27,16 +37,29 @@ export default function OwnerNotificationPage() {
         setError('');
 
         try {
-            const messageRef = doc(firestore, 'notifications', 'ownerMessage');
-            await setDoc(messageRef, {
+            const batch = writeBatch(firestore);
+            const messageData = {
                 text: message,
                 updatedAt: serverTimestamp()
-            });
+            };
+
+            if (target === 'customers' || target === 'both') {
+                const customerMessageRef = doc(firestore, 'notifications', 'customerMessage');
+                batch.set(customerMessageRef, messageData);
+            }
+            if (target === 'shopkeepers' || target === 'both') {
+                const shopkeeperMessageRef = doc(firestore, 'notifications', 'shopkeeperMessage');
+                batch.set(shopkeeperMessageRef, messageData);
+            }
+            
+            await batch.commit();
+
             toast({
                 title: "Message Sent!",
-                description: "Your message has been broadcast to all customers.",
+                description: `Your message has been broadcast to ${target}.`,
             });
             setMessage('');
+            setTarget(null); // Reset target after sending
         } catch (err) {
             console.error("Error sending message:", err);
             toast({
@@ -55,7 +78,7 @@ export default function OwnerNotificationPage() {
                 <div className="login-header" style={{ marginBottom: '30px' }}>
                     <div className="neu-icon"><div className="icon-inner"><Bell /></div></div>
                     <h1 style={{ color: '#3d4468', fontSize: '2rem', fontWeight: '600' }}>Broadcast Message</h1>
-                    <p style={{ color: '#6c7293' }}>Send a notification to all customers.</p>
+                    <p style={{ color: '#6c7293' }}>Send a notification to your users.</p>
                 </div>
 
                 <div style={{ padding: '15px 20px', background: '#fffbe6', borderRadius: '15px', border: '1px solid #fde047', display: 'flex', gap: '15px', alignItems: 'center', marginBottom: '30px' }}>
@@ -63,9 +86,27 @@ export default function OwnerNotificationPage() {
                     <div>
                         <h4 style={{ color: '#ca8a04', fontWeight: 'bold' }}>Important Note</h4>
                         <p style={{ color: '#a16207', margin: 0, fontSize: '14px' }}>
-                            This message will be sent to every customer. It will appear in their dashboard until they have viewed it twice.
+                            This message will appear in the selected users' dashboard until they have viewed it twice.
                         </p>
                     </div>
+                </div>
+
+                <div className="form-group">
+                     <h3 className="setting-title" style={{textAlign: 'center', border: 'none', fontSize: '1rem', paddingBottom: 0}}>Send To:</h3>
+                     <RadioGroup onValueChange={(value: TargetAudience) => setTarget(value)} value={target ?? ''} className="role-buttons" style={{justifyContent: 'center', gap: '20px', marginBottom: '30px'}}>
+                        <Label htmlFor="customers" className={`neu-button role-btn ${target === 'customers' ? 'active' : ''}`}>
+                            <RadioGroupItem value="customers" id="customers" className="sr-only" />
+                            <Users size={20} style={{marginRight: '8px'}} /> Customers
+                        </Label>
+                         <Label htmlFor="shopkeepers" className={`neu-button role-btn ${target === 'shopkeepers' ? 'active' : ''}`}>
+                            <RadioGroupItem value="shopkeepers" id="shopkeepers" className="sr-only" />
+                            <Store size={20} style={{marginRight: '8px'}} /> Shopkeepers
+                        </Label>
+                         <Label htmlFor="both" className={`neu-button role-btn ${target === 'both' ? 'active' : ''}`}>
+                            <RadioGroupItem value="both" id="both" className="sr-only" />
+                            Both
+                        </Label>
+                    </RadioGroup>
                 </div>
 
                 <div className="form-group">
@@ -96,7 +137,7 @@ export default function OwnerNotificationPage() {
                 <button 
                     className={`neu-button ${isSending ? 'loading' : ''}`} 
                     onClick={handleSendMessage} 
-                    disabled={isSending}
+                    disabled={isSending || !target}
                     style={{ background: '#00c896', color: 'white' }}
                 >
                     <span className="btn-text" style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'}}><Send size={18}/> Send Broadcast</span>

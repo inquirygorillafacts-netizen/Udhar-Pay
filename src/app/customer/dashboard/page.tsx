@@ -172,7 +172,7 @@ export default function CustomerDashboardPage() {
           setCreditRequests(requests);
       });
       
-      const ownerMessageRef = doc(firestore, 'notifications', 'ownerMessage');
+      const ownerMessageRef = doc(firestore, 'notifications', 'customerMessage');
       const unsubscribeOwnerMessage = onSnapshot(ownerMessageRef, (docSnap) => {
         if(docSnap.exists()) {
             const messageData = { id: docSnap.id, ...docSnap.data() } as OwnerMessage;
@@ -237,30 +237,35 @@ export default function CustomerDashboardPage() {
               const batch = writeBatch(firestore);
               batch.update(requestRef, { status: 'approved' });
               
-              const commissionAmount = request.amount * COMMISSION_RATE;
-              const profitAmount = Math.round(commissionAmount * 100) / 100;
+              const settingsDoc = await getDoc(doc(firestore, 'settings', 'platform'));
+              const commissionRate = settingsDoc.data()?.commissionRate || 2.5;
+
+              const commissionAmount = request.amount * (commissionRate / 100);
 
               // Main credit transaction
               const transactionRef = doc(collection(firestore, 'transactions'));
-              batch.set(transactionRef, {
+              const creditData = {
                   amount: request.amount,
-                  type: 'credit',
+                  type: 'credit' as const,
                   notes: `Credit approved by customer`,
                   shopkeeperId: request.shopkeeperId,
                   customerId: auth.currentUser.uid,
                   timestamp: serverTimestamp(),
-              });
+              };
+              batch.set(transactionRef, creditData);
 
               // Commission transaction for platform profit
               const commissionRef = doc(collection(firestore, 'transactions'));
                batch.set(commissionRef, {
-                  amount: profitAmount,
-                  type: 'commission',
-                  notes: `2.5% commission on ₹${request.amount} credit`,
+                  amount: commissionAmount,
+                  type: 'commission' as const,
+                  notes: `${commissionRate}% commission on ₹${request.amount} credit`,
                   shopkeeperId: request.shopkeeperId,
                   customerId: auth.currentUser.uid,
                   timestamp: serverTimestamp(),
-                  profit: profitAmount
+                  isPaid: false,
+                  commissionRate: commissionRate,
+                  parentCreditId: transactionRef.id
               });
               
               await batch.commit();
@@ -515,4 +520,3 @@ export default function CustomerDashboardPage() {
     
 
     
-
