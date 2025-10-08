@@ -59,23 +59,28 @@ export default function OwnerAuthPage() {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
     
+            // CRITICAL SECURITY CHECK: Verify the user's role from Firestore *after* successful authentication.
             try {
                 const userDocRef = doc(firestore, 'owner_o2Vco2LqnvWsZijYtb4EDMNdOOC2', user.uid);
                 const userDoc = await getDoc(userDocRef);
         
+                // Only proceed if the document exists AND the role is correct.
                 if (userDoc.exists() && userDoc.data().role === '**##owner_XwJfOW27AvfN5ELUzbUPpXPcbG73_locked##**') {
+                    // Role is verified, now proceed to the dashboard.
                     handleFormTransition();
                 } else {
+                    // If role is incorrect or doc doesn't exist, sign out immediately and show an error.
                     await auth.signOut(); 
                     setErrors({ form: 'Access denied. You do not have owner privileges.' });
                 }
             } catch (firestoreError) {
                 console.error("Firestore role check failed:", firestoreError);
-                await auth.signOut();
+                await auth.signOut(); // Sign out on any error during role check.
                 setErrors({ form: 'Could not verify user role. Please try again.' });
             }
         } catch (authError: any) {
              let errorMessage;
+             // Handle specific authentication errors for better user feedback.
              if (authError.code === 'auth/invalid-credential' || authError.code === 'auth/user-not-found' || authError.code === 'auth/wrong-password') {
                  errorMessage = 'Invalid email or password. Access denied.';
              } else {
@@ -190,3 +195,5 @@ export default function OwnerAuthPage() {
         </div>
     );
 }
+
+    
