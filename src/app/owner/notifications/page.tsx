@@ -130,7 +130,7 @@ export default function OwnerNotificationPage() {
                                 <RadioGroupItem value="shopkeepers" id="shopkeepers" className="sr-only" />
                                 <Store size={20} /> Shopkeepers
                             </Label>
-                             <Label htmlFor="both" className={`neu-button ${target === 'both' ? 'active' : ''}`} style={{flex: 1, margin: 0, padding: '15px'}}>
+                             <Label htmlFor="both" className={`neu-button ${target === 'both' ? 'active' : ''}`} style={{flex: 1, margin: 0, padding: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
                                 <RadioGroupItem value="both" id="both" className="sr-only" />
                                 Both
                             </Label>
@@ -178,7 +178,7 @@ export default function OwnerNotificationPage() {
                                      <div>
                                          <p style={{color: '#6c7293', marginBottom: '8px', whiteSpace: 'pre-wrap'}}>{msg.text}</p>
                                          <div style={{display: 'flex', gap: '10px', alignItems: 'center'}}>
-                                             <span style={{fontSize: '12px', color: '#9499b7', fontWeight: 500}}>{msg.createdAt?.toDate().toLocaleDateString('en-IN', { day: 'short', month: 'short', year: 'numeric'})}</span>
+                                             <span style={{fontSize: '12px', color: '#9499b7', fontWeight: 500}}>{msg.createdAt?.toDate().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric'})}</span>
                                              <span style={{padding: '3px 8px', background: '#e0e5ec', borderRadius: '8px', fontSize: '11px', fontWeight: 600, color: '#3d4468', textTransform: 'capitalize'}}>{msg.target}</span>
                                          </div>
                                      </div>
