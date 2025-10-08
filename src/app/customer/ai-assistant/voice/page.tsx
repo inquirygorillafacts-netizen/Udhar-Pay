@@ -169,13 +169,18 @@ export default function VoiceAssistantPage() {
             setHasPermission(true);
 
             const recognition = new SpeechRecognition();
-            recognition.continuous = false; // Process after a single utterance
-            recognition.interimResults = false;
+            recognition.continuous = true;
+            recognition.interimResults = true;
 
             recognition.onresult = (event: any) => {
-                const transcript = event.results[0][0].transcript.trim();
-                if (transcript && !isProcessingQuery.current) {
-                    processQuery(transcript);
+                let finalTranscript = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript;
+                    }
+                }
+                if (finalTranscript.trim() && !isProcessingQuery.current) {
+                     processQuery(finalTranscript.trim());
                 }
             };
             
