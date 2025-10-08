@@ -235,9 +235,12 @@ export default function ShopkeeperDashboardPage() {
     });
 
     const messagesRef = collection(firestore, "owner_messages");
-    const qMessages = query(messagesRef, where('target', 'in', ['shopkeepers', 'both']), orderBy('createdAt', 'desc'));
+    const qMessages = query(messagesRef, where('target', 'in', ['shopkeepers', 'both']));
     const unsubscribeOwnerMessages = onSnapshot(qMessages, (snapshot) => {
-        setOwnerMessages(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as OwnerMessage)));
+        const fetchedMessages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as OwnerMessage));
+        // Sort messages by creation date, newest first
+        fetchedMessages.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+        setOwnerMessages(fetchedMessages);
     });
 
     const savedQr = localStorage.getItem('shopkeeperQrPosterPng');
@@ -1079,4 +1082,3 @@ const proceedWithCreditRequest = async (customer: CustomerForSelection, amount: 
     </>
   );
 }
-
