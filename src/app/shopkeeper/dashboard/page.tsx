@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase';
 import { doc, onSnapshot, collection, query, where, getDocs, addDoc, serverTimestamp, DocumentData, writeBatch, updateDoc, getDoc } from 'firebase/firestore';
 import Link from 'next/link';
-import { MessageSquare, X, Check, ArrowLeft, ArrowRight, QrCode, Share2, RefreshCw, Repeat, CheckCircle, XCircle, AlertTriangle, IndianRupee, StickyNote, User } from 'lucide-react';
+import { MessageSquare, X, Check, ArrowLeft, ArrowRight, QrCode, Share2, RefreshCw, Repeat, CheckCircle, XCircle, AlertTriangle, IndianRupee, StickyNote, User, Phone, BookOpen } from 'lucide-react';
 import { acceptConnectionRequest, rejectConnectionRequest } from '@/lib/connections';
 import CustomerCard from '@/app/shopkeeper/components/CustomerCard';
 import QrPoster from '@/components/shopkeeper/QrPoster';
@@ -38,6 +38,7 @@ interface CustomerCreditRequest {
     id: string;
     customerId: string;
     customerName: string;
+    customerPhone?: string;
     amount: number;
     notes?: string;
 }
@@ -938,15 +939,21 @@ export default function ShopkeeperDashboardPage() {
                      {customerCreditRequests.map(req => (
                         <li key={req.id} style={{ background: '#e0e5ec', padding: '15px', borderRadius: '15px', boxShadow: '5px 5px 10px #bec3cf, -5px -5px 10px #ffffff' }}>
                             <p style={{ color: '#3d4468', fontWeight: '600', marginBottom: '5px' }}>
-                                {req.customerName} is requesting a credit of <span style={{color: '#00c896'}}>₹{req.amount}</span>.
+                                <strong style={{color: '#007bff'}}>{req.customerName}</strong> is requesting credit of <span style={{color: '#00c896'}}>₹{req.amount}</span>.
                             </p>
                             {req.notes && <p style={{color: '#9499b7', fontSize: '13px', fontStyle: 'italic', marginBottom: '10px'}}>" {req.notes} "</p>}
-                            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-                                <button className="neu-button" onClick={() => handleCreditRequestResponse(req, 'rejected')} style={{ margin: 0, width: 'auto', padding: '8px 16px', background: '#e0e5ec', color: '#ff3b5c' }}>
-                                    Reject
+                            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', borderTop: '1px solid #d1d9e6', paddingTop: '10px', marginTop: '10px' }}>
+                                <a href={`tel:${req.customerPhone}`} className="neu-button" style={{ margin: 0, width: 'auto', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                   <Phone size={16} /> Call
+                                </a>
+                                <Link href={`/shopkeeper/customer/${req.customerId}`} className="neu-button" style={{ margin: 0, width: 'auto', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                   <BookOpen size={16} /> History
+                                </Link>
+                                <button className="neu-button" onClick={() => handleCreditRequestResponse(req, 'rejected')} style={{ margin: 0, width: 'auto', padding: '8px', background: '#e0e5ec', color: '#ff3b5c' }}>
+                                    <X size={18}/>
                                 </button>
-                                <button className="neu-button" onClick={() => handleCreditRequestResponse(req, 'approved')} style={{ margin: 0, width: 'auto', padding: '8px 16px', background: '#00c896', color: 'white' }}>
-                                    Approve
+                                <button className="neu-button" onClick={() => handleCreditRequestResponse(req, 'approved')} style={{ margin: 0, width: 'auto', padding: '8px', background: '#00c896', color: 'white' }}>
+                                    <Check size={18}/>
                                 </button>
                             </div>
                         </li>

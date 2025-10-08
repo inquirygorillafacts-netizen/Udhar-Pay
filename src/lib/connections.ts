@@ -33,7 +33,8 @@ export const sendConnectionRequest = async (firestore: Firestore, customerId: st
 
     // 2. Check if already connected using the definitive UID
     const customerDoc = await getDoc(doc(firestore, 'customers', customerId));
-    const customerConnections = customerDoc.data()?.connections || [];
+    const customerData = customerDoc.data();
+    const customerConnections = customerData?.connections || [];
     if (customerConnections.includes(actualShopkeeperId)) {
         return {
             status: 'already_connected',
@@ -59,6 +60,7 @@ export const sendConnectionRequest = async (firestore: Firestore, customerId: st
       customerId,
       shopkeeperId: actualShopkeeperId,
       customerName: customerName || 'A new customer',
+      customerPhone: customerData?.mobileNumber || '', // Add customer's phone number
       status: 'pending',
       createdAt: serverTimestamp()
     });
