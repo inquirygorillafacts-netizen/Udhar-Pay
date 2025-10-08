@@ -159,8 +159,14 @@ export default function ShopkeeperDashboardPage() {
             transSnap.forEach(tDoc => {
                 const t = tDoc.data() as any;
                 if (balances[t.customerId] !== undefined) {
-                    if (t.type === 'credit' || t.type === 'commission') balances[t.customerId] += t.amount;
-                    else if (t.type === 'payment') balances[t.customerId] -= t.amount;
+                    // For the shopkeeper's view, we only care about principal credit and payments.
+                    // Commission is invisible to the shopkeeper's balance calculation.
+                    if (t.type === 'credit') {
+                        balances[t.customerId] += t.amount;
+                    } else if (t.type === 'payment') {
+                         const principalAmount = t.amount / (1 + COMMISSION_RATE);
+                         balances[t.customerId] -= principalAmount;
+                    }
                 }
             });
 

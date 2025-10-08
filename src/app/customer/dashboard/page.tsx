@@ -129,6 +129,7 @@ export default function CustomerDashboardPage() {
               snapshot.forEach((doc) => {
                   const tx = doc.data() as Transaction;
                   if (newBalances[tx.shopkeeperId] !== undefined) {
+                       // Correct balance calculation for customer view: commission is part of their debt
                       if (tx.type === 'credit' || tx.type === 'commission') {
                           newBalances[tx.shopkeeperId] += tx.amount;
                       } else if (tx.type === 'payment') {
@@ -514,4 +515,3 @@ export default function CustomerDashboardPage() {
     
 
     
-

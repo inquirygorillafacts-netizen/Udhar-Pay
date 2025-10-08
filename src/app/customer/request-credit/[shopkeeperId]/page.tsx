@@ -147,6 +147,7 @@ export default function RequestCreditPage() {
         let currentBalance = 0;
         transSnap.forEach(doc => {
             const tx = doc.data();
+            // Customer's debt includes the commission
             if (tx.type === 'credit' || tx.type === 'commission') currentBalance += tx.amount;
             else if (tx.type === 'payment') currentBalance -= tx.amount;
         });
