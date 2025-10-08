@@ -28,7 +28,6 @@ interface ShopkeeperProfile {
     qrCodeUrl?: string;
     mobileNumber?: string;
     connections?: string[];
-    pendingSettlement?: number;
 }
 
 interface CustomerCheck {
@@ -108,14 +107,18 @@ export default function ShopkeeperJeevanKundliPage() {
                     snapshot.docs.forEach(doc => {
                         const tx = doc.data() as Transaction;
                         
-                        if (tx.type === 'credit') {
-                           customerBalances[tx.customerId] += tx.amount;
+                         if (tx.type === 'credit') {
+                           if(customerBalances[tx.customerId] !== undefined) customerBalances[tx.customerId] += tx.amount;
                         } else if (tx.type === 'payment') {
-                            const commissionRate = tx.commissionRate || 2.5;
-                            const principalAmount = tx.amount / (1 + (commissionRate / 100));
-                            customerBalances[tx.customerId] -= principalAmount;
+                           if(customerBalances[tx.customerId] !== undefined) {
+                               const commissionRate = tx.commissionRate || 2.5;
+                               const principalAmount = tx.amount / (1 + (commissionRate / 100));
+                               customerBalances[tx.customerId] -= principalAmount;
+                           }
 
                             if (tx.isPaid === false) { // Only add if not marked as settled
+                                const commissionRate = tx.commissionRate || 2.5;
+                                const principalAmount = tx.amount / (1 + (commissionRate / 100));
                                 totalPendingSettlement += principalAmount;
                             }
                         }
@@ -186,12 +189,8 @@ export default function ShopkeeperJeevanKundliPage() {
 
         setIsUpdating(true);
         try {
-            const shopkeeperRef = doc(firestore, 'shopkeepers', shopkeeper.uid);
-            await updateDoc(shopkeeperRef, {
-                pendingSettlement: amount
-            });
-            // The onSnapshot listener will update the livePendingSettlement state automatically.
-            toast({ title: "Success", description: "Pending settlement updated." });
+            // Manual override is disabled as live data is now calculated.
+            toast({ title: "Manual Override Disabled", description: "Pending settlement is now calculated live from transactions and cannot be manually overridden." });
             setIsEditingAmount(false);
             setNewAmount('');
         } catch (error) {
@@ -238,7 +237,7 @@ export default function ShopkeeperJeevanKundliPage() {
                                 <div className="input-icon"><IndianRupee /></div>
                             </div>
                         </div>
-                         <button onClick={handleUpdateAmount} className={`neu-button ${isUpdating ? 'loading' : ''}`} disabled={isUpdating} style={{margin: 0, background: '#00c896', color: 'white'}}>
+                         <button onClick={handleUpdateAmount} className={`neu-button ${isUpdating ? 'loading' : ''}`} disabled={isUpdating || true} style={{margin: 0, background: '#00c896', color: 'white', opacity: 0.5}}>
                             <span className="btn-text">Save New Amount</span>
                             <div className="btn-loader"><div className="neu-spinner"></div></div>
                          </button>
@@ -297,7 +296,7 @@ export default function ShopkeeperJeevanKundliPage() {
                                <button onClick={() => shopkeeper.qrCodeUrl && setViewingQr(shopkeeper.qrCodeUrl)} disabled={!shopkeeper.qrCodeUrl} className="neu-button" style={{margin: 0, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px', padding: '12px'}}>
                                     <QrCode size={16}/> View QR
                                 </button>
-                                <button onClick={() => { setIsEditingAmount(true); setNewAmount(livePendingSettlement?.toString() || '0'); }} className="neu-button" style={{margin: 0, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px', padding: '12px'}}>
+                                <button onClick={() => { setIsEditingAmount(true); setNewAmount(livePendingSettlement?.toString() || '0'); }} className="neu-button" style={{margin: 0, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px', padding: '12px'}} disabled>
                                     <Edit size={16}/> Update
                                 </button>
                                 <button onClick={openWhatsApp} className="neu-button" style={{margin: 0, flex: 1, background: '#25D366', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px', padding: '12px'}}>

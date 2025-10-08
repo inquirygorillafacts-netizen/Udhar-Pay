@@ -98,6 +98,41 @@
         }
       },
       "required": ["text", "target", "createdAt"]
+    },
+    "Settlement": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Settlement",
+      "type": "object",
+      "description": "Records a settlement transaction from the owner to a shopkeeper.",
+      "properties": {
+        "shopkeeperId": {
+          "type": "string",
+          "description": "The UID of the shopkeeper being paid."
+        },
+        "amountSettled": {
+          "type": "number",
+          "description": "The amount of money paid to the shopkeeper."
+        },
+        "method": {
+          "type": "string",
+          "enum": ["UPI", "Bank Transfer", "Cash"],
+          "description": "The method used for the settlement."
+        },
+        "transactionId": {
+          "type": "string",
+          "description": "A reference ID for the payment (e.g., UPI transaction ID, bank reference number)."
+        },
+        "settledAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the settlement was recorded."
+        },
+        "settledBy": {
+            "type": "string",
+            "description": "The UID of the owner who performed the settlement."
+        }
+      },
+      "required": ["shopkeeperId", "amountSettled", "method", "settledAt", "settledBy"]
     }
   },
   "auth": {
@@ -152,6 +187,22 @@
             {
               "name": "messageId",
               "description": "The unique identifier for the broadcast message."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/settlements/{settlementId}",
+        "definition": {
+          "entityName": "Settlement",
+          "schema": {
+            "$ref": "#/backend/entities/Settlement"
+          },
+          "description": "Stores records of payments made by the owner to shopkeepers to clear their pending settlements.",
+          "params": [
+            {
+              "name": "settlementId",
+              "description": "The unique identifier for the settlement transaction."
             }
           ]
         }

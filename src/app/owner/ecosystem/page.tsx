@@ -51,21 +51,19 @@ export default function EcosystemPage() {
   useEffect(() => {
     if (!firestore) return;
 
-    let unsubscribe: () => void = () => {};
+    setLoading(true);
+    const shopkeepersRef = collection(firestore, 'shopkeepers');
 
-    const fetchData = async () => {
-        setLoading(true);
-        const shopkeepersRef = collection(firestore, 'shopkeepers');
-        const transactionsRef = collection(firestore, 'transactions');
-        const qTransactions = query(transactionsRef, where('type', '==', 'payment'));
-
-        const shopkeeperSnap = await getDocs(shopkeepersRef);
-        const shopkeepersData = shopkeeperSnap.docs.map(doc => ({
+    const unsubscribe = onSnapshot(shopkeepersRef, (shopkeeperSnapshot) => {
+        const shopkeepersData = shopkeeperSnapshot.docs.map(doc => ({
             uid: doc.id,
             ...doc.data()
         })) as Omit<Shopkeeper, 'pendingSettlement'>[];
 
-        unsubscribe = onSnapshot(qTransactions, (transSnapshot) => {
+        const transactionsRef = collection(firestore, 'transactions');
+        const qTransactions = query(transactionsRef, where('type', '==', 'payment'));
+
+        const unsubscribeTransactions = onSnapshot(qTransactions, (transSnapshot) => {
             const settlementData: { [shopkeeperId: string]: number } = {};
 
             transSnapshot.docs.forEach(doc => {
@@ -90,16 +88,16 @@ export default function EcosystemPage() {
             setAllShopkeepers(combinedData);
             setFilteredShopkeepers(combinedData);
             setLoading(false);
-        }, (error) => {
-            console.error("Error fetching transactions:", error);
-            setLoading(false);
         });
-    };
 
-    fetchData();
+        return () => unsubscribeTransactions();
+    }, (error) => {
+        console.error("Error fetching shopkeepers:", error);
+        setLoading(false);
+    });
 
     return () => unsubscribe();
-  }, [firestore]);
+}, [firestore]);
 
 
   useEffect(() => {
@@ -144,10 +142,12 @@ export default function EcosystemPage() {
     setIsUpdating(true);
     try {
         const shopkeeperRef = doc(firestore, 'shopkeepers', editingShopkeeper.uid);
-        await updateDoc(shopkeeperRef, {
-            pendingSettlement: amount
-        });
-        toast({ title: "Success", description: "This is a manual override. The live value will update on the next transaction." });
+        // This is a manual override field. It is not recommended to use this.
+        // Live data is now calculated from transactions.
+        // await updateDoc(shopkeeperRef, {
+        //     pendingSettlement: amount
+        // });
+        toast({ title: "Manual Override Disabled", description: "Pending settlement is now calculated live from transactions and cannot be manually overridden here." });
         setEditingShopkeeper(null);
         setNewAmount('');
     } catch (error) {
@@ -261,7 +261,7 @@ export default function EcosystemPage() {
                        <button onClick={() => shopkeeper.qrCodeUrl && setViewingQr(shopkeeper.qrCodeUrl)} disabled={!shopkeeper.qrCodeUrl} className="neu-button" style={{margin: 0, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px', padding: '12px'}}>
                             <QrCode size={16}/> View QR
                         </button>
-                        <button onClick={() => { setEditingShopkeeper(shopkeeper); setNewAmount(shopkeeper.pendingSettlement.toFixed(2)); }} className="neu-button" style={{margin: 0, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px', padding: '12px'}}>
+                        <button onClick={() => { setEditingShopkeeper(shopkeeper); setNewAmount(shopkeeper.pendingSettlement.toFixed(2)); }} className="neu-button" style={{margin: 0, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px', padding: '12px'}} disabled>
                             <Edit size={16}/> Override
                         </button>
                         <button onClick={() => openWhatsApp(shopkeeper.mobileNumber)} className="neu-button" style={{margin: 0, flex: 1, background: '#25D366', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px', padding: '12px'}}>
