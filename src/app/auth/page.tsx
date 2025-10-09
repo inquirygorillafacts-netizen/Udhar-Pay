@@ -1,13 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import './auth.css';
 import { User, Store, Lock, Shield, X } from 'lucide-react';
 import Link from 'next/link';
-
-// This page is now free of Firebase hooks to ensure its buttons always work.
-// The owner PIN check logic has been simplified and moved.
 
 export default function AuthRoleSelectionPage() {
     const router = useRouter();
@@ -16,21 +13,12 @@ export default function AuthRoleSelectionPage() {
     const [pinError, setPinError] = useState('');
     const [isOwnerUnlocked, setIsOwnerUnlocked] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [isLockVisible, setIsLockVisible] = useState(true);
     
-    // This is a simplified, local check. The real PIN verification will happen on the owner login page.
-    const CORRECT_PIN = "998877"; 
+    // Secret trigger state
+    const [clickCount, setClickCount] = useState(0);
+    const clickTimer = useRef<NodeJS.Timeout | null>(null);
 
-    useEffect(() => {
-        const lockoutTime = localStorage.getItem('lockoutUntil');
-        if (lockoutTime) {
-            const remainingTime = Number(lockoutTime) - Date.now();
-            if (remainingTime > 0) {
-                setIsLockVisible(false);
-                setTimeout(() => setIsLockVisible(true), remainingTime);
-            }
-        }
-    }, []);
+    const CORRECT_PIN = "998877"; 
 
     const handlePinSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -41,7 +29,6 @@ export default function AuthRoleSelectionPage() {
         setLoading(true);
         setPinError('');
 
-        // Simulate a check and redirect. The actual secure login is on the next page.
         setTimeout(() => {
             if (pin === CORRECT_PIN) {
                 setIsOwnerUnlocked(true);
@@ -49,24 +36,32 @@ export default function AuthRoleSelectionPage() {
                 setPin('');
             } else {
                  setPinError('Incorrect PIN. Access denied.');
-                 const lockoutDuration = 30000;
-                 const lockoutUntil = Date.now() + lockoutDuration;
-                 localStorage.setItem('lockoutUntil', String(lockoutUntil));
-                 
                  setTimeout(() => {
                      setIsModalOpen(false);
-                     setIsLockVisible(false);
-                     setTimeout(() => {
-                         setIsLockVisible(true);
-                         localStorage.removeItem('lockoutUntil');
-                     }, lockoutDuration);
                  }, 2000);
             }
             setLoading(false);
         }, 500);
     };
+    
+    const handleSecretClick = () => {
+        if (clickTimer.current) {
+            clearTimeout(clickTimer.current);
+        }
 
-    const openModal = () => setIsModalOpen(true);
+        const newClickCount = clickCount + 1;
+        setClickCount(newClickCount);
+
+        if (newClickCount >= 7) {
+            setIsModalOpen(true);
+            setClickCount(0);
+        } else {
+            clickTimer.current = setTimeout(() => {
+                setClickCount(0);
+            }, 3000); // Reset after 3 seconds of inactivity
+        }
+    };
+
     const closeModal = () => {
         if (loading) return;
         setIsModalOpen(false);
@@ -79,7 +74,7 @@ export default function AuthRoleSelectionPage() {
           <div style={{width: '100%', maxWidth: '450px'}}>
             <div className="login-card role-card">
                 <div className="login-header">
-                    <h2 style={{ fontSize: '1.75rem' }}>Choose Your Role</h2>
+                    <h2 style={{ fontSize: '1.75rem', cursor: 'pointer' }} onClick={handleSecretClick}>Choose Your Role</h2>
                     <p>Select how you want to sign in to the platform.</p>
                 </div>
 
@@ -110,12 +105,6 @@ export default function AuthRoleSelectionPage() {
                 </div>
              </footer>
           </div>
-            
-            {!isOwnerUnlocked && isLockVisible && (
-                <button className="neu-button lock-btn" onClick={openModal} aria-label="Owner Access">
-                    <Lock />
-                </button>
-            )}
 
             {isModalOpen && (
                 <div className="modal-overlay" onClick={closeModal}>

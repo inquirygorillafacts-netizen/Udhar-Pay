@@ -55,27 +55,6 @@
 }
 
 
-/* Lock Button */
-.lock-btn {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    width: 60px !important;
-    height: 60px !important;
-    border-radius: 50%;
-    padding: 0 !important;
-    margin: 0 !important;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 10;
-}
-
-.lock-btn svg {
-    width: 24px;
-    height: 24px;
-}
-
 /* Modal Styles */
 .modal-overlay {
     position: fixed;
@@ -153,11 +132,5 @@
 @media (max-width: 480px) {
     .role-card {
         padding: 35px 25px;
-    }
-    .lock-btn {
-        bottom: 15px;
-        right: 15px;
-        width: 55px !important;
-        height: 55px !important;
     }
 }
