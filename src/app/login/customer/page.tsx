@@ -106,6 +106,14 @@ export default function CustomerAuthPage() {
             setLoading(false);
         }
     };
+    
+    const handleResend = () => {
+        setIsOtpSent(false);
+        setOtp('');
+        setError('');
+        setSuccessMessage('');
+        resetTimer();
+    };
 
     const handleVerifyOtp = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -226,7 +234,7 @@ export default function CustomerAuthPage() {
                                     </div>
                                 </div>
                                 {error && <p className="error-message show" style={{textAlign: 'center', marginLeft: 0}}>{error}</p>}
-                                <button type="submit" className={`neu-button ${loading ? 'loading' : ''}`} disabled={loading || canResend} style={{marginBottom: '15px'}}>
+                                <button type="submit" className={`neu-button ${loading ? 'loading' : ''}`} disabled={loading} style={{marginBottom: '15px'}}>
                                     <span className="btn-text">Verify & Sign In</span>
                                     <div className="btn-loader"><div className="neu-spinner"></div></div>
                                 </button>
@@ -235,8 +243,7 @@ export default function CustomerAuthPage() {
                                     {canResend ? (
                                         <button 
                                             type="button"
-                                            onClick={(e) => handleSendOtp(e, true)}
-                                            disabled={loading}
+                                            onClick={handleResend}
                                             className="forgot-link"
                                             style={{background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600}}
                                         >
