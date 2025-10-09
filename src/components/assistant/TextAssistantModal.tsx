@@ -140,7 +140,7 @@ export default function TextAssistantModal({ onClose }: TextAssistantModalProps)
                 borderTop: '1px solid #333'
             }}
         >
-          <div className="neu-input" style={{ display: 'flex', alignItems: 'center', background: '#222', boxShadow: 'inset 5px 5px 10px #1a1a1d, inset -5px -5px 10px #2a2a2d' }}>
+          <div className="neu-input" style={{ display: 'flex', alignItems: 'center', background: '#222', boxShadow: 'inset 5px 5px 10px #1a1a1d, inset -5px -5px 10px #2a2a2d', borderRadius: '15px' }}>
             <div className="input-icon"><MessageSquare color="#999" /></div>
             <input
               type="text"
