@@ -13,7 +13,7 @@ export default function TextAssistantModal({ onClose }: TextAssistantModalProps)
   const [inputText, setInputText] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [status, setStatus] = useState<'idle' | 'thinking'>('idle');
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -139,8 +139,8 @@ export default function TextAssistantModal({ onClose }: TextAssistantModalProps)
                 background: 'transparent',
             }}
         >
-          <div className="neu-input" style={{ display: 'flex', alignItems: 'center', background: 'rgba(0, 200, 150, 0.6)', borderRadius: '15px', border: '1px solid white' }}>
-            <div className="input-icon"><MessageSquare color="#eee" /></div>
+          <div className="neu-input" style={{ display: 'flex', alignItems: 'center', background: '#222', boxShadow: 'inset 5px 5px 10px #1a1a1d, inset -5px -5px 10px #2a2a2d', borderRadius: '15px', border: '1px solid #333' }}>
+            <div className="input-icon"><MessageSquare color="#999" /></div>
             <input
               type="text"
               placeholder="Type your message..."
