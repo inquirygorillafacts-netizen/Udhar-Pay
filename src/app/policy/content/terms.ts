@@ -1,3 +1,4 @@
+
 export const termsContent = `
 <h2>1. Introduction</h2>
 <p>Welcome to Udhar Pay. These are the terms and conditions governing your access to and use of the Udhar Pay mobile application and its associated services. By using the app, you agree to be bound by these Terms.</p>
@@ -9,22 +10,24 @@ export const termsContent = `
 <p>You must register for an account to use the app. You agree to provide accurate, current, and complete information during the registration process and to update such information to keep it accurate, current, and complete.</p>
 
 <h2>4. Platform Commission</h2>
-<p>A commission of 2.5% is levied on the principal amount of every credit transaction. This commission amount is added to the customer's outstanding balance payable to the shopkeeper. The shopkeeper receives the full principal amount of the credit, and the commission is collected by Udhar Pay from the customer as part of their repayment.</p>
+<p>A commission of <strong>2.5%</strong> is levied on the principal amount of every credit (udhaar) transaction. This commission is used to cover the operational costs of the platform, including domain, hosting, server maintenance, and team expenses. This amount is added to the customer's outstanding balance. For example, on a credit of ₹100, the customer's payable amount will be ₹102.50. We reserve the right to modify this commission rate in the future to support platform growth and feature development, with the potential to increase it up to a maximum of <strong>5%</strong>. Any such changes will be updated in these terms.</p>
 
 <h2>5. Payment Gateway and Pricing</h2>
-<p>To process payments from customers to shopkeepers, Udhar Pay uses Razorpay, a third-party payment gateway. The charges for these transactions are as follows:</p>
+<p>To process payments from customers to shopkeepers, Udhar Pay uses Razorpay, a third-party payment gateway. The charges for these transactions, which are levied by Razorpay, are as follows:</p>
 <ul>
-    <li><strong>Promotional Offer:</strong> 0% (Free) transaction fees for the first two months from the activation of production credentials.</li>
-    <li><strong>Standard Rate:</strong> After the promotional period, a blended rate of <strong>1.95%</strong> will be charged on all transactions, with the exception of the cards listed below.</li>
-    <li><strong>Special Card Rates:</strong>
+    <li><strong>Standard Plan:</strong> A platform fee of <strong>2% + GST</strong> is applicable on all transactions. This includes access to Flash Checkout, Dashboard, Reports, and more.</li>
+    <li><strong>Special Card Rates:</strong> Transactions made using the following instruments will be charged at a higher rate of <strong>3% + GST</strong>:
         <ul>
-            <li>American Express (Amex) Cards: <strong>2.9%</strong></li>
-            <li>Diners Club Cards: <strong>2.9%</strong></li>
-            <li>Corporate (Business) Credit Cards: <strong>2.9%</strong></li>
+            <li>American Express (Amex) Cards</li>
+            <li>Diners Club Cards</li>
+            <li>Corporate (Business) Credit Cards</li>
+            <li>International Cards</li>
+            <li>EMI options (Credit Card, Debit Card & Cardless)</li>
         </ul>
     </li>
+    <li><strong>Setup & Maintenance:</strong> There is <strong>no setup fee</strong> and <strong>no annual maintenance fee</strong>.</li>
 </ul>
-<p>These fees are subject to the terms of the payment gateway provider. We strive to maintain transparency with no hidden charges, setup fees, or maintenance fees.</p>
+<p>These fees are determined by the payment gateway provider and are subject to their terms and conditions.</p>
 
 <h2>6. User Responsibilities</h2>
 <p>You are responsible for all activities that occur under your account. You agree not to use the service for any illegal or unauthorized purpose. All financial transactions and disputes are solely between the customer and the shopkeeper.</p>
