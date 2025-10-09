@@ -3,11 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import './shopkeeper.css';
-import { Store, Phone, Shield, MessageCircle } from 'lucide-react';
+import { Store, Phone, Shield, MessageCircle, AlertTriangle, HelpCircle } from 'lucide-react';
 import { useFirebase } from '@/firebase';
 import { RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { generateUniqueShopkeeperCode } from '@/lib/code-helpers';
+import Link from 'next/link';
 
 // Extend Window interface to allow storing variables globally
 declare global {
@@ -27,6 +28,7 @@ export default function ShopkeeperAuthPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
+    const [showBlockedModal, setShowBlockedModal] = useState(false);
 
     useEffect(() => {
         if (!auth || isOtpSent) return;
@@ -68,7 +70,11 @@ export default function ShopkeeperAuthPage() {
             setSuccessMessage("OTP sent successfully!");
         } catch (err: any) {
             console.error("Error sending OTP:", err);
-            setError(err.message || "Failed to send OTP. Please check the number and try again.");
+             if (err.code === 'auth/user-disabled') {
+                setShowBlockedModal(true);
+            } else {
+                setError(err.message || "Failed to send OTP. Please check the number and try again.");
+            }
         } finally {
             setLoading(false);
         }
@@ -116,12 +122,40 @@ export default function ShopkeeperAuthPage() {
             
         } catch (err: any) {
             console.error("Error verifying OTP:", err);
-            setError(err.message || "Invalid OTP.");
+            if (err.code === 'auth/user-disabled') {
+                setShowBlockedModal(true);
+            } else {
+                setError(err.message || "Invalid OTP.");
+            }
             setLoading(false);
         }
     };
 
     return (
+        <>
+        {showBlockedModal && (
+            <div className="modal-overlay">
+                 <div className="login-card modal-content" style={{maxWidth: '450px'}} onClick={(e) => e.stopPropagation()}>
+                    <div className="modal-header" style={{flexDirection: 'column', textAlign: 'center', marginBottom: '25px'}}>
+                        <div className="neu-icon" style={{background: '#ffdfe4', margin: '0 auto 20px'}}>
+                            <AlertTriangle size={30} className="text-red-500"/>
+                        </div>
+                        <h2 style={{color: '#3d4468', fontSize: '1.5rem'}}>Account Blocked</h2>
+                    </div>
+                     <p style={{color: '#6c7293', textAlign: 'center', marginBottom: '30px', fontSize: '1rem', lineHeight: 1.7}}>
+                        Your account has been blocked. Please contact the support team to know the reason and get help.
+                    </p>
+                    <div style={{display: 'flex', flexDirection: 'column', gap: '15px'}}>
+                        <Link href="/shopkeeper/helpline" className="neu-button" style={{margin: 0, background: '#00c896', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'}}>
+                           <HelpCircle size={20}/> Go to Helpline
+                        </Link>
+                        <button className="neu-button" onClick={() => setShowBlockedModal(false)} style={{margin: 0}}>
+                            Close
+                        </button>
+                    </div>
+                 </div>
+            </div>
+        )}
         <div className="login-container-wrapper">
             <div className="login-container">
                 <div className="login-card">
@@ -175,5 +209,6 @@ export default function ShopkeeperAuthPage() {
                 </div>
             </div>
         </div>
+        </>
     );
 }
