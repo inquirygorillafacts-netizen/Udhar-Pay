@@ -31,34 +31,59 @@ export default function CustomerAuthPage() {
     const [successMessage, setSuccessMessage] = useState('');
     const [showBlockedModal, setShowBlockedModal] = useState(false);
 
-    useEffect(() => {
-        if (!auth || isOtpSent) return;
+    const [timer, setTimer] = useState(60);
+    const [canResend, setCanResend] = useState(false);
 
-        // Delay rendering reCAPTCHA to ensure Firebase is ready
-        const timer = setTimeout(() => {
-            if (!window.recaptchaVerifier) {
+    useEffect(() => {
+        if (!auth) return;
+
+        const setupRecaptcha = () => {
+             if (!window.recaptchaVerifier || window.recaptchaVerifier.auth.app !== auth.app) {
                 const container = document.getElementById('recaptcha-container');
                 if (container) {
-                    container.innerHTML = ''; // Clear previous instance
+                    container.innerHTML = '';
                     const verifier = new RecaptchaVerifier(auth, container, {
-                        'size': 'invisible', // Invisible reCAPTCHA
+                        'size': 'invisible',
                         'callback': () => {},
                     });
                     window.recaptchaVerifier = verifier;
                 }
             }
-        }, 500);
+        };
+        
+        // Delay setup slightly to ensure DOM is ready
+        const timerId = setTimeout(setupRecaptcha, 100);
 
-        return () => clearTimeout(timer);
-    }, [auth, isOtpSent]);
+        return () => clearTimeout(timerId);
+    }, [auth]);
 
-    const handleSendOtp = async (e: React.FormEvent) => {
+     useEffect(() => {
+        let interval: NodeJS.Timeout | undefined;
+        if (isOtpSent && timer > 0) {
+            interval = setInterval(() => {
+                setTimer((prevTimer) => prevTimer - 1);
+            }, 1000);
+        } else if (timer === 0) {
+            setCanResend(true);
+            if(interval) clearInterval(interval);
+        }
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [isOtpSent, timer]);
+
+    const resetTimer = () => {
+        setTimer(60);
+        setCanResend(false);
+    };
+
+    const handleSendOtp = async (e: React.FormEvent, isResend = false) => {
         e.preventDefault();
         setError('');
         setLoading(true);
 
         if (!window.recaptchaVerifier) {
-            setError("reCAPTCHA not ready. Please wait a moment.");
+            setError("reCAPTCHA not ready. Please wait a moment and try again.");
             setLoading(false);
             return;
         }
@@ -69,6 +94,7 @@ export default function CustomerAuthPage() {
             window.confirmationResult = confirmationResult;
             setIsOtpSent(true);
             setSuccessMessage("OTP sent successfully!");
+            if(isResend) resetTimer();
         } catch (err: any) {
             console.error("Error sending OTP:", err);
             if (err.code === 'auth/user-disabled') {
@@ -200,10 +226,26 @@ export default function CustomerAuthPage() {
                                     </div>
                                 </div>
                                 {error && <p className="error-message show" style={{textAlign: 'center', marginLeft: 0}}>{error}</p>}
-                                <button type="submit" className={`neu-button ${loading ? 'loading' : ''}`} disabled={loading} style={{marginBottom: 0}}>
+                                <button type="submit" className={`neu-button ${loading ? 'loading' : ''}`} disabled={loading || canResend} style={{marginBottom: '15px'}}>
                                     <span className="btn-text">Verify & Sign In</span>
                                     <div className="btn-loader"><div className="neu-spinner"></div></div>
                                 </button>
+
+                                <div style={{ textAlign: 'center', color: '#6c7293', fontSize: '14px' }}>
+                                    {canResend ? (
+                                        <button 
+                                            type="button"
+                                            onClick={(e) => handleSendOtp(e, true)}
+                                            disabled={loading}
+                                            className="forgot-link"
+                                            style={{background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600}}
+                                        >
+                                            Resend OTP
+                                        </button>
+                                    ) : (
+                                        <span>Resend OTP in {timer}s</span>
+                                    )}
+                                </div>
                             </form>
                         </>
                     )}
