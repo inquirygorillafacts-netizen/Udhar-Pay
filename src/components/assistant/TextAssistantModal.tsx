@@ -63,7 +63,7 @@ export default function TextAssistantModal({ onClose }: TextAssistantModalProps)
     <div className="modal-overlay" style={{ padding: 0 }} onClick={onClose}>
       <div 
         style={{
-            width: '100vw',
+            width: '100%',
             height: '100vh',
             background: '#1a1a1d',
             display: 'flex',
@@ -104,7 +104,7 @@ export default function TextAssistantModal({ onClose }: TextAssistantModalProps)
             {messages.map((msg, index) => (
               <div key={index} className={`chat-bubble-wrapper ${msg.sender === 'user' ? 'user' : 'ai'}`}>
                  {msg.sender === 'ai' && (
-                  <div className="neu-icon" style={{width: '40px', height: '40px', margin: 0, flexShrink: 0, background: 'rgba(0, 200, 150, 0.8)', border: 'none', boxShadow: 'none' }}>
+                  <div className="neu-icon" style={{width: '40px', height: '40px', margin: 0, marginRight: '10px', flexShrink: 0, background: 'rgba(0, 200, 150, 0.8)', border: 'none', boxShadow: 'none' }}>
                       <Bot size={20} color="white"/>
                   </div>
                 )}
@@ -115,7 +115,7 @@ export default function TextAssistantModal({ onClose }: TextAssistantModalProps)
             ))}
             {status === 'thinking' && (
                  <div className="chat-bubble-wrapper ai">
-                     <div className="neu-icon" style={{width: '40px', height: '40px', margin: 0, flexShrink: 0, background: 'rgba(0, 200, 150, 0.8)', border: 'none', boxShadow: 'none'}}>
+                     <div className="neu-icon" style={{width: '40px', height: '40px', margin: 0, marginRight: '10px', flexShrink: 0, background: 'rgba(0, 200, 150, 0.8)', border: 'none', boxShadow: 'none'}}>
                         <Bot size={20} color="white"/>
                      </div>
                      <div className="chat-bubble" style={{background: '#333'}}>
