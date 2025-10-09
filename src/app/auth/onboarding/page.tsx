@@ -41,6 +41,7 @@ function OnboardingComponent() {
       if (step === 1) { // Process Name
         if (!name.trim()) {
           setError('कृपया अपना नाम दर्ज करें।');
+          setIsProcessing(false);
           return;
         }
         await updateProfile(auth.currentUser!, { displayName: name });
@@ -63,10 +64,12 @@ function OnboardingComponent() {
         if (pin) {
           if (pin.length !== 4) {
             setError('पिन 4 अंकों का होना चाहिए।');
+            setIsProcessing(false);
             return;
           }
           if (pin !== confirmPin) {
             setError('पिन मेल नहीं खाते।');
+            setIsProcessing(false);
             return;
           }
           const collectionName = role === 'customer' ? 'customers' : 'shopkeepers';
