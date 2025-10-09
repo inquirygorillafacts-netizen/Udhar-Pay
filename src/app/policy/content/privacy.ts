@@ -15,7 +15,7 @@ export const privacyContent = `
 
 <h3>3. Account information of Merchants (Shopkeepers)</h3>
 <p>If you create an account to take advantage of the full range of services offered on Udhar Pay, we ask for and record Personal Information such as your name, email address, and mobile number. We may collect and store your Sensitive Personal Data or Information—such as financial information, including Know Your Customer ("KYC") documents as required by RBI regulations—as well as any other applicable information that you choose to save in your Udhar Pay account.</p>
-<p>We use your email address to send you updates, news, and newsletters, and to contact you on behalf of other users. If you do not wish to receive communications unrelated to your use of our services, you can unsubscribe. We also use your mobile number to send you transaction-related SMS alerts based on your preferences. If you do not wish to receive such messages, please contact us.</p>
+<p>We use your email address to send you updates, news, and newsletters. If you do not wish to receive communications unrelated to your use of our services, you can unsubscribe. We also use your mobile number to send you transaction-related SMS alerts based on your preferences. If you do not wish to receive such messages, please contact us.</p>
 <p>Udhar Pay assures you that your Personal Information will not be disclosed publicly or sold to any third party.</p>
 <p>You have the option to erase any information you have provided. If you choose to erase your data, Udhar Pay will delete all your stored information from its servers.</p>
 

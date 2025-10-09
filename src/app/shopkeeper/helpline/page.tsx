@@ -68,7 +68,7 @@ export default function HelplinePage() {
                     </div>
                      <div style={{ padding: '15px 20px', background: '#e0e5ec', borderRadius: '15px', boxShadow: 'inset 5px 5px 10px #bec3cf, inset -5px -5px 10px #ffffff', marginBottom: '30px' }}>
                         <p style={{ color: '#6c7293', margin: 0, textAlign: 'center', fontSize: '14px', width: '100%' }}>
-                           <strong>चेतावनी:</strong> केवल आपात स्थिति में या यदि अन्य हेल्पलाइन जवाब नहीं दे रही हैं, तभी कॉल करें। अनावश्यक कॉल करने पर आपका नंबर बैन कर दिया जाएगा।
+                           <strong>चेतावनी:</strong> केवल आपात स्थिति में या यदि अन्य हेल्पलाइन जवाब नहीं दे रही हैं, तभी कॉल करें। अनावश्यक कॉल करने पर आपका नंबर स्थायी रूप से बैन कर दिया जाएगा।
                         </p>
                     </div>
                     <a href="tel:8302806913" className="neu-button" style={{margin: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '10px', flex: 1, background: '#ff3b5c', color: 'white' }}>
