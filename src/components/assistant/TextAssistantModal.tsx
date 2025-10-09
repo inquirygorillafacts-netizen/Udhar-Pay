@@ -62,17 +62,25 @@ export default function TextAssistantModal({ onClose }: TextAssistantModalProps)
   return (
     <div className="modal-overlay ai-chat-modal-overlay" onClick={onClose}>
       <div 
-        className="login-card ai-chat-modal-content"
-        style={{background: '#1a1a1d', border: '1px solid #333'}}
+        className="ai-chat-modal-content"
+        style={{
+            background: '#1a1a1d',
+            height: '100vh',
+            width: '100vw',
+            display: 'flex',
+            flexDirection: 'column',
+            position: 'relative'
+        }}
         onClick={(e) => e.stopPropagation()}
       >
         <header 
           className="modal-header" 
           style={{
-            marginBottom: '20px', 
-            paddingBottom: '20px', 
-            borderBottom: '2px solid #333',
-            color: '#fff'
+            marginBottom: '0', 
+            padding: '1rem',
+            borderBottom: '1px solid #333',
+            color: '#fff',
+            flexShrink: 0
           }}>
             <div style={{textAlign: 'left', flex: 1}}>
               <h1 style={{fontSize: '1.5rem', marginBottom: '0', color: '#fff'}}>Text Assistant</h1>
@@ -86,22 +94,22 @@ export default function TextAssistantModal({ onClose }: TextAssistantModalProps)
             </button>
         </header>
 
-        <div style={{ flex: 1, overflowY: 'auto', padding: '0 10px 20px 10px', display: 'flex', flexDirection: 'column' }}>
-          <div style={{display: 'flex', flexDirection: 'column', gap: '20px', flexGrow: 1, justifyContent: 'flex-end'}}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '1rem', paddingBottom: 'calc(6rem + 10px)' }}>
+          <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
             {messages.length === 0 && (
-                <div style={{textAlign: 'center', color: '#999', flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center'}}>
+                <div style={{textAlign: 'center', color: '#999', paddingTop: '20vh'}}>
                     <Bot size={40} className="mx-auto mb-4"/>
                     <p>Ask me anything about Udhar Pay!</p>
                 </div>
             )}
             {messages.map((msg, index) => (
-              <div key={index} className={`chat-bubble-wrapper ${msg.sender}`}>
+              <div key={index} className={`chat-bubble-wrapper ${msg.sender === 'user' ? 'user' : 'ai'}`}>
                  {msg.sender === 'ai' && (
                   <div className="neu-icon" style={{width: '40px', height: '40px', margin: 0, flexShrink: 0, background: 'rgba(0, 200, 150, 0.8)', border: 'none', boxShadow: 'none' }}>
                       <Bot size={20} color="white"/>
                   </div>
                 )}
-                <div className="chat-bubble" style={{background: msg.sender === 'ai' ? '#333' : undefined, color: '#fff' }}>
+                <div className="chat-bubble" style={{background: msg.sender === 'ai' ? '#333' : 'rgba(0, 200, 150, 0.6)', color: '#fff' }}>
                   <p style={{ margin: 0, lineHeight: 1.5, fontSize: '15px' }}>{msg.text}</p>
                 </div>
               </div>
@@ -120,7 +128,19 @@ export default function TextAssistantModal({ onClose }: TextAssistantModalProps)
           </div>
         </div>
 
-        <form onSubmit={handleSendClick} style={{ padding: '10px', flexShrink: 0, marginBottom: 0 }}>
+        <form 
+            onSubmit={handleSendClick} 
+            style={{ 
+                padding: '1rem', 
+                flexShrink: 0, 
+                position: 'fixed', 
+                bottom: 0, 
+                left: 0,
+                right: 0,
+                background: '#1a1a1d',
+                borderTop: '1px solid #333'
+            }}
+        >
           <div className="neu-input" style={{ display: 'flex', alignItems: 'center', background: '#222', boxShadow: 'inset 5px 5px 10px #1a1a1d, inset -5px -5px 10px #2a2a2d' }}>
             <div className="input-icon"><MessageSquare color="#999" /></div>
             <input
