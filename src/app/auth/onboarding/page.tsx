@@ -21,7 +21,7 @@ function OnboardingComponent() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [pin, setPin] = useState('');
-  const [confirmPin, setConfirmPin] useState('');
+  const [confirmPin, setConfirmPin] = useState('');
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
