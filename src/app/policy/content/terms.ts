@@ -4,7 +4,7 @@ export const termsContent = `
 <p>Welcome to Udhar Pay. These are the terms and conditions governing your access to and use of the Udhar Pay mobile application and its associated services. By using the app, you agree to be bound by these Terms.</p>
 
 <h2>2. Service Description</h2>
-<p>Udhar Pay is a digital ledger platform that facilitates the tracking of credit (udhaar) and payments between customers and shopkeepers. We are a technology provider and are not a party to any transaction for goods or services between users.</p>
+<p>Udhar Pay is a digital ledger platform that facilitates the tracking of credit (udhaar) and payments between customers and shopkeepers. We are a technology provider and are not a party to any transaction for goods, services, or credit agreements between users.</p>
 
 <h2>3. User Accounts & Responsibilities</h2>
 <p>You must register for an account to use the app. You agree to provide accurate, current, and complete information during the registration process and to update such information to keep it accurate, current, and complete. It is your sole responsibility to maintain the confidentiality of your account information, including your password and login credentials.</p>
@@ -48,9 +48,15 @@ export const termsContent = `
 <h2>8. Legal Compliance and KYC</h2>
 <p>It is your responsibility to comply with all applicable laws, including RBI regulations. You must complete the Know Your Customer (KYC) process as required by Razorpay, which may include providing documents such as a PAN card, GST certificate, bank account details, and any other necessary business licenses.</p>
 
-<h2>9. Limitation of Liability</h2>
-<p>Udhar Pay is a facilitator and is not responsible for any disputes, non-payments, or disagreements between customers and shopkeepers. We are not liable for any financial losses, including those arising from chargebacks, incurred as a result of using our platform.</p>
+<h2>9. Limitation of Liability and Disclaimer</h2>
+<p><strong>Udhar Pay is solely a technology platform that provides a digital ledger service. We are not a financial institution, lender, or a party to any transaction between users.</strong></p>
+<p>You expressly understand and agree that:</p>
+<ul>
+    <li>Your use of the service is at your sole risk. The service is provided on an "AS IS" and "AS AVAILABLE" basis. We expressly disclaim all warranties of any kind, whether express or implied, including, but not limited to, the implied warranties of merchantability, fitness for a particular purpose, and non-infringement.</li>
+    <li>Udhar Pay holds no responsibility or liability for any disputes, non-payments, disagreements, fraud, or issues of any kind arising between a customer and a shopkeeper. The responsibility for verifying the authenticity and correctness of a transaction, credit, or payment lies solely with the users involved.</li>
+    <li>We are not responsible for any financial losses, including but not limited to those arising from chargebacks, non-repayment of credit, or transactional errors, incurred as a result of using our platform.</li>
+</ul>
 
 <h2>10. Changes to Terms</h2>
 <p>We reserve the right to modify these terms at any time. We will notify you of any changes by posting the new terms on this page. Your continued use of the app after any such change constitutes your acceptance of the new terms.</p>
-`;
+`
