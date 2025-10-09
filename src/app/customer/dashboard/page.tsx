@@ -199,7 +199,7 @@ export default function CustomerDashboardPage() {
   }, [creditRequests, activeRequest]);
 
   const handleRoleSwitchClick = () => {
-    if (hasCustomerRole) {
+    if (hasShopkeeperRole) {
         localStorage.setItem('activeRole', 'shopkeeper');
         router.push('/shopkeeper/dashboard');
     } else {
@@ -533,7 +533,3 @@ export default function CustomerDashboardPage() {
     </>
   );
 }
-
-    
-
-    
