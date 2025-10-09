@@ -39,6 +39,9 @@ export default function VoiceAssistantPage() {
         const preferredLang = localStorage.getItem('aiLanguage') as Language | null;
         if (preferredLang) {
             setLanguage(preferredLang);
+        } else {
+            // Set default to english if nothing is in localStorage
+            localStorage.setItem('aiLanguage', 'english');
         }
 
         if (typeof window !== 'undefined' && window.speechSynthesis) {
@@ -74,8 +77,9 @@ export default function VoiceAssistantPage() {
         localStorage.setItem('aiLanguage', newLang);
         stopAudio();
         if (recognitionRef.current && status !== 'uninitialized') {
+             // Abort will trigger the 'onend' event, which will then set the status to 'idle'
+             // and allow the useEffect to safely restart listening.
             recognitionRef.current.abort();
-            setStatus('idle');
         }
     };
     
