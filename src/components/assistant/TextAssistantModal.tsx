@@ -139,23 +139,23 @@ export default function TextAssistantModal({ onClose }: TextAssistantModalProps)
                 background: 'transparent',
             }}
         >
-          <div className="neu-input" style={{ display: 'flex', alignItems: 'center', background: '#e0e5ec', boxShadow: '8px 8px 20px #141416, -8px -8px 20px #202024', borderRadius: '15px' }}>
-            <div className="input-icon"><MessageSquare color="#9499b7" /></div>
+          <div className="neu-input" style={{ display: 'flex', alignItems: 'center', background: 'rgba(0, 200, 150, 0.6)', borderRadius: '15px', border: '1px solid white' }}>
+            <div className="input-icon"><MessageSquare color="#eee" /></div>
             <input
               type="text"
               placeholder="Type your message..."
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              style={{ paddingLeft: '55px', fontSize: '1rem', color: '#3d4468' }}
+              style={{ paddingLeft: '55px', fontSize: '1rem', color: '#fff' }}
               disabled={status === 'thinking'}
             />
             <button
               type="submit"
-              className="glass-button mic-button"
-              style={{ width: '45px', height: '45px', margin: '8px', padding: '10px' }}
+              className="glass-button"
+              style={{ width: '45px', height: '45px', margin: '8px', padding: '10px', background: 'rgba(255,255,255,0.2)' }}
               disabled={status === 'thinking' || !inputText.trim()}
             >
-              {status === 'thinking' ? <Loader size={18} className="animate-spin"/> : <Send size={18} />}
+              {status === 'thinking' ? <Loader size={18} className="animate-spin text-white"/> : <Send size={18} color="white" />}
             </button>
           </div>
         </form>
