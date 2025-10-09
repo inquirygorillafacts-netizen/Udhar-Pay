@@ -4,13 +4,13 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import './auth.css';
 import { User, Store, Lock, Shield, X } from 'lucide-react';
-import { useFirebase } from '@/firebase';
+import { useFirestore } from '@/firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import Link from 'next/link';
 
 export default function AuthRoleSelectionPage() {
     const router = useRouter();
-    const { firestore } = useFirebase();
+    const firestore = useFirestore(); // Directly use useFirestore
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [pin, setPin] = useState('');
     const [pinError, setPinError] = useState('');
