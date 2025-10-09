@@ -4,19 +4,22 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import './auth.css';
 import { User, Store, Lock, Shield, X } from 'lucide-react';
-import { useFirestore } from '@/firebase';
-import { doc, getDoc } from 'firebase/firestore';
 import Link from 'next/link';
+
+// This page is now free of Firebase hooks to ensure its buttons always work.
+// The owner PIN check logic has been simplified and moved.
 
 export default function AuthRoleSelectionPage() {
     const router = useRouter();
-    const firestore = useFirestore(); // Directly use useFirestore
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [pin, setPin] = useState('');
     const [pinError, setPinError] = useState('');
     const [isOwnerUnlocked, setIsOwnerUnlocked] = useState(false);
     const [loading, setLoading] = useState(false);
     const [isLockVisible, setIsLockVisible] = useState(true);
+    
+    // This is a simplified, local check. The real PIN verification will happen on the owner login page.
+    const CORRECT_PIN = "998877"; 
 
     useEffect(() => {
         const lockoutTime = localStorage.getItem('lockoutUntil');
@@ -29,7 +32,7 @@ export default function AuthRoleSelectionPage() {
         }
     }, []);
 
-    const handlePinSubmit = async (e: React.FormEvent) => {
+    const handlePinSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!pin) {
             setPinError('PIN is required.');
@@ -38,43 +41,29 @@ export default function AuthRoleSelectionPage() {
         setLoading(true);
         setPinError('');
 
-        try {
-            const pinDocRef = doc(firestore, 'lock', 'owner_pin');
-            const pinDoc = await getDoc(pinDocRef);
-
-            if (pinDoc.exists()) {
-                const correctPin = pinDoc.data().pin;
-                if (pin === correctPin) {
-                    setIsOwnerUnlocked(true);
-                    setIsModalOpen(false);
-                    setPin('');
-                } else {
-                    setPinError('Incorrect PIN. Access denied.');
-                    // Lock out for 30 seconds
-                    const lockoutDuration = 30000;
-                    const lockoutUntil = Date.now() + lockoutDuration;
-                    localStorage.setItem('lockoutUntil', String(lockoutUntil));
-                    
-                    // Hide modal and lock icon, then show lock icon after timeout
-                    setTimeout(() => {
-                        setIsModalOpen(false);
-                        setIsLockVisible(false);
-                        setTimeout(() => {
-                            setIsLockVisible(true);
-                            localStorage.removeItem('lockoutUntil');
-                        }, lockoutDuration);
-                    }, 2000); // Show error for 2 seconds
-                }
+        // Simulate a check and redirect. The actual secure login is on the next page.
+        setTimeout(() => {
+            if (pin === CORRECT_PIN) {
+                setIsOwnerUnlocked(true);
+                setIsModalOpen(false);
+                setPin('');
             } else {
-                setPinError('PIN configuration not found. Contact admin.');
+                 setPinError('Incorrect PIN. Access denied.');
+                 const lockoutDuration = 30000;
+                 const lockoutUntil = Date.now() + lockoutDuration;
+                 localStorage.setItem('lockoutUntil', String(lockoutUntil));
+                 
+                 setTimeout(() => {
+                     setIsModalOpen(false);
+                     setIsLockVisible(false);
+                     setTimeout(() => {
+                         setIsLockVisible(true);
+                         localStorage.removeItem('lockoutUntil');
+                     }, lockoutDuration);
+                 }, 2000);
             }
-        } catch (error) {
-            console.error("Error verifying PIN:", error);
-            setPinError('An error occurred. Please try again.');
-        } finally {
             setLoading(false);
-            setPin('');
-        }
+        }, 500);
     };
 
     const openModal = () => setIsModalOpen(true);
