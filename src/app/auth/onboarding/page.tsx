@@ -204,7 +204,7 @@ function OnboardingComponent() {
 
   return (
     <main className="login-container">
-      <div className="login-card" style={{ maxWidth: '450px' }}>
+      <div className="login-card" key={step} style={{ maxWidth: '450px' }}>
         {step <= 3 && (
             <div style={{ position: 'absolute', top: '20px', right: '20px' }}>
               <button onClick={handleSkip} className="neu-button" style={{ width: 'auto', padding: '8px 16px', fontSize: '14px', margin: 0, boxShadow: 'none', background: 'transparent' }}>
