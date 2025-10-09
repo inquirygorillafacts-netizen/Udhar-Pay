@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import './auth.css';
 import { User, Store, Lock, Shield, X } from 'lucide-react';
@@ -11,13 +11,13 @@ export default function AuthRoleSelectionPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [pin, setPin] = useState('');
     const [pinError, setPinError] = useState('');
-    const [isOwnerUnlocked, setIsOwnerUnlocked] = useState(false);
     const [loading, setLoading] = useState(false);
     
     // Secret trigger state
     const [clickCount, setClickCount] = useState(0);
     const clickTimer = useRef<NodeJS.Timeout | null>(null);
 
+    // This PIN is now just a key to open the login route, not for authentication itself.
     const CORRECT_PIN = "998877"; 
 
     const handlePinSubmit = (e: React.FormEvent) => {
@@ -29,16 +29,17 @@ export default function AuthRoleSelectionPage() {
         setLoading(true);
         setPinError('');
 
+        // Simulate a check
         setTimeout(() => {
             if (pin === CORRECT_PIN) {
-                setIsOwnerUnlocked(true);
-                setIsModalOpen(false);
-                setPin('');
+                // On correct PIN, redirect to the dedicated owner login page.
+                router.push('/login/owner');
             } else {
                  setPinError('Incorrect PIN. Access denied.');
                  setTimeout(() => {
                      setIsModalOpen(false);
-                 }, 2000);
+                     setPin('');
+                 }, 1500);
             }
             setLoading(false);
         }, 500);
@@ -87,13 +88,6 @@ export default function AuthRoleSelectionPage() {
                         <Store className="role-icon" />
                         <span>I am a Shopkeeper</span>
                     </Link>
-                    
-                    {isOwnerUnlocked && (
-                         <Link href="/login/owner" className="neu-button role-btn owner-btn">
-                            <Shield className="role-icon" />
-                            <span>Owner Login</span>
-                        </Link>
-                    )}
                 </div>
             </div>
              <footer style={{ marginTop: '30px', textAlign: 'center', padding: '10px' }}>
