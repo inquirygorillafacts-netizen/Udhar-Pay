@@ -9,22 +9,35 @@ interface TextAssistantModalProps {
     onClose: () => void;
 }
 
+type Language = 'english' | 'hindi';
+
 export default function TextAssistantModal({ onClose }: TextAssistantModalProps) {
   const [inputText, setInputText] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [status, setStatus] = useState<'idle' | 'thinking'>('idle');
+  const [language, setLanguage] = useState<Language>('english');
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
   
-  // Load history on initial render
+  // Load history and language preference on initial render
   useEffect(() => {
     setMessages(getHistory());
+    const preferredLang = localStorage.getItem('aiLanguage') as Language | null;
+    if (preferredLang) {
+        setLanguage(preferredLang);
+    }
   }, []);
 
   useEffect(scrollToBottom, [messages]);
+
+  const handleLanguageChange = (checked: boolean) => {
+    const newLang = checked ? 'hindi' : 'english';
+    setLanguage(newLang);
+    localStorage.setItem('aiLanguage', newLang);
+  };
 
   const handleSendClick = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,6 +54,7 @@ export default function TextAssistantModal({ onClose }: TextAssistantModalProps)
       const response = await askAiAssistant({
         query: query,
         history: getHistory(),
+        language: language,
       });
       addMessage({ sender: 'ai', text: response.text });
       setMessages([...getHistory()]);
@@ -85,6 +99,19 @@ export default function TextAssistantModal({ onClose }: TextAssistantModalProps)
               <h1 style={{fontSize: '1.5rem', marginBottom: '0', color: '#fff'}}>Text Assistant</h1>
               <p style={{fontSize: '0.9rem', margin: 0, color: '#999'}}>Chat with the Udhar Pay AI</p>
             </div>
+
+            <div style={{display: 'flex', alignItems: 'center', gap: '10px', color: 'white', fontWeight: 500, marginRight: '10px'}}>
+                <label htmlFor='hindi-toggle-text' style={{fontSize: '14px'}}>हिन्दी</label>
+                <div 
+                    className={`neu-toggle-switch ${language === 'hindi' ? 'active' : ''}`} 
+                    onClick={() => handleLanguageChange(language === 'english')}
+                    id='hindi-toggle-text'
+                    style={{ boxShadow: 'inset 2px 2px 4px rgba(0,0,0,0.5), inset -2px -2px 4px rgba(255,255,255,0.2)', background: language === 'hindi' ? '#00c896' : 'rgba(0,0,0,0.3)'}}
+                >
+                    <div className="neu-toggle-handle" style={{background: 'white', boxShadow: '1px 1px 3px rgba(0,0,0,0.5)'}}></div>
+                </div>
+            </div>
+
             <button onClick={handleClearChat} className="glass-button" style={{width: '45px', height: '45px'}}>
                 <Trash2 size={20} />
             </button>
@@ -139,7 +166,7 @@ export default function TextAssistantModal({ onClose }: TextAssistantModalProps)
                 background: 'transparent',
             }}
         >
-          <div className="neu-input" style={{ display: 'flex', alignItems: 'center', background: '#222', boxShadow: 'inset 5px 5px 10px #1a1a1d, inset -5px -5px 10px #2a2a2d', borderRadius: '15px', border: '1px solid #333' }}>
+           <div className="neu-input" style={{ display: 'flex', alignItems: 'center', background: '#222', boxShadow: 'inset 5px 5px 10px #1a1a1d, inset -5px -5px 10px #2a2a2d', borderRadius: '15px', border: '1px solid #333' }}>
             <div className="input-icon"><MessageSquare color="#999" /></div>
             <input
               type="text"
