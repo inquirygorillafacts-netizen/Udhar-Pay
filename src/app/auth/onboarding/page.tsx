@@ -40,7 +40,7 @@ function OnboardingComponent() {
     try {
       if (step === 1) { // Process Name
         if (!name.trim()) {
-          setError('Please enter your name.');
+          setError('कृपया अपना नाम दर्ज करें।');
           return;
         }
         await updateProfile(auth.currentUser!, { displayName: name });
@@ -62,21 +62,22 @@ function OnboardingComponent() {
       } else if (step === 3) { // Process PIN
         if (pin) {
           if (pin.length !== 4) {
-            setError('PIN must be 4 digits.');
+            setError('पिन 4 अंकों का होना चाहिए।');
             return;
           }
           if (pin !== confirmPin) {
-            setError('PINs do not match.');
+            setError('पिन मेल नहीं खाते।');
             return;
           }
           const collectionName = role === 'customer' ? 'customers' : 'shopkeepers';
           await updateDoc(doc(firestore, collectionName, auth.currentUser!.uid), { pin, pinEnabled: true });
         }
         setStep(4); // Go to success step
+        setTimeout(() => handleFinish(), 2000); // Redirect after 2s
       }
     } catch (e) {
       console.error("Onboarding step failed:", e);
-      setError("An error occurred. Please try again.");
+      setError("एक त्रुटि हुई। कृपया पुन: प्रयास करें।");
     } finally {
       setIsProcessing(false);
     }
@@ -112,18 +113,17 @@ function OnboardingComponent() {
           <>
             <div className="login-header">
               <div className="neu-icon"><div className="icon-inner">{role === 'customer' ? <User /> : <Store />}</div></div>
-              <h2>Welcome! What's your name?</h2>
-              <p>{role === 'customer' ? 'Please enter your full name.' : 'Please enter your shop name.'}</p>
+              <h2>{role === 'customer' ? 'आपका शुभ नाम क्या है?' : 'आपकी दुकान का क्या नाम है?'}</h2>
             </div>
             <div className="form-group">
               <div className="neu-input">
                 <input type="text" id="name" value={name} onChange={(e) => setName(e.target.value)} required placeholder=" " autoFocus />
-                <label htmlFor="name">{role === 'customer' ? 'Your Name' : 'Shop Name'}</label>
+                <label htmlFor="name">{role === 'customer' ? 'आपका नाम' : 'दुकान का नाम'}</label>
               </div>
             </div>
             {error && <p className="error-message show">{error}</p>}
             <button onClick={handleNextStep} className={`neu-button ${isProcessing ? 'loading' : ''}`} disabled={isProcessing || !name.trim()}>
-              <span className="btn-text">Next</span>
+              <span className="btn-text">आगे बढ़ें</span>
               <div className="btn-loader"><div className="neu-spinner"></div></div>
             </button>
           </>
@@ -133,8 +133,8 @@ function OnboardingComponent() {
           <>
             <div className="login-header">
               <div className="neu-icon"><div className="icon-inner"><Camera /></div></div>
-              <h2>Add a Photo</h2>
-              <p>{role === 'customer' ? 'Upload your profile picture.' : 'Upload a photo of your shop.'} (Optional)</p>
+              <h2>एक फ़ोटो जोड़ें</h2>
+              <p>{role === 'customer' ? 'अपनी प्रोफ़ाइल तस्वीर अपलोड करें।' : 'अपनी दुकान की एक तस्वीर अपलोड करें।'} (वैकल्पिक)</p>
             </div>
             <div className="form-group" style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
                 <div onClick={() => fileInputRef.current?.click()} className="neu-icon" style={{width: '150px', height: '150px', cursor: 'pointer'}}>
@@ -144,7 +144,7 @@ function OnboardingComponent() {
             </div>
             {error && <p className="error-message show">{error}</p>}
              <button onClick={handleNextStep} className={`neu-button ${isProcessing ? 'loading' : ''}`} disabled={isProcessing}>
-              <span className="btn-text">Next</span>
+              <span className="btn-text">आगे बढ़ें</span>
               <div className="btn-loader"><div className="neu-spinner"></div></div>
             </button>
           </>
@@ -154,24 +154,24 @@ function OnboardingComponent() {
           <>
             <div className="login-header">
               <div className="neu-icon"><div className="icon-inner"><KeyRound /></div></div>
-              <h2>Set a Security PIN</h2>
-              <p>Secure your app with a 4-digit PIN. (Optional)</p>
+              <h2>एक सुरक्षा पिन सेट करें</h2>
+              <p>एक 4-अंकीय पिन के साथ अपने ऐप को सुरक्षित करें। (वैकल्पिक)</p>
             </div>
             <div className="form-group">
                 <div className="neu-input">
                     <input type="password" id="pin" maxLength={4} value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} placeholder=" " />
-                    <label htmlFor="pin">Enter 4-digit PIN</label>
+                    <label htmlFor="pin">4-अंकीय पिन दर्ज करें</label>
                 </div>
             </div>
             <div className="form-group">
                 <div className="neu-input">
                     <input type="password" id="confirmPin" maxLength={4} value={confirmPin} onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ''))} placeholder=" " />
-                    <label htmlFor="confirmPin">Confirm PIN</label>
+                    <label htmlFor="confirmPin">पिन की पुष्टि करें</label>
                 </div>
             </div>
             {error && <p className="error-message show">{error}</p>}
              <button onClick={handleNextStep} className={`neu-button ${isProcessing ? 'loading' : ''}`} disabled={isProcessing}>
-              <span className="btn-text">Finish Setup</span>
+              <span className="btn-text">सेटअप समाप्त करें</span>
               <div className="btn-loader"><div className="neu-spinner"></div></div>
             </button>
           </>
@@ -182,8 +182,8 @@ function OnboardingComponent() {
                     <div className="neu-icon" style={{background: '#00c896', color: 'white'}}>
                        <CheckCircle size={40} strokeWidth={3} />
                     </div>
-                    <h3>Setup Complete!</h3>
-                    <p>You're all set. Redirecting you to the dashboard...</p>
+                    <h3>सेटअप पूरा हुआ!</h3>
+                    <p>आप पूरी तरह तैयार हैं। आपको डैशबोर्ड पर भेजा जा रहा है...</p>
                 </div>
             );
       default:
@@ -194,7 +194,7 @@ function OnboardingComponent() {
   if (!role) {
       return (
         <div className="loading-container">
-            <p>Invalid onboarding session. Redirecting...</p>
+            <p>अमान्य ऑनबोर्डिंग सत्र। पुनः निर्देशित किया जा रहा है...</p>
         </div>
       )
   }
@@ -205,7 +205,7 @@ function OnboardingComponent() {
         {step <= 3 && (
             <div style={{ position: 'absolute', top: '20px', right: '20px' }}>
               <button onClick={handleSkip} className="neu-button" style={{ width: 'auto', padding: '8px 16px', fontSize: '14px', margin: 0, boxShadow: 'none', background: 'transparent' }}>
-                Skip
+                छोड़ें
               </button>
             </div>
         )}

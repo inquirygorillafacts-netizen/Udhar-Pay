@@ -96,7 +96,7 @@ export default function ShopkeeperAuthPage() {
             if (!userDoc.exists()) {
                  await setDoc(userDocRef, {
                     uid: user.uid,
-                    displayName: user.displayName || 'New Shopkeeper',
+                    displayName: user.displayName || null,
                     email: user.email,
                     mobileNumber: user.phoneNumber,
                     photoURL: user.photoURL,

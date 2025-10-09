@@ -95,10 +95,10 @@ export default function CustomerAuthPage() {
             localStorage.setItem('activeRole', 'customer');
 
             if (!userDoc.exists()) {
-                // This is a new user, create a basic profile
+                // This is a new user, create a basic profile and redirect to onboarding
                 await setDoc(userDocRef, {
                     uid: user.uid,
-                    displayName: user.displayName || 'New User', // Temporary name
+                    displayName: user.displayName || null, // Start with null, will be set in onboarding
                     email: user.email,
                     mobileNumber: user.phoneNumber,
                     photoURL: user.photoURL,
@@ -107,7 +107,6 @@ export default function CustomerAuthPage() {
                     connections: [],
                     role: 'customer'
                 });
-                 // Redirect new user to onboarding flow
                 router.push('/auth/onboarding?role=customer');
             } else {
                  // Existing user, redirect to dashboard
