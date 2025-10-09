@@ -120,7 +120,7 @@ function OnboardingComponent() {
             </div>
             <div className="form-group">
               <div className="neu-input">
-                <input type="text" id="name" value={name} onChange={(e) => setName(e.target.value)} required placeholder=" " autoFocus />
+                <input type="text" id="name" value={name || ''} onChange={(e) => setName(e.target.value)} required placeholder=" " autoFocus />
                 <label htmlFor="name">{role === 'customer' ? 'आपका नाम' : 'दुकान का नाम'}</label>
               </div>
             </div>
