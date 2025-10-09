@@ -101,7 +101,7 @@ export default function TextAssistantModal({ onClose }: TextAssistantModalProps)
                       <Bot size={20} color="white"/>
                   </div>
                 )}
-                <div className="chat-bubble">
+                <div className="chat-bubble" style={{background: msg.sender === 'ai' ? '#333' : undefined, color: '#fff' }}>
                   <p style={{ margin: 0, lineHeight: 1.5, fontSize: '15px' }}>{msg.text}</p>
                 </div>
               </div>
@@ -111,7 +111,7 @@ export default function TextAssistantModal({ onClose }: TextAssistantModalProps)
                      <div className="neu-icon" style={{width: '40px', height: '40px', margin: 0, flexShrink: 0, background: 'rgba(0, 200, 150, 0.8)', border: 'none', boxShadow: 'none'}}>
                         <Bot size={20} color="white"/>
                      </div>
-                     <div className="chat-bubble">
+                     <div className="chat-bubble" style={{background: '#333'}}>
                         <Loader size={20} className="animate-spin text-muted-foreground" />
                      </div>
                  </div>
