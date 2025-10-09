@@ -74,8 +74,10 @@ export default function VoiceAssistantPage() {
         localStorage.setItem('aiLanguage', newLang);
         stopAudio();
         if (recognitionRef.current) {
-            recognitionRef.current.stop();
+            // Abort current recognition and let the `onend` handler restart it naturally
+            recognitionRef.current.abort();
         } else {
+             // If not running, just set to idle to allow re-initialization
             setStatus('idle');
         }
     };
