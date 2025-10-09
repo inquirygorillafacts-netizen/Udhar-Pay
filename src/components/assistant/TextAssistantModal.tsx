@@ -60,13 +60,12 @@ export default function TextAssistantModal({ onClose }: TextAssistantModalProps)
   }
 
   return (
-    <div className="modal-overlay ai-chat-modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" style={{ padding: 0 }} onClick={onClose}>
       <div 
-        className="ai-chat-modal-content"
         style={{
-            background: '#1a1a1d',
-            height: '100vh',
             width: '100vw',
+            height: '100vh',
+            background: '#1a1a1d',
             display: 'flex',
             flexDirection: 'column',
             position: 'relative'
