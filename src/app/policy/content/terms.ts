@@ -4,29 +4,28 @@ export const termsContent = `
 <p>Welcome to Udhar Pay. These are the terms and conditions governing your access to and use of the Udhar Pay mobile application and its associated services. By using the app, you agree to be bound by these Terms.</p>
 
 <h2>2. Service Description</h2>
-<p>Udhar Pay is a digital ledger platform that facilitates the tracking of credit (udhaar) and payments between customers and shopkeepers. We are a technology provider and are not a party to any transaction for goods, services, or credit agreements between users.</p>
+<p>Udhar Pay is a digital ledger platform that facilitates the tracking of credit (udhaar) and payments between customers and shopkeepers. We are a technology provider and are not a party to any transaction, agreement, or dispute between users.</p>
 
 <h2>3. User Accounts & Responsibilities</h2>
-<p>You must register for an account to use the app. You agree to provide accurate, current, and complete information during the registration process and to update such information to keep it accurate, current, and complete. It is your sole responsibility to maintain the confidentiality of your account information, including your password and login credentials.</p>
-<p>You agree not to use the service for any illegal, fraudulent, or unauthorized purpose. You must ensure that your business is legally valid and complies with all applicable laws.</p>
+<p>You must register for an account to use the app. You agree to provide accurate, current, and complete information during the registration process and to update such information to keep it accurate, current, and complete.</p>
+<p>You are solely and entirely responsible for maintaining the confidentiality and security of your account information, including your password, login credentials, and any security PINs. You are also responsible for all activities that occur under your account. Udhar Pay is not liable for any loss or damage arising from your failure to protect your account, your mobile device, or your credentials from unauthorized access or use.</p>
 
 <h2>4. Platform Commission</h2>
-<p>A commission of <strong>2.5%</strong> is levied on the amount of every credit (udhaar) transaction. This commission is used to cover the operational costs of the platform, including domain, hosting, server maintenance, and team expenses. We reserve the right to modify this commission rate in the future to support platform growth and feature development, with the potential to increase it up to a maximum of <strong>5%</strong>. Any such changes will be updated in these terms.</p>
+<p>A commission of <strong>2.5%</strong> is levied on the amount of every credit (udhaar) transaction granted to a customer. This commission is added to the customer's outstanding balance. This fee is used to cover the operational costs of the platform, including domain, hosting, server maintenance, and team expenses. We reserve the right to modify this commission rate in the future, with the potential to increase it up to a maximum of <strong>5%</strong>. Any such changes will be reflected in these terms.</p>
 
 <h2>5. Payment Gateway (Razorpay)</h2>
 <p>To process payments from customers to shopkeepers, Udhar Pay uses Razorpay, a third-party payment gateway. The charges for these transactions, which are levied by Razorpay, are as follows:</p>
 <ul>
-    <li><strong>Standard Plan:</strong> A platform fee of <strong>2% + GST</strong> is applicable on all transactions. This includes access to Flash Checkout, Dashboard, Reports, and more.</li>
+    <li><strong>Standard Plan:</strong> A platform fee of <strong>2% + GST</strong> is applicable on all standard transactions.</li>
     <li><strong>Special Card Rates:</strong> Transactions made using the following instruments will be charged at a higher rate of <strong>3% + GST</strong>:
         <ul>
-            <li>American Express (Amex) Cards</li>
-            <li>Diners Club Cards</li>
+            <li>American Express (Amex) & Diners Club Cards</li>
             <li>Corporate (Business) Credit Cards</li>
             <li>International Cards</li>
             <li>EMI options (Credit Card, Debit Card & Cardless)</li>
         </ul>
     </li>
-    <li><strong>Setup & Maintenance:</strong> There is <strong>no setup fee</strong> and <strong>no annual maintenance fee</strong>.</li>
+    <li><strong>Setup & Maintenance:</strong> There is <strong>no setup fee</strong> and <strong>no annual maintenance fee</strong> from Razorpay.</li>
 </ul>
 <p>These fees are determined by the payment gateway provider and are subject to their terms and conditions.</p>
 
@@ -49,12 +48,14 @@ export const termsContent = `
 <p>It is your responsibility to comply with all applicable laws, including RBI regulations. You must complete the Know Your Customer (KYC) process as required by Razorpay, which may include providing documents such as a PAN card, GST certificate, bank account details, and any other necessary business licenses.</p>
 
 <h2>9. Limitation of Liability and Disclaimer</h2>
-<p><strong>Udhar Pay is solely a technology platform that provides a digital ledger service. We are not a financial institution, lender, or a party to any transaction between users.</strong></p>
-<p>You expressly understand and agree that:</p>
+<p><strong>Udhar Pay is solely a passive technology platform that provides a digital ledger service, akin to a digital notebook or calculator. We are not a financial institution, lender, payment processor, or a party to any transaction between users.</strong></p>
+<p>You expressly understand and agree that your use of the service is at your sole risk. The service is provided on an "AS IS" and "AS AVAILABLE" basis. We expressly disclaim all warranties of any kind, whether express or implied. By using this platform, you explicitly agree to the following:</p>
 <ul>
-    <li>Your use of the service is at your sole risk. The service is provided on an "AS IS" and "AS AVAILABLE" basis. We expressly disclaim all warranties of any kind, whether express or implied, including, but not limited to, the implied warranties of merchantability, fitness for a particular purpose, and non-infringement.</li>
-    <li>Udhar Pay holds no responsibility or liability for any disputes, non-payments, disagreements, fraud, or issues of any kind arising between a customer and a shopkeeper. The responsibility for verifying the authenticity and correctness of a transaction, credit, or payment lies solely with the users involved.</li>
-    <li>We are not responsible for any financial losses, including but not limited to those arising from chargebacks, non-repayment of credit, or transactional errors, incurred as a result of using our platform.</li>
+    <li><strong>No Responsibility for Disputes:</strong> Udhar Pay holds no responsibility or liability for any disputes, non-payments, disagreements, fraud, or issues of any kind arising between a customer and a shopkeeper. The responsibility for verifying the authenticity and correctness of a transaction, credit, or payment lies solely with the users involved.</li>
+    <li><strong>User-Entered Data:</strong> We are not responsible for the accuracy, legality, or appropriateness of any data entered by users, including transaction amounts, notes, or credit limits.</li>
+    <li><strong>Account Security:</strong> We are not liable for any loss resulting from unauthorized access to your account due to a lost or stolen device, or compromised passwords or PINs. Account security is the user's sole responsibility.</li>
+    <li><strong>Coerced Actions:</strong> We are not a party to and hold no liability for any actions taken under duress, threat, or coercion. This includes, but is not limited to, a user being forced to delete their data, or a shopkeeper being forced to alter a transaction amount. Such matters are strictly between the individuals involved.</li>
+    <li><strong>Financial Losses:</strong> We are not responsible for any financial losses, including but not limited to those arising from chargebacks, non-repayment of credit, transactional errors, or any form of fraud between users.</li>
 </ul>
 
 <h2>10. Changes to Terms</h2>
