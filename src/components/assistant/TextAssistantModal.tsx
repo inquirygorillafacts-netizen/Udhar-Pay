@@ -136,18 +136,17 @@ export default function TextAssistantModal({ onClose }: TextAssistantModalProps)
                 bottom: 0, 
                 left: 0,
                 right: 0,
-                background: '#1a1a1d',
-                borderTop: '1px solid #333'
+                background: 'transparent',
             }}
         >
-          <div className="neu-input" style={{ display: 'flex', alignItems: 'center', background: '#222', boxShadow: 'inset 5px 5px 10px #1a1a1d, inset -5px -5px 10px #2a2a2d', borderRadius: '15px' }}>
-            <div className="input-icon"><MessageSquare color="#999" /></div>
+          <div className="neu-input" style={{ display: 'flex', alignItems: 'center', background: '#e0e5ec', boxShadow: '8px 8px 20px #141416, -8px -8px 20px #202024', borderRadius: '15px' }}>
+            <div className="input-icon"><MessageSquare color="#9499b7" /></div>
             <input
               type="text"
               placeholder="Type your message..."
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              style={{ paddingLeft: '55px', fontSize: '1rem', color: '#fff' }}
+              style={{ paddingLeft: '55px', fontSize: '1rem', color: '#3d4468' }}
               disabled={status === 'thinking'}
             />
             <button
