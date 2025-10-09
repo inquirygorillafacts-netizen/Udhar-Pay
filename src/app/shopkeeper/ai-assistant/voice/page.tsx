@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Bot, MessageSquare, ArrowLeft, Mic, Ear, BrainCircuit, X, MicOff, PlayCircle, Languages } from 'lucide-react';
+import { Bot, MessageSquare, ArrowLeft, Mic, Ear, BrainCircuit, X, MicOff, PlayCircle } from 'lucide-react';
 import { askAiAssistant } from '@/ai/flows/assistant-flow';
 import TextAssistantModal from '@/components/assistant/TextAssistantModal';
 import { getHistory, addMessage, ChatMessage } from '@/lib/ai-memory';
@@ -68,16 +68,13 @@ export default function VoiceAssistantPage() {
         }
     }, []);
 
-    const toggleLanguage = () => {
-        const newLang = language === 'english' ? 'hindi' : 'english';
+     const handleLanguageChange = (checked: boolean) => {
+        const newLang = checked ? 'hindi' : 'english';
         setLanguage(newLang);
         localStorage.setItem('aiLanguage', newLang);
         stopAudio();
-        if (recognitionRef.current) {
-            // Abort current recognition and let the `onend` handler restart it naturally
+        if (recognitionRef.current && status !== 'uninitialized') {
             recognitionRef.current.abort();
-        } else {
-             // If not running, just set to idle to allow re-initialization
             setStatus('idle');
         }
     };
@@ -340,9 +337,17 @@ export default function VoiceAssistantPage() {
                  <button onClick={() => router.back()} className="glass-button">
                     <ArrowLeft size={20}/>
                 </button>
-                <button onClick={toggleLanguage} className="glass-button" disabled={status === 'uninitialized'}>
-                    <Languages size={18}/>
-                </button>
+                 <div style={{display: 'flex', alignItems: 'center', gap: '10px', color: 'white', fontWeight: 500}}>
+                    <label htmlFor='hindi-toggle' style={{fontSize: '14px'}}>हिन्दी</label>
+                    <div 
+                        className={`neu-toggle-switch ${language === 'hindi' ? 'active' : ''}`} 
+                        onClick={() => handleLanguageChange(language === 'english')}
+                        id='hindi-toggle'
+                        style={{ boxShadow: 'inset 2px 2px 4px rgba(0,0,0,0.5), inset -2px -2px 4px rgba(255,255,255,0.2)', background: language === 'hindi' ? '#00c896' : 'rgba(0,0,0,0.3)'}}
+                    >
+                        <div className="neu-toggle-handle" style={{background: 'white', boxShadow: '1px 1px 3px rgba(0,0,0,0.5)'}}></div>
+                    </div>
+                </div>
                  <button onClick={handleMuteToggle} className={`glass-button mic-button ${isMuted || status === 'speaking' ? 'active' : ''}`} disabled={status === 'uninitialized'}>
                     {status === 'speaking' ? <X size={24}/> : isMuted ? <MicOff size={24}/> : <Mic size={24}/>}
                 </button>
