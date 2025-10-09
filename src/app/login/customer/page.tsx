@@ -89,27 +89,33 @@ export default function CustomerAuthPage() {
             const result = await window.confirmationResult.confirm(otp);
             const user = result.user;
             
-            // Check if user doc exists, if not, create it
             const userDocRef = doc(firestore, 'customers', user.uid);
             const userDoc = await getDoc(userDocRef);
+            
+            localStorage.setItem('activeRole', 'customer');
+
             if (!userDoc.exists()) {
+                // This is a new user, create a basic profile
                 await setDoc(userDocRef, {
                     uid: user.uid,
-                    displayName: user.displayName || 'New User',
+                    displayName: user.displayName || 'New User', // Temporary name
                     email: user.email,
-                    mobileNumber: user.phoneNumber, // Correctly save the phone number here
+                    mobileNumber: user.phoneNumber,
                     photoURL: user.photoURL,
                     createdAt: serverTimestamp(),
                     customerCode: await generateUniqueCustomerCode(firestore),
                     connections: [],
                     role: 'customer'
                 });
+                 // Redirect new user to onboarding flow
+                router.push('/auth/onboarding?role=customer');
+            } else {
+                 // Existing user, redirect to dashboard
+                setSuccessMessage("Login Successful! Redirecting...");
+                sessionStorage.setItem('post_login_nav', 'true');
+                setTimeout(() => router.push('/customer/dashboard'), 1500);
             }
 
-            setSuccessMessage("Login Successful! Redirecting...");
-            localStorage.setItem('activeRole', 'customer');
-            sessionStorage.setItem('post_login_nav', 'true'); // Flag for initial navigation
-            setTimeout(() => router.push('/customer/dashboard'), 1500);
         } catch (err: any) {
             console.error("Error verifying OTP:", err);
             setError(err.message || "Invalid OTP.");

@@ -90,24 +90,30 @@ export default function ShopkeeperAuthPage() {
 
             const userDocRef = doc(firestore, 'shopkeepers', user.uid);
             const userDoc = await getDoc(userDocRef);
+            
+            localStorage.setItem('activeRole', 'shopkeeper');
+
             if (!userDoc.exists()) {
-                await setDoc(userDocRef, {
+                 await setDoc(userDocRef, {
                     uid: user.uid,
                     displayName: user.displayName || 'New Shopkeeper',
                     email: user.email,
-                    mobileNumber: user.phoneNumber, // Correctly save the phone number here
+                    mobileNumber: user.phoneNumber,
                     photoURL: user.photoURL,
                     createdAt: serverTimestamp(),
                     shopkeeperCode: await generateUniqueShopkeeperCode(firestore),
                     connections: [],
                     role: 'shopkeeper'
                 });
+                // New shopkeeper, redirect to onboarding
+                router.push('/auth/onboarding?role=shopkeeper');
+            } else {
+                // Existing shopkeeper
+                setSuccessMessage("Login Successful! Redirecting...");
+                sessionStorage.setItem('post_login_nav', 'true');
+                setTimeout(() => router.push('/shopkeeper/dashboard'), 1500);
             }
-
-            setSuccessMessage("Login Successful! Redirecting...");
-            localStorage.setItem('activeRole', 'shopkeeper');
-            sessionStorage.setItem('post_login_nav', 'true'); // Flag for initial navigation
-            setTimeout(() => router.push('/shopkeeper/dashboard'), 1500);
+            
         } catch (err: any) {
             console.error("Error verifying OTP:", err);
             setError(err.message || "Invalid OTP.");
