@@ -9,10 +9,10 @@ export const termsContent = `
 <p>You must register for an account to use the app. You agree to provide accurate, current, and complete information during the registration process and to update such information to keep it accurate, current, and complete.</p>
 
 <h2>4. Platform Commission</h2>
-<p>A commission of 2.5% is levied on the principal amount of every credit transaction facilitated through the platform. This commission is added to the amount payable by the customer. The shopkeeper receives the principal amount, and Udhar Pay retains the commission as a service fee.</p>
+<p>A commission of 2.5% is levied on the principal amount of every credit transaction. This commission amount is added to the customer's outstanding balance payable to the shopkeeper. The shopkeeper receives the full principal amount of the credit, and the commission is collected by Udhar Pay from the customer as part of their repayment.</p>
 
 <h2>5. Payment Gateway and Pricing</h2>
-<p>To process payments from customers to shopkeepers, Udhar Pay uses a third-party payment gateway. The charges for these transactions are as follows:</p>
+<p>To process payments from customers to shopkeepers, Udhar Pay uses Razorpay, a third-party payment gateway. The charges for these transactions are as follows:</p>
 <ul>
     <li><strong>Promotional Offer:</strong> 0% (Free) transaction fees for the first two months from the activation of production credentials.</li>
     <li><strong>Standard Rate:</strong> After the promotional period, a blended rate of <strong>1.95%</strong> will be charged on all transactions, with the exception of the cards listed below.</li>
