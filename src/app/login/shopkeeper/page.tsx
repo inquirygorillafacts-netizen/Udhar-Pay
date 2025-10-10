@@ -33,27 +33,35 @@ export default function ShopkeeperAuthPage() {
     const [timer, setTimer] = useState(60);
     const [canResend, setCanResend] = useState(false);
 
-    useEffect(() => {
+    const setupRecaptcha = () => {
         if (!auth) return;
 
-         const setupRecaptcha = () => {
-             if (!window.recaptchaVerifier || window.recaptchaVerifier.auth.app !== auth.app) {
-                const container = document.getElementById('recaptcha-container');
-                if (container) {
-                    container.innerHTML = ''; // Clear previous instance
-                     const verifier = new RecaptchaVerifier(auth, container, {
-                        'size': 'invisible', // Invisible reCAPTCHA
-                        'callback': () => {},
-                    });
-                    window.recaptchaVerifier = verifier;
-                }
-            }
-        };
-
-        const timerId = setTimeout(setupRecaptcha, 100);
-
-        return () => clearTimeout(timerId);
-    }, [auth]);
+        // Ensure any old verifier is cleared
+        if (window.recaptchaVerifier) {
+            window.recaptchaVerifier.clear();
+        }
+        
+        const container = document.getElementById('recaptcha-container');
+        if (container) {
+             // Ensure the container is empty before creating a new verifier
+            container.innerHTML = '';
+             const verifier = new RecaptchaVerifier(auth, container, {
+                'size': 'invisible', // Invisible reCAPTCHA
+                'callback': () => {},
+            });
+            window.recaptchaVerifier = verifier;
+        } else {
+            console.error("reCAPTCHA container not found.");
+        }
+    };
+    
+    // Setup recaptcha only when we are on the phone number step
+    useEffect(() => {
+        if (!isOtpSent) {
+            const timerId = setTimeout(setupRecaptcha, 100);
+            return () => clearTimeout(timerId);
+        }
+    }, [isOtpSent, auth]);
 
     useEffect(() => {
         let interval: NodeJS.Timeout | undefined;
@@ -75,42 +83,46 @@ export default function ShopkeeperAuthPage() {
         setCanResend(false);
     };
 
-    const handleSendOtp = async (e: React.FormEvent, isResend = false) => {
-        e.preventDefault();
+    const handleSendOtp = async (isResend = false) => {
         setError('');
         setLoading(true);
 
-        if (!window.recaptchaVerifier) {
-            setError("reCAPTCHA not ready. Please wait a moment and try again.");
-            setLoading(false);
-            return;
+        if (!isResend) {
+            setupRecaptcha();
         }
 
-        try {
-            const fullPhoneNumber = `+91${phoneNumber}`;
-            const confirmationResult = await signInWithPhoneNumber(auth, fullPhoneNumber, window.recaptchaVerifier);
-            window.confirmationResult = confirmationResult;
-            setIsOtpSent(true);
-            setSuccessMessage("OTP sent successfully!");
-            if(isResend) resetTimer();
-        } catch (err: any) {
-            console.error("Error sending OTP:", err);
-             if (err.code === 'auth/user-disabled') {
-                setShowBlockedModal(true);
-            } else {
-                setError(err.message || "Failed to send OTP. Please check the number and try again.");
+        setTimeout(async () => {
+            if (!window.recaptchaVerifier) {
+                setError("reCAPTCHA not ready. Please try again.");
+                setLoading(false);
+                return;
             }
-        } finally {
-            setLoading(false);
-        }
+
+            try {
+                const fullPhoneNumber = `+91${phoneNumber}`;
+                const confirmationResult = await signInWithPhoneNumber(auth, fullPhoneNumber, window.recaptchaVerifier);
+                window.confirmationResult = confirmationResult;
+                setIsOtpSent(true);
+                setSuccessMessage("OTP sent successfully!");
+                resetTimer();
+            } catch (err: any) {
+                console.error("Error sending OTP:", err);
+                 if (err.code === 'auth/user-disabled') {
+                    setShowBlockedModal(true);
+                } else if (err.message.includes("reCAPTCHA client element has been removed")) {
+                     setError("reCAPTCHA expired. Please try sending the OTP again.");
+                     setupRecaptcha(); // Attempt to fix it for the next try
+                } else {
+                    setError(err.message || "Failed to send OTP. Please check the number and try again.");
+                }
+            } finally {
+                setLoading(false);
+            }
+        }, 500);
     };
     
     const handleResend = () => {
-        setIsOtpSent(false);
-        setOtp('');
-        setError('');
-        setSuccessMessage('');
-        resetTimer();
+        handleSendOtp(true);
     };
 
     const handleVerifyOtp = async (e: React.FormEvent) => {
@@ -199,7 +211,7 @@ export default function ShopkeeperAuthPage() {
                                 <h2>Shopkeeper Login</h2>
                                 <p>Enter your phone number to receive an OTP</p>
                             </div>
-                            <form className="login-form" noValidate onSubmit={handleSendOtp}>
+                            <form className="login-form" noValidate onSubmit={(e) => { e.preventDefault(); handleSendOtp(false); }}>
                                 <div className="form-group">
                                     <div className="neu-input">
                                         <input type="tel" id="phone" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} required placeholder=" " maxLength={10} />
@@ -244,6 +256,7 @@ export default function ShopkeeperAuthPage() {
                                             onClick={handleResend}
                                             className="forgot-link"
                                             style={{background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600}}
+                                            disabled={loading}
                                         >
                                             Resend OTP
                                         </button>
