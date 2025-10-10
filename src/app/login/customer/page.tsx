@@ -31,6 +31,7 @@ export default function CustomerAuthPage() {
     const [successMessage, setSuccessMessage] = useState('');
     const [showBlockedModal, setShowBlockedModal] = useState(false);
     const [showInvalidOtpModal, setShowInvalidOtpModal] = useState(false);
+    const [showGenericErrorModal, setShowGenericErrorModal] = useState(false);
 
     const [timer, setTimer] = useState(60);
     const [canResend, setCanResend] = useState(false);
@@ -131,9 +132,7 @@ export default function CustomerAuthPage() {
     };
     
     const handleResend = () => {
-        // Instead of going back, we just re-trigger the send OTP logic.
-        // The UI will show a loading state on the button.
-        handleSendOtp(true);
+        setIsOtpSent(false);
     };
 
     const handleVerifyOtp = async (e: React.FormEvent) => {
@@ -183,7 +182,7 @@ export default function CustomerAuthPage() {
             } else if (err.code === 'auth/invalid-verification-code') {
                  setShowInvalidOtpModal(true);
             } else {
-                setError("An error occurred. Please try again.");
+                setShowGenericErrorModal(true);
             }
             setLoading(false);
         }
@@ -227,6 +226,24 @@ export default function CustomerAuthPage() {
                         The code you entered is incorrect. Please check the code and try again.
                     </p>
                     <button className="neu-button" onClick={() => setShowInvalidOtpModal(false)} style={{margin: 0}}>
+                        Close
+                    </button>
+                 </div>
+            </div>
+        )}
+         {showGenericErrorModal && (
+            <div className="modal-overlay">
+                 <div className="login-card modal-content" style={{maxWidth: '450px'}} onClick={(e) => e.stopPropagation()}>
+                    <div className="modal-header" style={{flexDirection: 'column', textAlign: 'center', marginBottom: '25px'}}>
+                        <div className="neu-icon" style={{background: '#ffdfe4', margin: '0 auto 20px'}}>
+                            <AlertTriangle size={30} className="text-red-500"/>
+                        </div>
+                        <h2 style={{color: '#3d4468', fontSize: '1.5rem'}}>Error</h2>
+                    </div>
+                     <p style={{color: '#6c7293', textAlign: 'center', marginBottom: '30px', fontSize: '1rem', lineHeight: 1.7}}>
+                        An unexpected error occurred. Please try again later.
+                    </p>
+                    <button className="neu-button" onClick={() => setShowGenericErrorModal(false)} style={{margin: 0}}>
                         Close
                     </button>
                  </div>
