@@ -87,7 +87,7 @@ export default function ShopkeeperAuthPage() {
         setError('');
         setLoading(true);
 
-        if (!isResend) {
+        if (!window.recaptchaVerifier) {
             setupRecaptcha();
         }
 
@@ -169,8 +169,10 @@ export default function ShopkeeperAuthPage() {
             console.error("Error verifying OTP:", err);
             if (err.code === 'auth/user-disabled') {
                 setShowBlockedModal(true);
+            } else if (err.code === 'auth/invalid-verification-code') {
+                setError("Invalid OTP. Please check the code and try again.");
             } else {
-                setError(err.message || "Invalid OTP.");
+                setError("An error occurred. Please try again.");
             }
             setLoading(false);
         }

@@ -89,8 +89,7 @@ export default function CustomerAuthPage() {
         setError('');
         setLoading(true);
 
-        // Always ensure reCAPTCHA is ready before sending OTP
-        if (!isResend) {
+        if (!window.recaptchaVerifier) {
             setupRecaptcha();
         }
 
@@ -125,7 +124,6 @@ export default function CustomerAuthPage() {
     };
     
     const handleResend = () => {
-        // Just trigger the send OTP logic again on the same screen
         handleSendOtp(true);
     };
 
@@ -173,8 +171,10 @@ export default function CustomerAuthPage() {
             console.error("Error verifying OTP:", err);
             if (err.code === 'auth/user-disabled') {
                 setShowBlockedModal(true);
+            } else if (err.code === 'auth/invalid-verification-code') {
+                setError("Invalid OTP. Please check the code and try again.");
             } else {
-                setError(err.message || "Invalid OTP.");
+                setError("An error occurred. Please try again.");
             }
             setLoading(false);
         }
