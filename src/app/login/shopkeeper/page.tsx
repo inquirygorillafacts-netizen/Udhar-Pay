@@ -29,6 +29,7 @@ export default function ShopkeeperAuthPage() {
     const [error, setError] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
     const [showBlockedModal, setShowBlockedModal] = useState(false);
+    const [showInvalidOtpModal, setShowInvalidOtpModal] = useState(false);
     
     const [timer, setTimer] = useState(60);
     const [canResend, setCanResend] = useState(false);
@@ -45,11 +46,15 @@ export default function ShopkeeperAuthPage() {
         if (container) {
              // Ensure the container is empty before creating a new verifier
             container.innerHTML = '';
-             const verifier = new RecaptchaVerifier(auth, container, {
-                'size': 'invisible', // Invisible reCAPTCHA
-                'callback': () => {},
-            });
-            window.recaptchaVerifier = verifier;
+            try {
+                const verifier = new RecaptchaVerifier(auth, container, {
+                    'size': 'invisible', // Invisible reCAPTCHA
+                    'callback': () => {},
+                });
+                window.recaptchaVerifier = verifier;
+            } catch (e) {
+                console.error("Recaptcha verifier error", e);
+            }
         } else {
             console.error("reCAPTCHA container not found.");
         }
@@ -170,7 +175,7 @@ export default function ShopkeeperAuthPage() {
             if (err.code === 'auth/user-disabled') {
                 setShowBlockedModal(true);
             } else if (err.code === 'auth/invalid-verification-code') {
-                setError("Invalid OTP. Please check the code and try again.");
+                setShowInvalidOtpModal(true);
             } else {
                 setError("An error occurred. Please try again.");
             }
@@ -200,6 +205,24 @@ export default function ShopkeeperAuthPage() {
                             Close
                         </button>
                     </div>
+                 </div>
+            </div>
+        )}
+        {showInvalidOtpModal && (
+            <div className="modal-overlay">
+                 <div className="login-card modal-content" style={{maxWidth: '450px'}} onClick={(e) => e.stopPropagation()}>
+                    <div className="modal-header" style={{flexDirection: 'column', textAlign: 'center', marginBottom: '25px'}}>
+                        <div className="neu-icon" style={{background: '#ffdfe4', margin: '0 auto 20px'}}>
+                            <AlertTriangle size={30} className="text-red-500"/>
+                        </div>
+                        <h2 style={{color: '#3d4468', fontSize: '1.5rem'}}>Invalid OTP</h2>
+                    </div>
+                     <p style={{color: '#6c7293', textAlign: 'center', marginBottom: '30px', fontSize: '1rem', lineHeight: 1.7}}>
+                        The code you entered is incorrect. Please check the code and try again.
+                    </p>
+                    <button className="neu-button" onClick={() => setShowInvalidOtpModal(false)} style={{margin: 0}}>
+                        Close
+                    </button>
                  </div>
             </div>
         )}
