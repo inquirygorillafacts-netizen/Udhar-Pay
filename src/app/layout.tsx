@@ -1,3 +1,4 @@
+
 import type { Metadata } from 'next';
 import './globals.css';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
@@ -25,7 +26,7 @@ export default function RootLayout({
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#FFFFFF" />
+        <meta name="theme-color" content="#e0e5ec" />
       </head>
       <body>
         <FirebaseClientProvider>
