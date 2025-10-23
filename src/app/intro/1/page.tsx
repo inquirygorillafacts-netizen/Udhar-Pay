@@ -15,17 +15,6 @@ export default function IntroPage1() {
     <main>
       <div className="login-container" style={{ justifyContent: 'flex-end', flexDirection: 'column', gap: '2rem', paddingBottom: '3rem' }}>
         
-        {/* Top Skip Button */}
-        <div style={{ position: 'absolute', top: '20px', right: '20px' }}>
-          <button 
-            onClick={() => router.push('/auth')} 
-            className="neu-button" 
-            style={{ width: 'auto', padding: '10px 20px', margin: 0, fontSize: '14px', background: 'transparent', boxShadow: 'none' }}
-          >
-            Skip
-          </button>
-        </div>
-
         {/* Image/Graphic */}
         <div className="login-card" style={{ padding: '20px', borderRadius: '50%', boxShadow: 'none', background: 'transparent' }}>
            <Image src="/logo.png" alt="Udhar Pay Logo" width={300} height={300} style={{ borderRadius: '30px' }} />

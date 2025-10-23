@@ -10,26 +10,10 @@ export default function IntroPage2() {
   const handleNext = () => {
     router.push('/intro/3');
   };
-  
-  const handleSkip = () => {
-    localStorage.setItem('hasSeenOnboarding', 'true');
-    router.replace('/auth');
-  }
 
   return (
     <main>
        <div className="login-container" style={{ justifyContent: 'flex-end', flexDirection: 'column', gap: '2rem', paddingBottom: '3rem' }}>
-        
-        {/* Top Skip Button */}
-        <div style={{ position: 'absolute', top: '20px', right: '20px' }}>
-          <button 
-            onClick={handleSkip} 
-            className="neu-button" 
-            style={{ width: 'auto', padding: '10px 20px', margin: 0, fontSize: '14px', background: 'transparent', boxShadow: 'none' }}
-          >
-            Skip
-          </button>
-        </div>
         
         {/* Video Player */}
         <div 
