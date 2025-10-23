@@ -951,7 +951,7 @@ const proceedWithCreditRequest = async (customer: CustomerForSelection, amount: 
         </div>
       )}
 
-    <header className="dashboard-header">
+    <header className="dashboard-header" style={{position: 'sticky', top: 0, zIndex: 10}}>
         <button onClick={handleRoleSwitchClick} className="neu-button" style={{width: '45px', height: '45px', margin: 0, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0}}>
            <Repeat size={20}/>
         </button>
