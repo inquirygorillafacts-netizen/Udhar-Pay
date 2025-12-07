@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { LayoutDashboard, User, LifeBuoy, Users, PieChart, Bot, Wallet, Settings } from 'lucide-react';
+import { LayoutDashboard, User, PieChart, Users, Wallet } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useFirebase } from '@/firebase';
@@ -36,17 +36,12 @@ export default function ShopkeeperLayout({
     );
   }
   
-  const isAiAssistantActive = pathname.startsWith('/shopkeeper/ai-assistant');
-  const isCustomersActive = pathname.startsWith('/shopkeeper/customers');
-
-  // Hide nav bar for the AI assistant page to make it full-screen
-  const showNavBar = !isAiAssistantActive;
+  const isCustomersActive = pathname.startsWith('/shopkeeper/customers') || pathname.startsWith('/shopkeeper/customer/');
 
   return (
-    <div style={{ paddingBottom: showNavBar ? '80px' : '0' }}>
+    <div style={{ paddingBottom: '80px' }}>
       <main>{children}</main>
 
-      {showNavBar && (
         <nav className="admin-bottom-nav">
           <Link href="/shopkeeper/dashboard" className={`admin-nav-item ${pathname === '/shopkeeper/dashboard' ? 'active' : ''}`}>
             <LayoutDashboard size={24} />
@@ -64,16 +59,11 @@ export default function ShopkeeperLayout({
             <Wallet size={24} />
             <span>Wallet</span>
           </Link>
-          <Link href="/shopkeeper/ai-assistant/voice" className={`admin-nav-item`}>
-              <Bot size={24} />
-              <span>AI</span>
-          </Link>
           <Link href="/shopkeeper/profile" className={`admin-nav-item ${pathname === '/shopkeeper/profile' ? 'active' : ''}`}>
             <User size={24} />
             <span>Profile</span>
           </Link>
         </nav>
-      )}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 'use server';
 /**
  * @fileOverview A conversational AI assistant flow that processes text input
- * and returns a textual response. The audio generation is now handled client-side.
+ * and returns a textual response.
  *
  * - `askAiAssistant` - A function that orchestrates the text-to-text process.
  * - `AssistantInput` - The input type for the `askAiAssistant` function.
@@ -14,7 +14,7 @@ import type { ChatMessage } from '@/lib/ai-memory';
 
 // Define the input schema for the assistant
 const AssistantInputSchema = z.object({
-  query: z.string().describe("The user's spoken query as text."),
+  query: z.string().describe("The user's query as text."),
   history: z.array(z.object({
       sender: z.enum(['user', 'ai']),
       text: z.string(),
@@ -23,7 +23,7 @@ const AssistantInputSchema = z.object({
 });
 export type AssistantInput = z.infer<typeof AssistantInputSchema>;
 
-// Define the output schema for the assistant - only text is returned now.
+// Define the output schema for the assistant
 const AssistantOutputSchema = z.object({
   text: z.string().describe("The AI's textual response."),
 });
@@ -77,10 +77,6 @@ const assistantFlow = ai.defineFlow(
       output: {
         format: 'text',
       },
-      // Pass the language to the model config if needed, though prompt is primary driver
-      config: {
-        // You can add language-specific configurations here if the model supports it
-      }
     });
 
     if (!textResponse) {
