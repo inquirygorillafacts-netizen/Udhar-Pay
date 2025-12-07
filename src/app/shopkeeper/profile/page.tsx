@@ -5,10 +5,9 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
-import { Camera, User, Phone, LogOut, Settings, Lock, ShieldOff, KeyRound, Store, CheckCircle, AlertTriangle, LandPlot, Bot } from 'lucide-react';
+import { Camera, User, Phone, LogOut, Settings, Lock, ShieldOff, KeyRound, Store, CheckCircle, AlertTriangle, LandPlot } from 'lucide-react';
 import Link from 'next/link';
 import RoleEnrollmentModal from '@/components/auth/RoleEnrollmentModal';
-import TextAssistantModal from '@/components/assistant/TextAssistantModal';
 import axios from 'axios';
 
 interface UserProfile {
@@ -62,7 +61,6 @@ export default function ShopkeeperProfilePage() {
   const [isChangingPin, setIsChangingPin] = useState(false);
   
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [isTextAssistantOpen, setIsTextAssistantOpen] = useState(false);
   
   const [notification, setNotification] = useState<Notification | null>(null);
 
@@ -267,7 +265,6 @@ export default function ShopkeeperProfilePage() {
 
   return (
     <>
-    {isTextAssistantOpen && <TextAssistantModal onClose={() => setIsTextAssistantOpen(false)} />}
     {notification && (
         <div className="notification-overlay" onClick={() => setNotification(null)}>
             <div className="login-card modal-content" style={{maxWidth: '450px'}} onClick={(e) => e.stopPropagation()}>
@@ -358,10 +355,6 @@ export default function ShopkeeperProfilePage() {
 
         <div className="setting-section" style={{marginTop: '40px'}}>
              <h3 className="setting-title" style={{textAlign: 'center'}}>Tools & Services</h3>
-             <button onClick={() => setIsTextAssistantOpen(true)} className="neu-button" style={{margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
-                <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}><Bot size={20} /><span>AI Assistant</span></div>
-                <span>&rarr;</span>
-            </button>
         </div>
 
 
