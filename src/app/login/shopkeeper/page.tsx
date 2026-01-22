@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import './shopkeeper.css';
 import { Store, Phone, Shield, MessageCircle, AlertTriangle, HelpCircle } from 'lucide-react';
 import { useFirebase } from '@/firebase';
-import { RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult } from 'firebase/auth';
+import { RecaptchaVerifier, signInWithPhoneNumber, type ConfirmationResult, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { generateUniqueShopkeeperCode } from '@/lib/code-helpers';
 import Link from 'next/link';
@@ -127,8 +127,47 @@ export default function ShopkeeperAuthPage() {
         }, 500);
     };
     
+    const handleGoogleSignIn = async () => {
+        setError('');
+        setLoading(true);
+        const provider = new GoogleAuthProvider();
+        try {
+            const result = await signInWithPopup(auth, provider);
+            const user = result.user;
+    
+            const userDocRef = doc(firestore, 'shopkeepers', user.uid);
+            const userDoc = await getDoc(userDocRef);
+    
+            localStorage.setItem('activeRole', 'shopkeeper');
+    
+            if (!userDoc.exists()) {
+                await setDoc(userDocRef, {
+                    uid: user.uid,
+                    displayName: user.displayName,
+                    email: user.email,
+                    mobileNumber: user.phoneNumber,
+                    photoURL: user.photoURL,
+                    createdAt: serverTimestamp(),
+                    shopkeeperCode: await generateUniqueShopkeeperCode(firestore),
+                    connections: [],
+                    role: 'shopkeeper'
+                });
+                router.push('/auth/onboarding?role=shopkeeper');
+            } else {
+                setSuccessMessage("Login Successful! Redirecting...");
+                sessionStorage.setItem('post_login_nav', 'true');
+                setTimeout(() => router.push('/shopkeeper/dashboard'), 1500);
+            }
+        } catch (err: any) {
+            console.error("Google Sign-in Error:", err);
+            setError(err.message || "Failed to sign in with Google.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleResend = () => {
-        setIsOtpSent(false);
+        handleSendOtp(true);
     };
 
     const handleVerifyOtp = async (e: React.FormEvent) => {
@@ -270,6 +309,15 @@ export default function ShopkeeperAuthPage() {
                                     <div className="btn-loader"><div className="neu-spinner"></div></div>
                                 </button>
                             </form>
+                            <div className="divider">
+                                <div className="divider-line"></div>
+                                <span>OR</span>
+                                <div className="divider-line"></div>
+                            </div>
+                            <button type="button" onClick={handleGoogleSignIn} disabled={loading} className="neu-button" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', margin: 'auto', marginBottom: 0 }}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C12.955 4 4 12.955 4 24s8.955 20 20 20s20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"></path><path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4C16.318 4 9.656 8.337 6.306 14.691z"></path><path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.223 0-9.61-3.657-11.303-8H6.393c3.561 7.625 11.233 13 19.607 13z"></path><path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571l6.19 5.238C44.572 36.833 48 30.865 48 24c0-1.341-.138-2.65-.389-3.917z"></path></svg>
+                                Sign in with Google
+                            </button>
                         </>
                     ) : (
                         <>
