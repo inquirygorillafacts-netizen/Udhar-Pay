@@ -1,10 +1,4 @@
 /* Neumorphism Login Form - Complete & Self-Contained */
-body, html {
-    background: #e0e5ec;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
 
 .login-container-wrapper {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
