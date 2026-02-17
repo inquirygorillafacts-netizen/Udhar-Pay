@@ -39,7 +39,7 @@
     "html-to-image": "^1.11.11",
     "html5-qrcode": "^2.3.8",
     "lucide-react": "^0.475.0",
-    "next": "15.3.8",
+    "next": "^16.1.6",
     "patch-package": "^8.0.0",
     "razorpay": "^2.9.4",
     "react": "^18.3.1",
