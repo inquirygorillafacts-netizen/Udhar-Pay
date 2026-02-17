@@ -352,7 +352,7 @@ export default function CustomerProfilePage() {
         
         <div className="setting-section" style={{marginTop: '40px'}}>
              <h3 className="setting-title" style={{textAlign: 'center'}}>Financial Services</h3>
-             <Link href="/customer/credit-cards" className="neu-button" style={{margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
+             <Link href="/customer/credit-cards" className="neu-button" style={{margin: '0 0 15px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
                 <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}><CreditCard size={20} /><span>Credit Card & Loans</span></div>
                 <span>&rarr;</span>
             </Link>

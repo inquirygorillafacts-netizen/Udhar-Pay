@@ -2,7 +2,9 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { CreditCard, Phone, CheckCircle, IndianRupee, LandPlot, ArrowRight } from 'lucide-react';
+import { CreditCard, Phone, CheckCircle, IndianRupee, LandPlot, ArrowRight, Bot } from 'lucide-react';
+import { useState } from 'react';
+import TextAssistantModal from '@/components/assistant/TextAssistantModal';
 
 const creditCardProducts = [
     {
@@ -41,6 +43,7 @@ const creditCardProducts = [
 
 
 export default function CustomerCreditCardsPage() {
+    const [isTextAssistantOpen, setIsTextAssistantOpen] = useState(false);
 
     const handleApplyNow = (cardName: string) => {
         // In a real app, this would open a detailed application form or a multi-step modal.
@@ -48,6 +51,8 @@ export default function CustomerCreditCardsPage() {
     }
 
     return (
+        <>
+        {isTextAssistantOpen && <TextAssistantModal onClose={() => setIsTextAssistantOpen(false)} />}
         <main className="dashboard-main-content" style={{ padding: '20px', margin: 'auto' }}>
             
              {/* Loan Banner */}
@@ -102,5 +107,6 @@ export default function CustomerCreditCardsPage() {
                 ))}
             </div>
         </main>
+        </>
     );
 }

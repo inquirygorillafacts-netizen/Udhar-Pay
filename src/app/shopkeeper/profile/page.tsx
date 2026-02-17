@@ -353,6 +353,11 @@ export default function ShopkeeperProfilePage() {
               )}
           </div>
 
+        <div className="setting-section" style={{marginTop: '40px'}}>
+             <h3 className="setting-title" style={{textAlign: 'center'}}>Tools & Services</h3>
+        </div>
+
+
         <div style={{marginTop: '30px'}}>
             <button className="neu-button sign-out-btn" onClick={handleSignOut} style={{width: '100%', margin: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'}}><LogOut size={20}/><span>Sign Out</span></button>
         </div>
